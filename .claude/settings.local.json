@@ -1,6 +1,22 @@
 {
   "permissions": {
     "allow": [
+      "Bash(git fetch --all --prune)",
+      "Bash(if [ -d \"specs\" ])",
+      "Bash(then ls -d specs/*-*)",
+      "Bash(else echo \"No specs directory found\")",
+      "Bash(fi)",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -File .specify/scripts/powershell/create-new-feature.ps1 -Json -Number 1 -ShortName \"todo-core\" \"## 001: Core Logic - Tech Stack: Python \\(UV\\), In-memory storage. - Features: CRUD, Task Completion, Console Interface.\")",
+      "Bash(powershell.exe:*)",
+      "Bash(git config:*)",
+      "Bash(.specify/scripts/bash/create-phr.sh:*)",
+      "Bash(if [ -d \".specify\" ])",
+      "Bash(then find .specify -name \"create-phr.sh\" -o -name \"*.phr.*\")",
+      "Bash(else echo \"No .specify directory\")",
+      "Bash(git rev-parse:*)",
+      "Bash(uv sync:*)",
+      "Bash(uv run pytest:*)",
+      "Bash(uv run:*)"
     ]
   }
 }
