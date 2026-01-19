@@ -16,7 +16,9 @@
       "Bash(git rev-parse:*)",
       "Bash(uv sync:*)",
       "Bash(uv run pytest:*)",
-      "Bash(uv run:*)"
+      "Bash(uv run:*)",
+      "Bash(git add:*)",
+      "Bash(git ls-tree:*)"
     ]
   }
 }

@@ -57,3 +57,8 @@ Thumbs.db
 
 # Claude Code settings
 .claude/settings.local.json
+
+# Node
+node_modules/
+.next/
+*.tsbuildinfo
