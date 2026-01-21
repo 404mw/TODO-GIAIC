@@ -18,7 +18,17 @@
       "Bash(uv run pytest:*)",
       "Bash(uv run:*)",
       "Bash(git add:*)",
-      "Bash(git ls-tree:*)"
+      "Bash(git ls-tree:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(dir:*)",
+      "Bash(powershell -ExecutionPolicy Bypass -File \".specify/scripts/powershell/setup-plan.ps1\" -Json)",
+      "Bash(powershell -ExecutionPolicy Bypass -File \".specify/scripts/powershell/update-agent-context.ps1\" -AgentType claude)",
+      "Bash(git checkout:*)",
+      "Bash(powershell -ExecutionPolicy Bypass -File \".specify/scripts/powershell/check-prerequisites.ps1\" -Json)",
+      "Bash(ls -la \"G:\\\\Hackathons\\\\GIAIC_Hackathons\\\\02-TODO\\\\specs\\\\003-perpetua-backend\"\" 2>&1 || echo \"Directory may not exist \")",
+      "Bash(powershell:*)",
+      "Bash(bash .specify/scripts/bash/create-phr.sh:*)"
     ]
   }
 }

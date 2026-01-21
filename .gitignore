@@ -62,3 +62,6 @@ Thumbs.db
 node_modules/
 .next/
 *.tsbuildinfo
+
+# Production Directories
+my_prompts
