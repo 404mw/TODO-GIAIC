@@ -1,0 +1,293 @@
+# Prometheus Alerting Rules for Perpetua Flow Backend
+#
+# T389: p95 latency > 500ms (SC-003)
+# T392: AI chat p95 > 5s (SC-005)
+# T396: webhook processing > 30s (SC-008)
+# T399: recovery > 30s (SC-010)
+# T402: notification delay > 60s (SC-012)
+
+groups:
+  # ===========================================================================
+  # SC-003: API Response Latency Alerts
+  # T389: alerting rule for p95 latency > 500ms
+  # ===========================================================================
+  - name: api_latency_alerts
+    rules:
+      - alert: APILatencyP95High
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket{
+              handler!~"/api/v1/ai/.*"
+            }[5m])) by (le)
+          ) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          success_criteria: SC-003
+        annotations:
+          summary: "API p95 latency exceeds 500ms"
+          description: >
+            The 95th percentile of API response latency has exceeded 500ms
+            for the last 5 minutes. Current value: {{ $value }}s.
+            SC-003 target: p95 < 500ms.
+          runbook: "docs/runbooks/high-latency.md"
+
+      - alert: APILatencyP99Critical
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(http_request_duration_seconds_bucket{
+              handler!~"/api/v1/ai/.*"
+            }[5m])) by (le)
+          ) > 1.0
+        for: 3m
+        labels:
+          severity: critical
+          success_criteria: SC-003
+        annotations:
+          summary: "API p99 latency exceeds 1000ms"
+          description: >
+            The 99th percentile of API response latency has exceeded 1s
+            for the last 3 minutes. Current value: {{ $value }}s.
+          runbook: "docs/runbooks/high-latency.md"
+
+  # ===========================================================================
+  # SC-005: AI Chat Response Time Alerts
+  # T392: alerting rule for AI chat p95 > 5s
+  # ===========================================================================
+  - name: ai_performance_alerts
+    rules:
+      - alert: AIChatLatencyP95High
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket{
+              handler=~"/api/v1/ai/chat"
+            }[5m])) by (le)
+          ) > 5.0
+        for: 5m
+        labels:
+          severity: warning
+          success_criteria: SC-005
+        annotations:
+          summary: "AI chat p95 latency exceeds 5 seconds"
+          description: >
+            The 95th percentile of AI chat response time has exceeded 5s
+            for the last 5 minutes. Current value: {{ $value }}s.
+            SC-005 target: p95 < 5s.
+          runbook: "docs/runbooks/ai-latency.md"
+
+      - alert: AIChatLatencyP99Critical
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(http_request_duration_seconds_bucket{
+              handler=~"/api/v1/ai/chat"
+            }[5m])) by (le)
+          ) > 10.0
+        for: 3m
+        labels:
+          severity: critical
+          success_criteria: SC-005
+        annotations:
+          summary: "AI chat p99 latency exceeds 10 seconds"
+          description: >
+            The 99th percentile of AI chat response time has exceeded 10s.
+            This may indicate OpenAI API issues or resource exhaustion.
+          runbook: "docs/runbooks/ai-latency.md"
+
+      - alert: AIServiceUnavailable
+        expr: |
+          sum(rate(ai_request_errors_total{error_type="service_unavailable"}[5m])) > 0.1
+        for: 2m
+        labels:
+          severity: critical
+          success_criteria: SC-005
+        annotations:
+          summary: "AI service returning 503 errors"
+          description: >
+            AI service is returning service unavailable errors.
+            Check OpenAI API status and connection.
+
+  # ===========================================================================
+  # SC-008: Webhook Processing Alerts
+  # T396: alerting rule for webhook processing > 30s
+  # ===========================================================================
+  - name: webhook_processing_alerts
+    rules:
+      - alert: WebhookProcessingSlowWarning
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(webhook_processing_duration_seconds_bucket[5m])) by (le)
+          ) > 15.0
+        for: 5m
+        labels:
+          severity: warning
+          success_criteria: SC-008
+        annotations:
+          summary: "Webhook processing p95 exceeds 15 seconds"
+          description: >
+            Webhook processing is approaching the 30s threshold.
+            Current p95: {{ $value }}s.
+          runbook: "docs/runbooks/webhook-processing.md"
+
+      - alert: WebhookProcessingSlow
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(webhook_processing_duration_seconds_bucket[5m])) by (le)
+          ) > 30.0
+        for: 3m
+        labels:
+          severity: critical
+          success_criteria: SC-008
+        annotations:
+          summary: "Webhook processing p95 exceeds 30 seconds"
+          description: >
+            Webhook processing has exceeded the 30s SLA.
+            Current p95: {{ $value }}s. SC-008 target: < 30s.
+          runbook: "docs/runbooks/webhook-processing.md"
+
+      - alert: WebhookFailureRateHigh
+        expr: |
+          sum(rate(webhook_processing_errors_total[5m]))
+          / sum(rate(webhook_processing_total[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Webhook failure rate exceeds 5%"
+          description: >
+            More than 5% of webhook events are failing to process.
+
+  # ===========================================================================
+  # SC-010: Task Recovery Alerts
+  # T399: alerting rule for recovery > 30s
+  # ===========================================================================
+  - name: recovery_alerts
+    rules:
+      - alert: TaskRecoverySlowWarning
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(recovery_duration_seconds_bucket[5m])) by (le)
+          ) > 15.0
+        for: 5m
+        labels:
+          severity: warning
+          success_criteria: SC-010
+        annotations:
+          summary: "Task recovery p95 exceeds 15 seconds"
+          description: >
+            Task recovery is approaching the 30s threshold.
+            Current p95: {{ $value }}s.
+
+      - alert: TaskRecoverySlow
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(recovery_duration_seconds_bucket[5m])) by (le)
+          ) > 30.0
+        for: 3m
+        labels:
+          severity: critical
+          success_criteria: SC-010
+        annotations:
+          summary: "Task recovery p95 exceeds 30 seconds"
+          description: >
+            Task recovery has exceeded the 30s SLA.
+            SC-010 target: recovery < 30s.
+          runbook: "docs/runbooks/task-recovery.md"
+
+      - alert: RecoveryFailureRateHigh
+        expr: |
+          sum(rate(recovery_operations_total{status="error"}[5m]))
+          / sum(rate(recovery_operations_total[5m])) > 0.01
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Recovery failure rate exceeds 1%"
+
+  # ===========================================================================
+  # SC-012: Push Notification Delivery Alerts
+  # T402: alerting rule for notification delay > 60s
+  # ===========================================================================
+  - name: notification_alerts
+    rules:
+      - alert: NotificationDeliverySlowWarning
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(notification_delivery_duration_seconds_bucket[5m])) by (le)
+          ) > 30.0
+        for: 5m
+        labels:
+          severity: warning
+          success_criteria: SC-012
+        annotations:
+          summary: "Notification delivery p95 exceeds 30 seconds"
+          description: >
+            Push notification delivery is approaching the 60s threshold.
+            Current p95: {{ $value }}s.
+
+      - alert: NotificationDeliverySlow
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(notification_delivery_duration_seconds_bucket[5m])) by (le)
+          ) > 60.0
+        for: 3m
+        labels:
+          severity: critical
+          success_criteria: SC-012
+        annotations:
+          summary: "Notification delivery p95 exceeds 60 seconds"
+          description: >
+            Push notification delivery has exceeded the 60s SLA.
+            SC-012 target: 95% within 60 seconds.
+          runbook: "docs/runbooks/notification-delivery.md"
+
+      - alert: NotificationFailureRateHigh
+        expr: |
+          sum(rate(push_notification_errors_total[5m]))
+          / sum(rate(push_notification_total[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Push notification failure rate exceeds 5%"
+          description: >
+            More than 5% of push notifications are failing.
+            Check WebPush service and subscription validity.
+
+  # ===========================================================================
+  # SC-004: Task CRUD Success Rate
+  # ===========================================================================
+  - name: task_crud_alerts
+    rules:
+      - alert: TaskCRUDSuccessRateLow
+        expr: |
+          1 - (
+            sum(rate(http_request_errors_total{handler=~"/api/v1/tasks.*"}[5m]))
+            / sum(rate(http_requests_total{handler=~"/api/v1/tasks.*"}[5m]))
+          ) < 0.999
+        for: 5m
+        labels:
+          severity: critical
+          success_criteria: SC-004
+        annotations:
+          summary: "Task CRUD success rate below 99.9%"
+          description: >
+            Task operation success rate has dropped below 99.9%.
+            SC-004 target: 99.9% success rate.
+
+  # ===========================================================================
+  # SC-011: Credit Balance Accuracy
+  # ===========================================================================
+  - name: credit_alerts
+    rules:
+      - alert: CreditBalanceInconsistency
+        expr: |
+          sum(credit_balance_check_failures_total) > 0
+        for: 1m
+        labels:
+          severity: critical
+          success_criteria: SC-011
+        annotations:
+          summary: "Credit balance inconsistency detected"
+          description: >
+            A credit balance inconsistency has been detected.
+            SC-011 target: FIFO accuracy within 5s consistency.

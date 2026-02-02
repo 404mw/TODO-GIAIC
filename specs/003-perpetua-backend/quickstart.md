@@ -87,7 +87,7 @@ MAX_CREDIT_CARRYOVER=50
 # Development
 DEBUG=true
 LOG_LEVEL=DEBUG
-CORS_ORIGINS=http://localhost:3000,http://localhost:5173
+CORS_ORIGINS=["http://localhost:3000","http://localhost:5173"]
 ```
 
 ---
@@ -211,9 +211,10 @@ docker-compose down
 
 Once running, access the interactive docs:
 
-- **Swagger UI**: http://localhost:8000/api/v1/docs
-- **ReDoc**: http://localhost:8000/api/v1/redoc
-- **OpenAPI JSON**: http://localhost:8000/api/v1/openapi.json
+- **Swagger UI**: http://localhost:8000/docs
+- **ReDoc**: http://localhost:8000/redoc
+- **OpenAPI JSON**: http://localhost:8000/openapi.json
+- **Health check**: http://localhost:8000/health/live
 
 ---
 
@@ -259,8 +260,7 @@ TEST_DATABASE_URL=postgresql+asyncpg://postgres:password@localhost:5432/perpetua
 
 ```bash
 # Format code
-black src tests
-isort src tests
+ruff format src tests
 
 # Lint
 ruff check src tests
@@ -322,8 +322,13 @@ backend/
 │   ├── integration/         # E2E tests
 │   └── unit/                # Unit tests
 ├── worker/                  # Background worker
+├── docs/                    # Operational docs
 ├── pyproject.toml           # Dependencies
 ├── alembic.ini              # Alembic config
+├── docker-compose.yml       # Local dev stack
+├── railway.toml             # Railway deployment config
+├── Dockerfile               # API container
+├── Dockerfile.worker        # Worker container
 └── .env.example             # Environment template
 ```
 
@@ -378,8 +383,8 @@ kill -9 <PID>
 | `JWT_PUBLIC_KEY` | Yes | - | RSA public key (PEM) |
 | `GOOGLE_CLIENT_ID` | Yes | - | OAuth client ID |
 | `GOOGLE_CLIENT_SECRET` | Yes | - | OAuth client secret |
-| `OPENAI_API_KEY` | No | - | OpenAI API key |
-| `DEEPGRAM_API_KEY` | No | - | Deepgram API key |
+| `OPENAI_API_KEY` | Yes | - | OpenAI API key |
+| `DEEPGRAM_API_KEY` | Yes | - | Deepgram API key |
 | `DEBUG` | No | false | Enable debug mode |
 | `LOG_LEVEL` | No | INFO | Logging level |
 | `CORS_ORIGINS` | No | * | Allowed CORS origins |
