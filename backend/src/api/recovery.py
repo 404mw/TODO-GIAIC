@@ -95,7 +95,9 @@ async def list_tombstones(
     responses = []
     now = datetime.now(UTC)
     for t in tombstones:
-        recoverable_until = t.deleted_at + timedelta(days=RECOVERY_WINDOW_DAYS)
+        # Ensure deleted_at is timezone-aware (SQLite strips timezone info)
+        deleted_at = t.deleted_at.replace(tzinfo=UTC) if t.deleted_at.tzinfo is None else t.deleted_at
+        recoverable_until = deleted_at + timedelta(days=RECOVERY_WINDOW_DAYS)
         # Only include tombstones that are still within the recovery window
         if recoverable_until > now:
             responses.append(
@@ -144,8 +146,9 @@ async def recover_task(
             detail={"code": ErrorCode.NOT_FOUND, "message": "Tombstone not found"},
         )
 
-    # Verify still within recovery window
-    recoverable_until = tombstone.deleted_at + timedelta(days=RECOVERY_WINDOW_DAYS)
+    # Verify still within recovery window (ensure timezone-aware for SQLite)
+    deleted_at = tombstone.deleted_at.replace(tzinfo=UTC) if tombstone.deleted_at.tzinfo is None else tombstone.deleted_at
+    recoverable_until = deleted_at + timedelta(days=RECOVERY_WINDOW_DAYS)
     if datetime.now(UTC) > recoverable_until:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

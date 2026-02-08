@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { format } from 'date-fns'
-import type { Task } from '@/lib/schemas/task.schema'
+import type { TaskDetail } from '@/lib/schemas/task.schema'
 import { useUpdateTask, useDeleteTask } from '@/lib/hooks/useTasks'
 import { useSubTasks } from '@/lib/hooks/useSubTasks'
 import { useToast } from '@/lib/hooks/useToast'
@@ -17,7 +17,7 @@ import { ReminderSection } from '@/components/reminders/ReminderSection'
 import type { ReminderCreate } from '@/lib/schemas/reminder.schema'
 
 interface TaskDetailViewProps {
-  task: Task
+  task: TaskDetail
 }
 
 export function TaskDetailView({ task }: TaskDetailViewProps) {
@@ -34,7 +34,7 @@ export function TaskDetailView({ task }: TaskDetailViewProps) {
     try {
       await updateTask.mutateAsync({
         id: task.id,
-        input: { completed: !task.completed },
+        input: { version: task.version, completed: !task.completed },
       })
 
       toast({
@@ -84,7 +84,7 @@ export function TaskDetailView({ task }: TaskDetailViewProps) {
     try {
       await updateTask.mutateAsync({
         id: task.id,
-        input: { hidden: !task.hidden },
+        input: { version: task.version, hidden: !task.hidden },
       })
 
       toast({
@@ -104,7 +104,8 @@ export function TaskDetailView({ task }: TaskDetailViewProps) {
   }
 
   const handleEdit = () => {
-    openEditModal(task)
+    // Cast to Task since the modal accepts both Task and TaskDetail
+    openEditModal(task as any)
   }
 
   const handleStartFocusMode = () => {
@@ -365,35 +366,12 @@ export function TaskDetailView({ task }: TaskDetailViewProps) {
                     </p>
                   </div>
 
-                  {/* Next Scheduled Date */}
-                  {task.recurrence.nextScheduledDate && (
+                  {/* Instance Generation Mode */}
+                  {task.recurrence.instanceGenerationMode && (
                     <div className="mb-3">
                       <p className="text-sm text-gray-600 dark:text-gray-400">
-                        <span className="font-medium">Next occurrence:</span>{' '}
-                        {format(new Date(task.recurrence.nextScheduledDate), 'PPP p')}
+                        <span className="font-medium">Generation:</span> On completion
                       </p>
-                    </div>
-                  )}
-
-                  {/* Instance Generation Mode */}
-                  <div className="mb-3">
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      <span className="font-medium">Generation:</span> On completion
-                    </p>
-                  </div>
-
-                  {/* Parent Task Link (if this is a recurring instance) */}
-                  {task.isRecurringInstance && task.parentRecurringTaskId && (
-                    <div className="mt-4 rounded-md border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-950">
-                      <p className="mb-2 text-sm font-medium text-blue-900 dark:text-blue-100">
-                        This is a recurring instance
-                      </p>
-                      <Link
-                        href={`/dashboard/tasks/${task.parentRecurringTaskId}`}
-                        className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-                      >
-                        View parent recurring task →
-                      </Link>
                     </div>
                   )}
                 </div>

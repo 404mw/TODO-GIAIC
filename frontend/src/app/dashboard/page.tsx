@@ -18,10 +18,11 @@ import { useAchievements } from '@/lib/hooks/useAchievements'
 export default function DashboardPage() {
   // Fetch data
   const {
-    data: tasks = [],
+    data: tasksResponse,
     isLoading: tasksLoading,
     error: tasksError,
-  } = useTasks({ archived: false, hidden: false })
+  } = useTasks({ hidden: false })
+  const tasks = tasksResponse?.data || []
   const { data: achievements, isLoading: achievementsLoading } = useAchievements()
 
   // Filter high-priority incomplete tasks
@@ -40,7 +41,7 @@ export default function DashboardPage() {
     (t) => t.completedAt && t.completedAt.split('T')[0] === today
   ).length
   const totalActive = tasks.filter((t) => !t.completed).length
-  const currentStreak = achievements?.consistencyStreak.currentStreak || 0
+  const currentStreak = achievements?.stats.currentStreak || 0
 
   // Filter overdue tasks (due date before today and not completed)
   const overdueTasks = tasks.filter(

@@ -19,7 +19,7 @@ import type { SubTask } from '@/lib/schemas/subtask.schema'
  * Features:
  * - Select a task to focus on
  * - If task has subtasks, prompt to select which subtasks to work on
- * - Duration is calculated from selected subtasks (no manual timer input)
+ * - Duration is taken from the task's estimated duration
  * - Display subtasks during focus mode for marking completion
  * - Marking doesn't complete subtasks immediately - must save
  */
@@ -27,7 +27,8 @@ import type { SubTask } from '@/lib/schemas/subtask.schema'
 export default function FocusModePage() {
   const router = useRouter()
   const { toast } = useToast()
-  const { data: tasks = [], isLoading } = useTasks({ hidden: false })
+  const { data: tasksResponse, isLoading } = useTasks({ hidden: false })
+  const tasks = tasksResponse?.data || []
   const updateTask = useUpdateTask()
   const updateSubTask = useUpdateSubTask()
   const { isActive, taskId, activate, deactivate } = useFocusModeStore()
@@ -48,11 +49,8 @@ export default function FocusModePage() {
   // Filter to only incomplete subtasks
   const incompleteSubtasks = subtasks.filter((st: SubTask) => !st.completed)
 
-  // Calculate total duration from selected subtasks
-  const totalDuration = Array.from(selectedSubtaskIds).reduce((acc, id) => {
-    const subtask = subtasks.find((st: SubTask) => st.id === id)
-    return acc + (subtask?.estimatedDuration || 0)
-  }, 0)
+  // Use task's estimated duration (subtasks don't have individual durations)
+  const totalDuration = selectedTask?.estimatedDuration || 0
 
   // Initialize from store if focus is already active
   useEffect(() => {
@@ -105,10 +103,10 @@ export default function FocusModePage() {
       return
     }
 
-    if (incompleteSubtasks.length > 0 && totalDuration === 0) {
+    if (totalDuration === 0) {
       toast({
         title: 'No duration set',
-        description: 'Selected subtasks have no estimated duration. Please add durations to subtasks first.',
+        description: 'This task has no estimated duration. Please add a duration to the task first.',
         variant: 'error',
       })
       return
@@ -161,7 +159,7 @@ export default function FocusModePage() {
         try {
           await updateTask.mutateAsync({
             id: selectedTask.id,
-            input: { completed: true },
+            input: { version: selectedTask.version, completed: true },
           })
           toast({
             title: 'Task completed!',
@@ -347,11 +345,6 @@ export default function FocusModePage() {
                           </span>
                         )}
                       </div>
-                      {subtask.estimatedDuration && (
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
-                          {subtask.estimatedDuration} min
-                        </span>
-                      )}
                     </div>
                   )
                 })}
@@ -477,15 +470,6 @@ export default function FocusModePage() {
                         {subtask.title}
                       </span>
                     </div>
-                    {subtask.estimatedDuration ? (
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
-                        {subtask.estimatedDuration} min
-                      </span>
-                    ) : (
-                      <span className="text-xs text-orange-500 dark:text-orange-400">
-                        No duration
-                      </span>
-                    )}
                   </div>
                 ))}
               </div>

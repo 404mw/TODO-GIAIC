@@ -1,14 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import type { Task } from '@/lib/schemas/task.schema'
+import type { TaskDetail } from '@/lib/schemas/task.schema'
 import type { Reminder, ReminderCreate } from '@/lib/schemas/reminder.schema'
 import { ReminderForm } from './ReminderForm'
 import { ReminderList } from './ReminderList'
 import { Button } from '@/components/ui/Button'
 
 interface ReminderSectionProps {
-  task: Task
+  task: TaskDetail
   onAddReminder: (reminder: ReminderCreate) => Promise<void>
   onDeleteReminder: (reminderId: string) => Promise<void>
 }

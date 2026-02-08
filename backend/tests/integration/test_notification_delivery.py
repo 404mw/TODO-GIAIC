@@ -109,7 +109,7 @@ class TestNotificationDeliveryPerformance:
         for _ in range(10):
             start = time.perf_counter()
             notifications = await service.list_notifications(
-                user_id=test_user.id,
+                user=test_user,
             )
             elapsed = time.perf_counter() - start
             times.append(elapsed)
@@ -138,8 +138,8 @@ class TestNotificationDeliveryPerformance:
 
         # Measure mark_read
         start = time.perf_counter()
-        await service.mark_read(
-            user_id=test_user.id,
+        await service.mark_notification_read(
+            user=test_user,
             notification_id=notification.id,
         )
         elapsed = time.perf_counter() - start
@@ -169,7 +169,7 @@ class TestNotificationDeliveryPerformance:
 
         # Measure mark_all_read
         start = time.perf_counter()
-        await service.mark_all_read(user_id=test_user.id)
+        await service.mark_all_notifications_read(user=test_user)
         elapsed = time.perf_counter() - start
 
         await db_session.commit()
@@ -213,7 +213,8 @@ class TestPushDeliverySimulation:
         try:
             await service.send_push_notification(
                 user_id=test_user.id,
-                notification=notification,
+                title=notification.title,
+                body=notification.body,
             )
         except (AttributeError, Exception):
             pass  # Expected: no push subscription configured

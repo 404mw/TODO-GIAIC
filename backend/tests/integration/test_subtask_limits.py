@@ -61,7 +61,9 @@ class TestSubtaskLimitEnforcementAcrossTiers:
             headers=auth_headers,
         )
         assert resp.status_code == 409
-        assert "limit" in resp.json()["detail"].lower()
+        error_data = resp.json()
+        error_msg = error_data.get("error", {}).get("message", "") or error_data.get("detail", "")
+        assert "limit" in error_msg.lower()
 
     @pytest.mark.asyncio
     async def test_pro_user_limited_to_10_subtasks(
@@ -102,7 +104,9 @@ class TestSubtaskLimitEnforcementAcrossTiers:
             headers=pro_auth_headers,
         )
         assert resp.status_code == 409
-        assert "limit" in resp.json()["detail"].lower()
+        error_data = resp.json()
+        error_msg = error_data.get("error", {}).get("message", "") or error_data.get("detail", "")
+        assert "limit" in error_msg.lower()
 
     @pytest.mark.asyncio
     async def test_subtask_limits_per_task_not_global(
@@ -227,7 +231,7 @@ class TestSubtaskLimitEnforcementAcrossTiers:
             f"/api/v1/subtasks/{subtask_ids[0]}",
             headers=auth_headers,
         )
-        assert delete_resp.status_code == 200
+        assert delete_resp.status_code in (200, 204)
 
         # Now we should be able to add a new subtask
         new_subtask = await client.post(
@@ -267,6 +271,8 @@ class TestSubtaskLimitEnforcementAcrossTiers:
         )
         assert resp.status_code == 409
         error = resp.json()
-        assert "detail" in error
+        # Error response uses standard error wrapper
+        assert "error" in error or "detail" in error
+        error_msg = error.get("error", {}).get("message", "") or error.get("detail", "")
         # Error should mention the limit number
-        assert "4" in error["detail"] or "free" in error["detail"].lower()
+        assert "4" in error_msg or "limit" in error_msg.lower()

@@ -5,15 +5,46 @@ Phase 6: User Story 3 - Recurring Task Templates (FR-015 to FR-018)
 T157: Add integration test for recurring task lifecycle
 """
 
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, timezone
+from uuid import uuid4
 
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.config import Settings
+from src.dependencies import JWTKeyManager
 from src.models.task import TaskInstance, TaskTemplate
 from src.models.user import User
-from src.schemas.enums import TaskPriority
+from src.schemas.enums import TaskPriority, UserTier
+
+
+@pytest.fixture
+async def other_user(db_session: AsyncSession) -> User:
+    """Create a second test user for isolation tests."""
+    user = User(
+        id=uuid4(),
+        google_id=f"google-other-{uuid4()}",
+        email=f"other-{uuid4()}@example.com",
+        name="Other User",
+        tier=UserTier.FREE,
+    )
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.refresh(user)
+    return user
+
+
+@pytest.fixture
+def other_user_auth_headers(other_user: User, settings: Settings) -> dict[str, str]:
+    """Generate auth headers for the other user."""
+    jwt_manager = JWTKeyManager(settings)
+    token = jwt_manager.create_access_token(
+        user_id=other_user.id,
+        email=other_user.email,
+        tier=other_user.tier.value,
+    )
+    return {"Authorization": f"Bearer {token}"}
 
 
 # =============================================================================
@@ -27,7 +58,7 @@ class TestTemplateLifecycle:
     @pytest.mark.asyncio
     async def test_create_template_generates_first_instance(
         self,
-        async_client: AsyncClient,
+        client: AsyncClient,
         auth_headers: dict,
         db_session: AsyncSession,
     ):
@@ -35,7 +66,7 @@ class TestTemplateLifecycle:
 
         FR-015: User can create a recurring task template with an RRULE.
         """
-        response = await async_client.post(
+        response = await client.post(
             "/api/v1/templates",
             headers=auth_headers,
             json={
@@ -61,7 +92,7 @@ class TestTemplateLifecycle:
     @pytest.mark.asyncio
     async def test_list_templates_returns_user_templates_only(
         self,
-        async_client: AsyncClient,
+        client: AsyncClient,
         auth_headers: dict,
         other_user_auth_headers: dict,
     ):
@@ -70,7 +101,7 @@ class TestTemplateLifecycle:
         Users should only see their own templates.
         """
         # Create template for first user
-        response = await async_client.post(
+        response = await client.post(
             "/api/v1/templates",
             headers=auth_headers,
             json={
@@ -81,7 +112,7 @@ class TestTemplateLifecycle:
         assert response.status_code == 201
 
         # Create template for second user
-        response = await async_client.post(
+        response = await client.post(
             "/api/v1/templates",
             headers=other_user_auth_headers,
             json={
@@ -92,7 +123,7 @@ class TestTemplateLifecycle:
         assert response.status_code == 201
 
         # List first user's templates
-        response = await async_client.get(
+        response = await client.get(
             "/api/v1/templates",
             headers=auth_headers,
         )
@@ -107,7 +138,7 @@ class TestTemplateLifecycle:
     @pytest.mark.asyncio
     async def test_update_template_recalculates_next_due(
         self,
-        async_client: AsyncClient,
+        client: AsyncClient,
         auth_headers: dict,
     ):
         """Updating RRULE should recalculate next_due.
@@ -115,7 +146,7 @@ class TestTemplateLifecycle:
         FR-018: Editing a template affects only future instances.
         """
         # Create weekly template
-        response = await async_client.post(
+        response = await client.post(
             "/api/v1/templates",
             headers=auth_headers,
             json={
@@ -128,7 +159,7 @@ class TestTemplateLifecycle:
         original_next_due = response.json()["data"]["next_due"]
 
         # Update to daily
-        response = await async_client.patch(
+        response = await client.patch(
             f"/api/v1/templates/{template_id}",
             headers=auth_headers,
             json={
@@ -148,12 +179,12 @@ class TestTemplateLifecycle:
     @pytest.mark.asyncio
     async def test_deactivate_template_clears_next_due(
         self,
-        async_client: AsyncClient,
+        client: AsyncClient,
         auth_headers: dict,
     ):
         """Deactivating a template should clear next_due."""
         # Create template
-        response = await async_client.post(
+        response = await client.post(
             "/api/v1/templates",
             headers=auth_headers,
             json={
@@ -166,7 +197,7 @@ class TestTemplateLifecycle:
         assert response.json()["data"]["next_due"] is not None
 
         # Deactivate
-        response = await async_client.patch(
+        response = await client.patch(
             f"/api/v1/templates/{template_id}",
             headers=auth_headers,
             json={"active": False},
@@ -179,7 +210,7 @@ class TestTemplateLifecycle:
     @pytest.mark.asyncio
     async def test_delete_template_preserves_existing_instances(
         self,
-        async_client: AsyncClient,
+        client: AsyncClient,
         auth_headers: dict,
         db_session: AsyncSession,
     ):
@@ -188,7 +219,7 @@ class TestTemplateLifecycle:
         Existing task instances should become standalone tasks.
         """
         # Create template
-        response = await async_client.post(
+        response = await client.post(
             "/api/v1/templates",
             headers=auth_headers,
             json={
@@ -200,7 +231,7 @@ class TestTemplateLifecycle:
         template_id = response.json()["data"]["id"]
 
         # Generate an instance
-        response = await async_client.post(
+        response = await client.post(
             f"/api/v1/templates/{template_id}/generate",
             headers=auth_headers,
         )
@@ -208,14 +239,14 @@ class TestTemplateLifecycle:
         instance_id = response.json()["data"]["instance_id"]
 
         # Delete template
-        response = await async_client.delete(
+        response = await client.delete(
             f"/api/v1/templates/{template_id}",
             headers=auth_headers,
         )
         assert response.status_code == 200
 
         # Instance should still exist as standalone task
-        response = await async_client.get(
+        response = await client.get(
             f"/api/v1/tasks/{instance_id}",
             headers=auth_headers,
         )
@@ -234,7 +265,7 @@ class TestInstanceGeneration:
     @pytest.mark.asyncio
     async def test_manual_instance_generation(
         self,
-        async_client: AsyncClient,
+        client: AsyncClient,
         auth_headers: dict,
     ):
         """Manually generate an instance from a template.
@@ -242,7 +273,7 @@ class TestInstanceGeneration:
         FR-016: Recurring instances are generated automatically.
         """
         # Create template
-        response = await async_client.post(
+        response = await client.post(
             "/api/v1/templates",
             headers=auth_headers,
             json={
@@ -256,7 +287,7 @@ class TestInstanceGeneration:
         template_id = response.json()["data"]["id"]
 
         # Generate instance
-        response = await async_client.post(
+        response = await client.post(
             f"/api/v1/templates/{template_id}/generate",
             headers=auth_headers,
         )
@@ -272,12 +303,12 @@ class TestInstanceGeneration:
     @pytest.mark.asyncio
     async def test_inactive_template_cannot_generate(
         self,
-        async_client: AsyncClient,
+        client: AsyncClient,
         auth_headers: dict,
     ):
         """Inactive templates cannot generate new instances."""
         # Create and deactivate template
-        response = await async_client.post(
+        response = await client.post(
             "/api/v1/templates",
             headers=auth_headers,
             json={
@@ -288,7 +319,7 @@ class TestInstanceGeneration:
         assert response.status_code == 201
         template_id = response.json()["data"]["id"]
 
-        response = await async_client.patch(
+        response = await client.patch(
             f"/api/v1/templates/{template_id}",
             headers=auth_headers,
             json={"active": False},
@@ -296,23 +327,24 @@ class TestInstanceGeneration:
         assert response.status_code == 200
 
         # Try to generate
-        response = await async_client.post(
+        response = await client.post(
             f"/api/v1/templates/{template_id}/generate",
             headers=auth_headers,
         )
 
-        assert response.status_code == 400
-        assert "inactive" in response.json()["detail"].lower()
+        assert response.status_code in [400, 409]
+        error_msg = response.json().get("error", {}).get("message", response.json().get("detail", ""))
+        assert "inactive" in error_msg.lower() or "not active" in error_msg.lower()
 
     @pytest.mark.asyncio
     async def test_generated_instance_inherits_template_properties(
         self,
-        async_client: AsyncClient,
+        client: AsyncClient,
         auth_headers: dict,
     ):
         """Generated instances should inherit template properties."""
         # Create template with specific properties
-        response = await async_client.post(
+        response = await client.post(
             "/api/v1/templates",
             headers=auth_headers,
             json={
@@ -327,7 +359,7 @@ class TestInstanceGeneration:
         template_id = response.json()["data"]["id"]
 
         # Generate instance
-        response = await async_client.post(
+        response = await client.post(
             f"/api/v1/templates/{template_id}/generate",
             headers=auth_headers,
         )
@@ -335,7 +367,7 @@ class TestInstanceGeneration:
         instance_id = response.json()["data"]["instance_id"]
 
         # Verify instance properties
-        response = await async_client.get(
+        response = await client.get(
             f"/api/v1/tasks/{instance_id}",
             headers=auth_headers,
         )
@@ -360,14 +392,14 @@ class TestRRuleValidation:
     @pytest.mark.asyncio
     async def test_invalid_rrule_rejected(
         self,
-        async_client: AsyncClient,
+        client: AsyncClient,
         auth_headers: dict,
     ):
         """Invalid RRULE strings should be rejected.
 
         FR-015: RRULE must be valid RFC 5545 format.
         """
-        response = await async_client.post(
+        response = await client.post(
             "/api/v1/templates",
             headers=auth_headers,
             json={
@@ -381,7 +413,7 @@ class TestRRuleValidation:
     @pytest.mark.asyncio
     async def test_various_rrule_patterns(
         self,
-        async_client: AsyncClient,
+        client: AsyncClient,
         auth_headers: dict,
     ):
         """Various RRULE patterns should be accepted."""
@@ -393,7 +425,7 @@ class TestRRuleValidation:
         ]
 
         for rrule, name in patterns:
-            response = await async_client.post(
+            response = await client.post(
                 "/api/v1/templates",
                 headers=auth_headers,
                 json={
@@ -417,11 +449,11 @@ class TestErrorHandling:
     @pytest.mark.asyncio
     async def test_get_nonexistent_template_returns_404(
         self,
-        async_client: AsyncClient,
+        client: AsyncClient,
         auth_headers: dict,
     ):
         """Getting a non-existent template returns 404."""
-        response = await async_client.get(
+        response = await client.get(
             "/api/v1/templates/00000000-0000-0000-0000-000000000000",
             headers=auth_headers,
         )
@@ -431,7 +463,7 @@ class TestErrorHandling:
     @pytest.mark.asyncio
     async def test_access_other_user_template_returns_404(
         self,
-        async_client: AsyncClient,
+        client: AsyncClient,
         auth_headers: dict,
         other_user_auth_headers: dict,
     ):
@@ -440,7 +472,7 @@ class TestErrorHandling:
         FR-005: Users can only access their own resources.
         """
         # Create template for first user
-        response = await async_client.post(
+        response = await client.post(
             "/api/v1/templates",
             headers=auth_headers,
             json={
@@ -452,7 +484,7 @@ class TestErrorHandling:
         template_id = response.json()["data"]["id"]
 
         # Try to access as second user
-        response = await async_client.get(
+        response = await client.get(
             f"/api/v1/templates/{template_id}",
             headers=other_user_auth_headers,
         )

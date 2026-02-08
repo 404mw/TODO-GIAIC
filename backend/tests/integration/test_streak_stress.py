@@ -199,14 +199,16 @@ class TestStreakStress:
         assert achievement_state.current_streak == 1
         assert achievement_state.longest_streak == 7  # Preserved
 
-        # Cycle 2: Build 10-day streak
+        # Cycle 2: Build streak from day 10-19
+        # Day 10 is consecutive after day 9, so streak continues from 1
+        # streak goes: 2 (day 10), 3 (day 11), ..., 11 (day 19)
         for day in range(10, 20):
             await service.update_streak(
                 achievement_state, base_date + timedelta(days=day)
             )
 
-        assert achievement_state.current_streak == 10
-        assert achievement_state.longest_streak == 10  # Updated
+        assert achievement_state.current_streak == 11  # 1 (day 9) + 10 more
+        assert achievement_state.longest_streak == 11  # Updated (surpasses 7)
 
         # Break again
         await service.update_streak(
@@ -214,7 +216,7 @@ class TestStreakStress:
         )
 
         assert achievement_state.current_streak == 1
-        assert achievement_state.longest_streak == 10  # Still preserved
+        assert achievement_state.longest_streak == 11  # Still preserved
 
     @pytest.mark.asyncio
     async def test_timezone_edge_cases_utc_boundary(

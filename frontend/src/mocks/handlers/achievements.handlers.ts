@@ -1,91 +1,107 @@
 import { http, HttpResponse, delay } from 'msw'
-import type { Achievement } from '@/lib/schemas/achievement.schema'
+import type { AchievementResponse } from '@/lib/schemas/achievement.schema'
 import { achievementFixture } from '../data/user.fixture'
 
-// In-memory storage (single achievement per user, using fixture data)
-let achievement: Achievement = { ...achievementFixture }
+// In-memory storage (using fixture data)
+let achievement: AchievementResponse = { ...achievementFixture }
+
+// Track last completion date for streak calculation
+let lastCompletionDate: string | null = new Date(Date.now() - 1 * 24 * 60 * 60 * 1000)
+  .toISOString()
+  .split('T')[0]
 
 // Helper: Simulate network latency
 const simulateLatency = () => delay(Math.floor(Math.random() * (500 - 100 + 1)) + 100)
 
 // Helper: Calculate streak from task completions
-const calculateStreak = (lastCompletionDate: string | null, graceDayUsed: boolean): {
-  currentStreak: number
-  graceDayUsed: boolean
-} => {
-  if (!lastCompletionDate) {
-    return { currentStreak: 0, graceDayUsed: false }
+const calculateStreak = (lastDate: string | null): number => {
+  if (!lastDate) {
+    return 0
   }
 
   const today = new Date().toISOString().split('T')[0]
   const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-  const lastDate = lastCompletionDate
 
-  // If completed today, maintain streak
-  if (lastDate === today) {
-    return { currentStreak: achievement.consistencyStreak.currentStreak, graceDayUsed }
-  }
-
-  // If completed yesterday, maintain streak
-  if (lastDate === yesterday) {
-    return { currentStreak: achievement.consistencyStreak.currentStreak, graceDayUsed }
-  }
-
-  // If missed yesterday but haven't used grace day, use it
-  const dayBeforeYesterday = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
-    .toISOString()
-    .split('T')[0]
-  if (lastDate === dayBeforeYesterday && !graceDayUsed) {
-    return { currentStreak: achievement.consistencyStreak.currentStreak, graceDayUsed: true }
+  // If completed today or yesterday, maintain streak
+  if (lastDate === today || lastDate === yesterday) {
+    return achievement.stats.currentStreak
   }
 
   // Streak is broken
-  return { currentStreak: 0, graceDayUsed: false }
+  return 0
 }
 
-// Helper: Check and unlock milestones
-const checkMilestones = (achievement: Achievement): Achievement => {
-  const newMilestones = [...achievement.milestones]
+// Helper: Check and unlock achievements
+const checkUnlocks = (achievement: AchievementResponse): AchievementResponse => {
+  const newUnlocked = [...achievement.unlocked]
+  const newProgress = [...achievement.progress]
 
-  // Streak milestones
-  const streakMilestones = [
-    { id: 'streak_7', name: 'Week Warrior', threshold: 7 },
-    { id: 'streak_14', name: 'Fortnight Champion', threshold: 14 },
-    { id: 'streak_30', name: 'Monthly Master', threshold: 30 },
+  // Check streak achievements
+  const streakThresholds = [
+    { id: 'streak_7', name: 'Week Warrior', threshold: 7, perkType: 'max_tasks' as const, perkValue: 10 },
+    { id: 'streak_14', name: 'Fortnight Champion', threshold: 14, perkType: 'max_tasks' as const, perkValue: 20 },
+    { id: 'streak_30', name: 'Monthly Master', threshold: 30, perkType: 'daily_credits' as const, perkValue: 10 },
   ]
 
-  for (const milestone of streakMilestones) {
-    const alreadyUnlocked = newMilestones.some(m => m.id === milestone.id)
-    if (!alreadyUnlocked && achievement.consistencyStreak.currentStreak >= milestone.threshold) {
-      newMilestones.push({
-        id: milestone.id,
-        name: milestone.name,
-        description: `Completed tasks for ${milestone.threshold} consecutive days`,
+  for (const milestone of streakThresholds) {
+    const alreadyUnlocked = newUnlocked.some(u => u.id === milestone.id)
+    const progressItem = newProgress.find(p => p.id === milestone.id)
+
+    if (progressItem) {
+      progressItem.current = achievement.stats.currentStreak
+      if (!alreadyUnlocked && achievement.stats.currentStreak >= milestone.threshold) {
+        progressItem.unlocked = true
+        newUnlocked.push({
+          id: milestone.id,
+          name: milestone.name,
+          description: `Completed tasks for ${milestone.threshold} consecutive days`,
+          unlockedAt: new Date().toISOString(),
+          perk: { type: milestone.perkType, value: milestone.perkValue },
+        })
+      }
+    }
+  }
+
+  // Check focus achievements
+  const focusProgressItem = newProgress.find(p => p.id === 'focus_50')
+  if (focusProgressItem) {
+    focusProgressItem.current = achievement.stats.focusCompletions
+    const alreadyUnlocked = newUnlocked.some(u => u.id === 'focus_50')
+    if (!alreadyUnlocked && achievement.stats.focusCompletions >= 50) {
+      focusProgressItem.unlocked = true
+      newUnlocked.push({
+        id: 'focus_50',
+        name: 'Focus Champion',
+        description: 'Completed 50 tasks in focus mode',
         unlockedAt: new Date().toISOString(),
+        perk: { type: 'daily_credits', value: 5 },
       })
     }
   }
 
-  // High-priority slays milestones
-  const slaysMilestones = [
-    { id: 'slays_10', name: 'Priority Master', threshold: 10 },
-    { id: 'slays_25', name: 'Priority Veteran', threshold: 25 },
-    { id: 'slays_50', name: 'Priority Legend', threshold: 50 },
-  ]
+  // Recalculate effective limits
+  let maxTasksBonus = 0
+  let dailyCreditsBonus = 0
 
-  for (const milestone of slaysMilestones) {
-    const alreadyUnlocked = newMilestones.some(m => m.id === milestone.id)
-    if (!alreadyUnlocked && achievement.highPrioritySlays >= milestone.threshold) {
-      newMilestones.push({
-        id: milestone.id,
-        name: milestone.name,
-        description: `Completed ${milestone.threshold} high-priority tasks`,
-        unlockedAt: new Date().toISOString(),
-      })
+  for (const unlocked of newUnlocked) {
+    if (unlocked.perk?.type === 'max_tasks') {
+      maxTasksBonus += unlocked.perk.value
+    }
+    if (unlocked.perk?.type === 'daily_credits') {
+      dailyCreditsBonus += unlocked.perk.value
     }
   }
 
-  return { ...achievement, milestones: newMilestones }
+  return {
+    ...achievement,
+    unlocked: newUnlocked,
+    progress: newProgress,
+    effectiveLimits: {
+      maxTasks: 100 + maxTasksBonus,
+      maxNotes: 50,
+      dailyAiCredits: 50 + dailyCreditsBonus,
+    },
+  }
 }
 
 // GET /api/achievements - Get user achievements
@@ -93,13 +109,8 @@ export const getAchievementsHandler = http.get('/api/achievements', async () => 
   await simulateLatency()
 
   // Recalculate streak before returning (in case time has passed)
-  const { currentStreak, graceDayUsed } = calculateStreak(
-    achievement.consistencyStreak.lastCompletionDate,
-    achievement.consistencyStreak.graceDayUsed
-  )
-
-  achievement.consistencyStreak.currentStreak = currentStreak
-  achievement.consistencyStreak.graceDayUsed = graceDayUsed
+  const currentStreak = calculateStreak(lastCompletionDate)
+  achievement.stats.currentStreak = currentStreak
 
   return HttpResponse.json(achievement, { status: 200 })
 })
@@ -111,71 +122,34 @@ export const taskCompletedHandler = http.post(
     await simulateLatency()
 
     const body = await request.json()
-    const { priority } = body as { priority?: 'high' | 'medium' | 'low' }
+    const { priority, focusMode } = body as { priority?: 'high' | 'medium' | 'low'; focusMode?: boolean }
 
     const today = new Date().toISOString().split('T')[0]
-    const lastDate = achievement.consistencyStreak.lastCompletionDate
 
-    // Update high-priority slays
-    if (priority === 'high') {
-      achievement.highPrioritySlays += 1
+    // Update lifetime tasks
+    achievement.stats.lifetimeTasksCompleted += 1
+
+    // Update focus completions
+    if (focusMode) {
+      achievement.stats.focusCompletions += 1
     }
 
     // Update consistency streak
-    if (lastDate !== today) {
+    if (lastCompletionDate !== today) {
       // First completion today
-      const { currentStreak, graceDayUsed } = calculateStreak(
-        lastDate,
-        achievement.consistencyStreak.graceDayUsed
-      )
+      const currentStreak = calculateStreak(lastCompletionDate)
 
-      achievement.consistencyStreak.currentStreak = currentStreak + 1
-      achievement.consistencyStreak.graceDayUsed = graceDayUsed
-      achievement.consistencyStreak.lastCompletionDate = today
+      achievement.stats.currentStreak = currentStreak + 1
+      lastCompletionDate = today
 
       // Update longest streak if needed
-      if (
-        achievement.consistencyStreak.currentStreak >
-        achievement.consistencyStreak.longestStreak
-      ) {
-        achievement.consistencyStreak.longestStreak =
-          achievement.consistencyStreak.currentStreak
+      if (achievement.stats.currentStreak > achievement.stats.longestStreak) {
+        achievement.stats.longestStreak = achievement.stats.currentStreak
       }
     }
 
-    // Check for milestone unlocks
-    achievement = checkMilestones(achievement)
-
-    // Update timestamp
-    achievement.updatedAt = new Date().toISOString()
-
-    return HttpResponse.json(achievement, { status: 200 })
-  }
-)
-
-// PATCH /api/achievements/completion-ratio - Update completion ratio
-export const updateCompletionRatioHandler = http.patch(
-  '/api/achievements/completion-ratio',
-  async ({ request }) => {
-    await simulateLatency()
-
-    const body = await request.json()
-    const { completionRatio } = body as { completionRatio: number }
-
-    if (completionRatio < 0 || completionRatio > 100) {
-      return HttpResponse.json(
-        {
-          error: {
-            code: 'VALIDATION_ERROR',
-            message: 'Completion ratio must be between 0 and 100',
-          },
-        },
-        { status: 400 }
-      )
-    }
-
-    achievement.completionRatio = completionRatio
-    achievement.updatedAt = new Date().toISOString()
+    // Check for achievement unlocks
+    achievement = checkUnlocks(achievement)
 
     return HttpResponse.json(achievement, { status: 200 })
   }
@@ -185,5 +159,4 @@ export const updateCompletionRatioHandler = http.patch(
 export const achievementsHandlers = [
   getAchievementsHandler,
   taskCompletedHandler,
-  updateCompletionRatioHandler,
 ]

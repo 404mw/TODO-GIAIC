@@ -10,7 +10,7 @@ Tests verify:
 """
 
 from datetime import datetime, UTC
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from httpx import AsyncClient
@@ -57,7 +57,7 @@ class TestCascadingDeleteSubtasks:
 
         # Verify subtasks exist
         result = await db_session.execute(
-            select(Subtask).where(Subtask.task_id == task_id)
+            select(Subtask).where(Subtask.task_id == UUID(task_id))
         )
         subtasks_before = result.scalars().all()
         assert len(subtasks_before) == 3
@@ -72,7 +72,7 @@ class TestCascadingDeleteSubtasks:
         # Verify subtasks are also deleted
         await db_session.commit()  # Ensure any pending deletes are committed
         result = await db_session.execute(
-            select(Subtask).where(Subtask.task_id == task_id)
+            select(Subtask).where(Subtask.task_id == UUID(task_id))
         )
         subtasks_after = result.scalars().all()
         assert len(subtasks_after) == 0
@@ -123,7 +123,7 @@ class TestCascadingDeleteSubtasks:
 
         # Verify tombstone contains subtask data
         result = await db_session.execute(
-            select(DeletionTombstone).where(DeletionTombstone.id == tombstone_id)
+            select(DeletionTombstone).where(DeletionTombstone.id == UUID(tombstone_id))
         )
         tombstone = result.scalar_one()
 
@@ -174,14 +174,14 @@ class TestCascadingDeleteSubtasks:
 
         # Verify subtasks for deleted task are gone
         result = await db_session.execute(
-            select(Subtask).where(Subtask.task_id == task_ids[1])
+            select(Subtask).where(Subtask.task_id == UUID(task_ids[1]))
         )
         assert len(result.scalars().all()) == 0
 
         # Verify subtasks for other tasks still exist
         for task_id in [task_ids[0], task_ids[2]]:
             result = await db_session.execute(
-                select(Subtask).where(Subtask.task_id == task_id)
+                select(Subtask).where(Subtask.task_id == UUID(task_id))
             )
             assert len(result.scalars().all()) == 2
 
@@ -215,7 +215,7 @@ class TestCascadingDeleteSubtasks:
 
         # Verify subtasks exist before soft delete
         result = await db_session.execute(
-            select(Subtask).where(Subtask.task_id == task_id)
+            select(Subtask).where(Subtask.task_id == UUID(task_id))
         )
         assert len(result.scalars().all()) == 2
 
@@ -259,7 +259,7 @@ class TestCascadingDeleteSubtasks:
 
         # Verify we have 2 completed and 2 incomplete
         result = await db_session.execute(
-            select(Subtask).where(Subtask.task_id == task_id)
+            select(Subtask).where(Subtask.task_id == UUID(task_id))
         )
         subtasks = result.scalars().all()
         completed_count = sum(1 for s in subtasks if s.completed)
@@ -273,6 +273,6 @@ class TestCascadingDeleteSubtasks:
 
         # Verify ALL subtasks are gone (both completed and incomplete)
         result = await db_session.execute(
-            select(Subtask).where(Subtask.task_id == task_id)
+            select(Subtask).where(Subtask.task_id == UUID(task_id))
         )
         assert len(result.scalars().all()) == 0

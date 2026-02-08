@@ -42,7 +42,9 @@ class TestAPIBackwardCompatibility:
         if create_resp.status_code not in (200, 201):
             pytest.skip(f"Task creation returned {create_resp.status_code}")
 
-        data = create_resp.json()
+        response = create_resp.json()
+        # Response wraps task in "data" key
+        data = response.get("data", response)
 
         # Required fields that must always be present
         required_fields = [
@@ -119,7 +121,9 @@ class TestAPIBackwardCompatibility:
         if resp.status_code != 200:
             pytest.skip(f"Auth returned {resp.status_code}")
 
-        data = resp.json()
+        response = resp.json()
+        # Auth response may wrap in "data" key
+        data = response.get("data", response)
 
         # Token response must contain these fields
         assert "access_token" in data, "access_token missing (FR-069)"
@@ -162,14 +166,15 @@ class TestAPIBackwardCompatibility:
     @pytest.mark.asyncio
     async def test_health_endpoints_stable(self, client: AsyncClient):
         """Health endpoints maintain stable response format (FR-069)."""
+        # Health endpoints are mounted at root, not under /api/v1
         # Liveness
-        live_resp = await client.get("/api/v1/health/live")
+        live_resp = await client.get("/health/live")
         assert live_resp.status_code == 200
         live_data = live_resp.json()
         assert "status" in live_data, "Liveness missing 'status' field"
 
         # Readiness
-        ready_resp = await client.get("/api/v1/health/ready")
+        ready_resp = await client.get("/health/ready")
         ready_data = ready_resp.json()
         assert "status" in ready_data, "Readiness missing 'status' field"
 
@@ -199,9 +204,9 @@ class TestAPIBackwardCompatibility:
     @pytest.mark.asyncio
     async def test_api_v1_prefix_consistent(self, client: AsyncClient):
         """All API endpoints use /api/v1 prefix (FR-068, FR-069)."""
-        # Test key endpoints have v1 prefix
+        # Test key endpoints have v1 prefix (health is at root, not /api/v1)
         endpoints = [
-            "/api/v1/health/live",
+            "/health/live",
             "/api/v1/tasks",
             "/api/v1/notes",
             "/api/v1/achievements",
@@ -286,8 +291,8 @@ class TestDeprecationHeaders:
         This guards against accidental deprecation marking.
         """
         active_endpoints = [
-            "/api/v1/health/live",
-            "/api/v1/health/ready",
+            "/health/live",
+            "/health/ready",
             "/api/v1/tasks",
             "/api/v1/notes",
             "/api/v1/achievements",

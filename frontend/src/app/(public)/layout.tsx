@@ -9,16 +9,23 @@
  * - About page
  *
  * Includes shared navigation header and footer.
+ * Updated with mobile menu support.
  */
 
+'use client'
+
+import { useState } from 'react'
 import Link from 'next/link'
 import { Footer } from '@/components/public/Footer'
+import { MobileMenu } from '@/components/public/MobileMenu'
 
 interface PublicLayoutProps {
   children: React.ReactNode
 }
 
 export default function PublicLayout({ children }: PublicLayoutProps) {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+
   return (
     <div className="min-h-screen bg-gray-950">
       {/* Navigation Header */}
@@ -63,8 +70,30 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
               </Link>
             </div>
 
-            {/* CTA Button */}
+            {/* Mobile Hamburger + CTA Button */}
             <div className="flex items-center gap-4">
+              {/* Hamburger button - visible on mobile only */}
+              <button
+                onClick={() => setIsMobileMenuOpen(true)}
+                className="md:hidden rounded-md p-2 text-gray-400 hover:text-white transition-colors"
+                aria-label="Open menu"
+              >
+                <svg
+                  className="h-6 w-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 6h16M4 12h16M4 18h16"
+                  />
+                </svg>
+              </button>
+
+              {/* Get Started CTA Button */}
               <Link
                 href="/dashboard"
                 className="rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 px-4 py-2 text-sm font-medium text-white transition-all hover:from-blue-600 hover:to-purple-700"
@@ -83,6 +112,12 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
 
       {/* Footer */}
       <Footer />
+
+      {/* Mobile Menu */}
+      <MobileMenu
+        isOpen={isMobileMenuOpen}
+        onClose={() => setIsMobileMenuOpen(false)}
+      />
     </div>
   )
 }

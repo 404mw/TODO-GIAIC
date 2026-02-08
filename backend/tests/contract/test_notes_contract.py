@@ -115,7 +115,8 @@ class TestNoteContractSchemas:
 
         assert response.status_code == 422  # Validation error
         data = response.json()
-        assert "detail" in data
+        # App may return {"error": {...}} or {"detail": ...} for validation errors
+        assert "detail" in data or "error" in data
 
     @pytest.mark.asyncio
     async def test_update_note_request_schema(

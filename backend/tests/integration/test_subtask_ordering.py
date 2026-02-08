@@ -88,14 +88,15 @@ class TestSubtaskOrderingPersistence:
         )
         task_id = task_response.json()["data"]["id"]
 
-        # Create 5 subtasks
+        # Create 4 subtasks (free tier limit is 4)
         subtask_ids = []
-        for i in range(5):
+        for i in range(4):
             resp = await client.post(
                 f"/api/v1/tasks/{task_id}/subtasks",
                 json={"title": f"Subtask {i}"},
                 headers=auth_headers,
             )
+            assert resp.status_code == 201
             subtask_ids.append(resp.json()["data"]["id"])
 
         # Reverse the order
@@ -107,14 +108,14 @@ class TestSubtaskOrderingPersistence:
         )
         assert reorder_response.status_code == 200
 
-        # Verify indices are 0, 1, 2, 3, 4 (gapless)
+        # Verify indices are 0, 1, 2, 3 (gapless)
         task_detail = await client.get(
             f"/api/v1/tasks/{task_id}",
             headers=auth_headers,
         )
         subtasks = task_detail.json()["data"]["subtasks"]
         indices = sorted([s["order_index"] for s in subtasks])
-        assert indices == [0, 1, 2, 3, 4]
+        assert indices == [0, 1, 2, 3]
 
     @pytest.mark.asyncio
     async def test_multiple_reorder_operations(

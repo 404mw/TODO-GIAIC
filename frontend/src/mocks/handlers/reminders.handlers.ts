@@ -27,9 +27,9 @@ export const getRemindersHandler = http.get('/api/reminders', async ({ request }
   }
 
   if (delivered === 'true') {
-    filtered = filtered.filter(r => r.delivered)
+    filtered = filtered.filter(r => r.fired)
   } else if (delivered === 'false') {
-    filtered = filtered.filter(r => !r.delivered)
+    filtered = filtered.filter(r => !r.fired)
   }
 
   return HttpResponse.json({ reminders: filtered }, { status: 200 })
@@ -64,7 +64,8 @@ export const createReminderHandler = http.post('/api/reminders', async ({ reques
       id: generateUUID(),
       ...(body as any),
       createdAt: now,
-      delivered: false,
+      fired: false,
+      firedAt: null,
     }
 
     ReminderSchema.parse(newReminder)
@@ -144,9 +145,9 @@ export const deleteReminderHandler = http.delete('/api/reminders/:id', async ({ 
   return HttpResponse.json(null, { status: 204 })
 })
 
-// POST /api/reminders/:id/delivered - Mark reminder as delivered
-export const markReminderDeliveredHandler = http.post(
-  '/api/reminders/:id/delivered',
+// POST /api/reminders/:id/fire - Mark reminder as fired
+export const markReminderFiredHandler = http.post(
+  '/api/reminders/:id/fire',
   async ({ params }) => {
     await simulateLatency()
 
@@ -160,7 +161,8 @@ export const markReminderDeliveredHandler = http.post(
       )
     }
 
-    reminders[reminderIndex].delivered = true
+    reminders[reminderIndex].fired = true
+    reminders[reminderIndex].firedAt = new Date().toISOString()
 
     return HttpResponse.json(reminders[reminderIndex], { status: 200 })
   }
@@ -173,5 +175,5 @@ export const remindersHandlers = [
   createReminderHandler,
   updateReminderHandler,
   deleteReminderHandler,
-  markReminderDeliveredHandler,
+  markReminderFiredHandler,
 ]

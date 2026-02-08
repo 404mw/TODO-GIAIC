@@ -288,11 +288,44 @@ def register_error_handlers(app: FastAPI) -> None:
     async def http_exception_handler(
         request: Request, exc: HTTPException
     ) -> JSONResponse:
-        """Handle FastAPI HTTPExceptions."""
-        # Map status codes to error codes
+        """Handle FastAPI HTTPExceptions.
+
+        If detail is a structured dict with an 'error' key containing 'code',
+        pass it through directly (used by endpoints that build spec-compliant
+        error responses before raising HTTPException).
+        """
+        # Check if detail is already a structured error response
+        if isinstance(exc.detail, dict) and "error" in exc.detail:
+            error_response = exc.detail
+            # Ensure request_id is present
+            request_id = getattr(request.state, "request_id", None)
+            if request_id and "request_id" not in error_response["error"]:
+                error_response["error"]["request_id"] = request_id
+            headers = getattr(exc, "headers", None)
+            return JSONResponse(
+                status_code=exc.status_code,
+                content=error_response,
+                headers=headers,
+            )
+
+        # Handle dict detail with code/message keys (without "error" wrapper)
+        if isinstance(exc.detail, dict) and "code" in exc.detail and "message" in exc.detail:
+            error_response = {"error": exc.detail}
+            request_id = getattr(request.state, "request_id", None)
+            if request_id:
+                error_response["error"]["request_id"] = request_id
+            headers = getattr(exc, "headers", None)
+            return JSONResponse(
+                status_code=exc.status_code,
+                content=error_response,
+                headers=headers,
+            )
+
+        # Map status codes to error codes for plain string details
         code_map = {
             400: "BAD_REQUEST",
             401: "UNAUTHORIZED",
+            402: "INSUFFICIENT_CREDITS",
             403: "FORBIDDEN",
             404: "NOT_FOUND",
             409: "CONFLICT",

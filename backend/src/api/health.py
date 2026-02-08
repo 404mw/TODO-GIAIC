@@ -102,7 +102,7 @@ async def readiness(
     try:
         # Verify critical settings are loaded
         assert settings.database_url is not None
-        assert settings.jwt_public_key is not None
+        assert settings.get_jwt_public_key()  # Supports both file and inline
         assert settings.google_client_id is not None
         checks["configuration"] = ReadinessCheck(status="ok")
     except Exception as e:

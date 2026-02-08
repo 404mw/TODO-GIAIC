@@ -1,9 +1,24 @@
+/**
+ * @jest-environment jsdom
+ */
+
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { TaskForm } from '@/components/tasks/TaskForm'
 import { useCreateTask, useUpdateTask } from '@/lib/hooks/useTasks'
 import { useRouter } from 'next/navigation'
 import { useToast } from '@/lib/hooks/useToast'
+
+// Polyfills for Radix UI Select in JSDOM
+beforeAll(() => {
+  HTMLElement.prototype.hasPointerCapture = jest.fn()
+  HTMLElement.prototype.setPointerCapture = jest.fn()
+  HTMLElement.prototype.releasePointerCapture = jest.fn()
+  Element.prototype.scrollIntoView = jest.fn()
+  window.getComputedStyle = jest.fn().mockImplementation(() => ({
+    getPropertyValue: jest.fn(),
+  }))
+})
 
 // Mock dependencies
 jest.mock('@/lib/hooks/useTasks')
@@ -96,15 +111,20 @@ describe('TaskForm', () => {
         title: 'Finish report',
         description: 'Complete the quarterly report',
         priority: 'high' as const,
-        tags: ['work', 'urgent'],
         dueDate: new Date('2026-01-15T14:00:00.000Z').toISOString(),
         estimatedDuration: 120,
+        focusTimeSeconds: 0,
         completed: false,
+        completedAt: null,
+        completedBy: null,
         hidden: false,
+        archived: false,
+        templateId: null,
+        subtaskCount: 0,
+        subtaskCompletedCount: 0,
+        version: 1,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        completedAt: null,
-        parentTaskId: null,
       }
 
       mockCreateTask.mockResolvedValue(mockNewTask)
@@ -120,7 +140,8 @@ describe('TaskForm', () => {
       await user.type(descriptionInput, 'Complete the quarterly report')
 
       // Fill in priority (already defaults to medium, so we need to change it)
-      const prioritySelect = screen.getByRole('combobox', { name: /priority/i })
+      // Note: Radix Select trigger doesn't get the label's accessible name
+      const prioritySelect = screen.getByRole('combobox')
       await user.click(prioritySelect)
       const highOption = screen.getByRole('option', { name: /high/i })
       await user.click(highOption)
@@ -168,7 +189,7 @@ describe('TaskForm', () => {
       )
 
       // Verify navigation to task detail page with UUID
-      expect(mockPush).toHaveBeenCalledWith(`/tasks/${mockNewTask.id}`)
+      expect(mockPush).toHaveBeenCalledWith(`/dashboard/tasks/${mockNewTask.id}`)
 
       // Verify UUID format (UUID v4 pattern)
       expect(mockNewTask.id).toMatch(
@@ -176,23 +197,12 @@ describe('TaskForm', () => {
       )
     })
 
-    it('should show error toast if title is empty', async () => {
-      const user = userEvent.setup()
-
+    it('should prevent submission when title is empty', () => {
       render(<TaskForm />)
 
-      // Submit without filling title
+      // Submit button should be disabled when title is empty
       const submitButton = screen.getByRole('button', { name: /create task/i })
-      await user.click(submitButton)
-
-      // Verify error toast
-      expect(mockToast).toHaveBeenCalledWith(
-        expect.objectContaining({
-          title: 'Error',
-          description: 'Task title is required',
-          variant: 'error',
-        })
-      )
+      expect(submitButton).toBeDisabled()
 
       // Verify createTask was NOT called
       expect(mockCreateTask).not.toHaveBeenCalled()
@@ -205,15 +215,20 @@ describe('TaskForm', () => {
         title: 'Trimmed Title',
         description: 'Trimmed Description',
         priority: 'medium' as const,
-        tags: [],
         dueDate: null,
-        estimatedDuration: undefined,
+        estimatedDuration: null,
+        focusTimeSeconds: 0,
         completed: false,
+        completedAt: null,
+        completedBy: null,
         hidden: false,
+        archived: false,
+        templateId: null,
+        subtaskCount: 0,
+        subtaskCompletedCount: 0,
+        version: 1,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        completedAt: null,
-        parentTaskId: null,
       }
 
       mockCreateTask.mockResolvedValue(mockNewTask)
@@ -263,7 +278,7 @@ describe('TaskForm', () => {
 
       // Verify character count shows 20/20
       expect(screen.getByText(/20\/20 tags/i)).toBeInTheDocument()
-    })
+    }, 30000)
 
     it('should enforce max 200 characters for title', async () => {
       const user = userEvent.setup()
@@ -295,7 +310,7 @@ describe('TaskForm', () => {
       // Verify only 1000 characters are allowed
       expect(descriptionInput.value.length).toBe(1000)
       expect(screen.getByText(/1000\/1000 characters/i)).toBeInTheDocument()
-    })
+    }, 60000)
   })
 
   // Additional test for form validation

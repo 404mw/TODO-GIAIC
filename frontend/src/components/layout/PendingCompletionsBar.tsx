@@ -2,9 +2,11 @@
 
 import { useState } from 'react'
 import { usePendingCompletionsStore } from '@/lib/stores/usePendingCompletionsStore'
-import { useUpdateTask } from '@/lib/hooks/useTasks'
+import { useUpdateTask, useTask } from '@/lib/hooks/useTasks'
 import { useToast } from '@/lib/hooks/useToast'
 import { Button } from '@/components/ui/Button'
+import { apiClient } from '@/lib/api/client'
+import type { TaskDetail } from '@/lib/schemas/task.schema'
 
 /**
  * Fixed bottom bar for pending task completions
@@ -53,9 +55,12 @@ export function PendingCompletionsBar() {
 
     for (const taskId of pendingIds) {
       try {
+        // Fetch task to get current version
+        const task = await apiClient.get<TaskDetail>(`/tasks/${taskId}`)
+
         await updateTask.mutateAsync({
           id: taskId,
-          input: { completed: true },
+          input: { version: task.version, completed: true },
         })
         successCount++
       } catch {

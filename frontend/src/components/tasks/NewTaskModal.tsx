@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import type { Recurrence, Task } from '@/lib/schemas/task.schema'
+import type { Recurrence, Task, TaskCreate, TaskUpdate } from '@/lib/schemas/task.schema'
 import {
   Dialog,
   DialogContent,
@@ -10,7 +10,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/Dialog'
-import { useCreateTask, useUpdateTask, type TaskCreateInput, type TaskUpdateInput } from '@/lib/hooks/useTasks'
+import { useCreateTask, useUpdateTask } from '@/lib/hooks/useTasks'
 import { useToast } from '@/lib/hooks/useToast'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -68,7 +68,7 @@ export function NewTaskModal({ open, onOpenChange, editTask }: NewTaskModalProps
       setPriority(editTask.priority)
       setTags(editTask.tags || [])
       setEstimatedDuration(editTask.estimatedDuration?.toString() || '')
-      setRecurrence(editTask.recurrence)
+      setRecurrence(editTask.recurrence || undefined)
       // Format dueDate for datetime-local input
       if (editTask.dueDate) {
         const date = new Date(editTask.dueDate)
@@ -127,7 +127,8 @@ export function NewTaskModal({ open, onOpenChange, editTask }: NewTaskModalProps
     try {
       if (isEditMode && editTask) {
         // Update existing task
-        const updateData: TaskUpdateInput = {
+        const updateData: TaskUpdate = {
+          version: editTask.version,
           title: title.trim(),
           description: description.trim() || undefined,
           priority,
@@ -151,7 +152,7 @@ export function NewTaskModal({ open, onOpenChange, editTask }: NewTaskModalProps
         onOpenChange(false)
       } else {
         // Create new task
-        const createData: TaskCreateInput = {
+        const createData: TaskCreate = {
           title: title.trim(),
           description: description.trim() || undefined,
           priority,

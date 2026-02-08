@@ -10,10 +10,12 @@
 
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { FeatureCard } from '@/components/public/FeatureCard'
 import { Footer } from '@/components/public/Footer'
+import { MobileMenu } from '@/components/public/MobileMenu'
 import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
 import {
   staggerContainer,
@@ -152,6 +154,7 @@ const FEATURES = [
 
 export default function LandingPage() {
   const shouldReduceMotion = useReducedMotion()
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   return (
     <div className="min-h-screen bg-gray-950">
@@ -197,8 +200,30 @@ export default function LandingPage() {
               </Link>
             </div>
 
-            {/* CTA Button */}
+            {/* Mobile Hamburger + CTA Button */}
             <div className="flex items-center gap-4">
+              {/* Hamburger button - visible on mobile only */}
+              <button
+                onClick={() => setIsMobileMenuOpen(true)}
+                className="md:hidden rounded-md p-2 text-gray-400 hover:text-white transition-colors"
+                aria-label="Open menu"
+              >
+                <svg
+                  className="h-6 w-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 6h16M4 12h16M4 18h16"
+                  />
+                </svg>
+              </button>
+
+              {/* Get Started CTA Button */}
               <Link
                 href="/dashboard"
                 className="rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 px-4 py-2 text-sm font-medium text-white transition-all hover:from-blue-600 hover:to-purple-700"
@@ -259,7 +284,10 @@ export default function LandingPage() {
               >
                 Perpetua helps you build lasting productivity habits with smart task
                 management, focus sessions, and achievement tracking. Never lose
-                your streak again.
+                your streak again.{' '}
+                <span className="font-medium text-blue-400">
+                  Free forever tier - no credit card required.
+                </span>
               </motion.p>
               <motion.div
                 initial={shouldReduceMotion ? {} : { opacity: 0, y: 20 }}
@@ -271,7 +299,7 @@ export default function LandingPage() {
                   href="/dashboard"
                   className="rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 px-6 py-3 text-base font-medium text-white shadow-lg shadow-blue-500/25 transition-all hover:from-blue-600 hover:to-purple-700 hover:shadow-blue-500/40"
                 >
-                  Start Free Trial
+                  Start Free Forever
                 </Link>
                 <Link
                   href="#features"
@@ -323,6 +351,150 @@ export default function LandingPage() {
             </div>
           </section>
 
+          {/* Free Tier Callout Section */}
+          <section className="relative border-t border-white/10 px-4 py-24 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-4xl">
+              <motion.div
+                initial={shouldReduceMotion ? {} : { opacity: 0, scale: 0.98 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.4 }}
+                viewport={{ once: true }}
+                className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-blue-500/10 via-purple-500/10 to-green-500/10 px-8 py-12 backdrop-blur-sm sm:px-12 sm:py-16"
+              >
+                {/* Decorative gradient overlay */}
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5" />
+
+                <div className="relative z-10 text-center">
+                  <h2 className="text-3xl font-bold text-white sm:text-4xl">
+                    Powerful productivity,{' '}
+                    <span className="bg-gradient-to-r from-blue-400 to-green-400 bg-clip-text text-transparent">
+                      free forever
+                    </span>
+                  </h2>
+                  <p className="mx-auto mt-4 max-w-2xl text-lg text-gray-300">
+                    Get started with our generous free tier. No credit card required,
+                    no time limits, no catch.
+                  </p>
+
+                  {/* Features Grid */}
+                  <div className="mt-10 grid gap-6 sm:grid-cols-2">
+                    <div className="rounded-xl border border-white/10 bg-white/5 px-6 py-4 backdrop-blur-sm">
+                      <div className="flex items-center justify-center gap-2">
+                        <svg
+                          className="h-5 w-5 text-blue-400"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+                          />
+                        </svg>
+                        <span className="text-lg font-semibold text-white">
+                          50 Active Tasks
+                        </span>
+                      </div>
+                      <p className="mt-2 text-sm text-gray-400">
+                        Plenty of room for your projects
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl border border-white/10 bg-white/5 px-6 py-4 backdrop-blur-sm">
+                      <div className="flex items-center justify-center gap-2">
+                        <svg
+                          className="h-5 w-5 text-purple-400"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M13 10V3L4 14h7v7l9-11h-7z"
+                          />
+                        </svg>
+                        <span className="text-lg font-semibold text-white">
+                          5 AI Credits Daily
+                        </span>
+                      </div>
+                      <p className="mt-2 text-sm text-gray-400">
+                        AI-powered subtask generation
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl border border-white/10 bg-white/5 px-6 py-4 backdrop-blur-sm">
+                      <div className="flex items-center justify-center gap-2">
+                        <svg
+                          className="h-5 w-5 text-green-400"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                          />
+                        </svg>
+                        <span className="text-lg font-semibold text-white">
+                          No Credit Card
+                        </span>
+                      </div>
+                      <p className="mt-2 text-sm text-gray-400">
+                        Start immediately, no payment info
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl border border-white/10 bg-white/5 px-6 py-4 backdrop-blur-sm">
+                      <div className="flex items-center justify-center gap-2">
+                        <svg
+                          className="h-5 w-5 text-orange-400"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"
+                          />
+                        </svg>
+                        <span className="text-lg font-semibold text-white">
+                          All Core Features
+                        </span>
+                      </div>
+                      <p className="mt-2 text-sm text-gray-400">
+                        Streaks, focus mode, reminders & more
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* CTA */}
+                  <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
+                    <Link
+                      href="/dashboard"
+                      className="w-full rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 px-8 py-3 text-base font-medium text-white shadow-lg shadow-blue-500/25 transition-all hover:from-blue-600 hover:to-purple-700 hover:shadow-blue-500/40 sm:w-auto"
+                    >
+                      Start Free Forever
+                    </Link>
+                    <Link
+                      href="/pricing"
+                      className="w-full rounded-lg border border-white/20 bg-white/5 px-8 py-3 text-base font-medium text-white backdrop-blur-sm transition-colors hover:bg-white/10 sm:w-auto"
+                    >
+                      Compare Plans
+                    </Link>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          </section>
+
           {/* CTA Section */}
           <section className="relative px-4 py-24 sm:px-6 lg:px-8">
             <div className="mx-auto max-w-7xl">
@@ -348,7 +520,7 @@ export default function LandingPage() {
                     href="/dashboard"
                     className="mt-8 inline-block rounded-lg bg-white px-6 py-3 text-base font-medium text-gray-900 transition-colors hover:bg-gray-100"
                   >
-                    Start Your Free Trial
+                    Start Free Now
                   </Link>
                 </div>
               </motion.div>
@@ -359,6 +531,12 @@ export default function LandingPage() {
 
       {/* Footer */}
       <Footer />
+
+      {/* Mobile Menu */}
+      <MobileMenu
+        isOpen={isMobileMenuOpen}
+        onClose={() => setIsMobileMenuOpen(false)}
+      />
     </div>
   )
 }

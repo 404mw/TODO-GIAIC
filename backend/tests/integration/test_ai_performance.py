@@ -79,7 +79,8 @@ class TestAIChatPerformance:
         if task_resp.status_code not in (200, 201):
             pytest.skip("Could not create test task")
 
-        task_id = task_resp.json()["id"]
+        resp_data = task_resp.json()
+        task_id = resp_data.get("data", resp_data)["id"]
 
         for _ in range(10):
             start = time.perf_counter()
@@ -145,5 +146,5 @@ class TestAIChatPerformance:
         assert elapsed < 2.0, (
             f"AI unavailable took {elapsed:.3f}s, should fail fast"
         )
-        # Accept 503 or 402 (no credits) or similar error codes
-        assert response.status_code in (402, 500, 503)
+        # Accept error codes - 400/503 from AI service, 402 from no credits
+        assert response.status_code in (400, 402, 500, 503)

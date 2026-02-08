@@ -98,6 +98,26 @@ const VALUES = [
       </svg>
     ),
   },
+  {
+    title: 'Free Forever',
+    description:
+      'Everyone deserves powerful productivity tools. Our generous free tier gives you 50 active tasks and 5 daily AI credits—no credit card required, no trials, no catches. Be productive forever.',
+    icon: (
+      <svg
+        className="h-6 w-6 text-pink-400"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"
+        />
+      </svg>
+    ),
+  },
 ]
 
 const STATS = [
@@ -146,7 +166,9 @@ export default function AboutPage() {
           <p className="mx-auto mt-6 max-w-2xl text-lg text-gray-400">
             Perpetua was born from a simple idea: productivity should be
             rewarding, not punishing. We're building tools that help you build
-            lasting habits while celebrating every small win along the way.
+            lasting habits while celebrating every small win along the way. With
+            a generous free tier available for lifetime use, everyone can
+            experience powerful productivity—no credit card required.
           </p>
         </motion.div>
       </section>
@@ -203,6 +225,13 @@ export default function AboutPage() {
                 away the complexity that plagues most productivity tools and
                 leave you with what actually matters: getting things done.
               </p>
+              <p>
+                We believe powerful productivity tools should be accessible to
+                everyone. That's why Perpetua offers a generous free tier—with
+                50 active tasks and 5 daily AI credits—that you can use
+                forever, no credit card required. Productivity shouldn't be a
+                luxury, and with Perpetua, it never has to be.
+              </p>
             </div>
           </motion.div>
         </div>
@@ -242,32 +271,6 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* Technology Section */}
-      <section className="px-4 py-24">
-        <div className="mx-auto max-w-4xl">
-          <motion.div {...fadeIn} className="text-center">
-            <h2 className="text-3xl font-bold text-white">Built with Modern Tech</h2>
-            <p className="mx-auto mt-4 max-w-2xl text-gray-400">
-              Perpetua is built with Next.js, React, and TypeScript for a fast,
-              reliable, and type-safe experience. We use TailwindCSS for styling
-              and Framer Motion for smooth animations.
-            </p>
-            <div className="mt-12 flex flex-wrap justify-center gap-4">
-              {['Next.js', 'React', 'TypeScript', 'TailwindCSS', 'Framer Motion', 'Zod'].map(
-                (tech) => (
-                  <span
-                    key={tech}
-                    className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-gray-300"
-                  >
-                    {tech}
-                  </span>
-                )
-              )}
-            </div>
-          </motion.div>
-        </div>
-      </section>
-
       {/* CTA Section */}
       <section className="px-4 py-24">
         <motion.div
@@ -286,13 +289,13 @@ export default function AboutPage() {
               href="/dashboard/tasks"
               className="rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 px-6 py-3 font-medium text-white transition-all hover:from-blue-600 hover:to-purple-700"
             >
-              Get Started Free
+              Start Free Forever
             </Link>
             <Link
-              href="/contact"
+              href="/pricing"
               className="rounded-lg border border-white/20 bg-white/5 px-6 py-3 font-medium text-white transition-colors hover:bg-white/10"
             >
-              Contact Us
+              Upgrade to Pro
             </Link>
           </div>
         </motion.div>

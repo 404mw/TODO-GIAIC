@@ -408,6 +408,18 @@ async def generate_subtasks(
             },
         )
 
+    except AIServiceUnavailableError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={
+                "error": {
+                    "code": "AI_SERVICE_UNAVAILABLE",
+                    "message": "AI service is temporarily unavailable",
+                    "request_id": getattr(request.state, "request_id", None),
+                }
+            },
+        )
+
     except AIServiceError as e:
         # Handle task not found and other service errors
         if "not found" in str(e).lower():
@@ -427,18 +439,6 @@ async def generate_subtasks(
                 "error": {
                     "code": "AI_SERVICE_ERROR",
                     "message": str(e),
-                    "request_id": getattr(request.state, "request_id", None),
-                }
-            },
-        )
-
-    except AIServiceUnavailableError:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail={
-                "error": {
-                    "code": "AI_SERVICE_UNAVAILABLE",
-                    "message": "AI service is temporarily unavailable",
                     "request_id": getattr(request.state, "request_id", None),
                 }
             },
@@ -669,8 +669,8 @@ async def confirm_action(
 
     if action_type == "complete_task":
         task_id = UUID(action_data.get("task_id"))
-        from src.schemas.task import TaskUpdate
-        result = await task_service.complete_task(user=user, task_id=task_id)
+        from src.schemas.enums import CompletedBy
+        result = await task_service.complete_task(user=user, task_id=task_id, completed_by=CompletedBy.MANUAL)
         return {"data": {"task": {"id": str(result.id), "completed": True}}}
 
     elif action_type == "create_subtasks":

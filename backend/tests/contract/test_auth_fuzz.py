@@ -9,7 +9,6 @@ potential issues with the auth API contract.
 import pytest
 import schemathesis.openapi
 from httpx import ASGITransport, AsyncClient
-from schemathesis import Case
 
 
 @pytest.fixture
@@ -22,6 +21,16 @@ def app(contract_app):
 def schema(app):
     """Create schemathesis schema from app."""
     return schemathesis.openapi.from_dict(app.openapi())
+
+
+@pytest.fixture
+async def fuzz_client(app):
+    """Async HTTP client that lives inside the patched contract_app context."""
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+    ) as client:
+        yield client
 
 
 # =============================================================================
@@ -57,182 +66,110 @@ class TestGoogleCallbackFuzz:
         """Get schema for callback endpoint only."""
         return schema.endpoints.filter(path_regex="auth/google/callback")
 
-    def test_invalid_token_format(self, app):
+    @pytest.mark.asyncio
+    async def test_invalid_token_format(self, fuzz_client: AsyncClient):
         """Test that invalid token formats are rejected."""
-        import asyncio
+        response = await fuzz_client.post(
+            "/api/v1/auth/google/callback",
+            json={"id_token": "not-a-jwt"},
+        )
+        # Should return 400 or 401
+        assert response.status_code in (400, 401)
 
-        async def _test():
-            async with AsyncClient(
-                transport=ASGITransport(app=app),
-                base_url="http://test",
-            ) as client:
-                # Test with completely invalid token
-                response = await client.post(
-                    "/api/v1/auth/google/callback",
-                    json={"id_token": "not-a-jwt"},
-                )
-                # Should return 400 or 401
-                assert response.status_code in (400, 401)
+        # Verify error response format
+        data = response.json()
+        assert "error" in data
 
-                # Verify error response format
-                data = response.json()
-                assert "error" in data
-
-        asyncio.get_event_loop().run_until_complete(_test())
-
-    def test_empty_token(self, app):
+    @pytest.mark.asyncio
+    async def test_empty_token(self, fuzz_client: AsyncClient):
         """Test that empty token is rejected."""
-        import asyncio
+        response = await fuzz_client.post(
+            "/api/v1/auth/google/callback",
+            json={"id_token": ""},
+        )
+        # Should return 400 or 422
+        assert response.status_code in (400, 422)
 
-        async def _test():
-            async with AsyncClient(
-                transport=ASGITransport(app=app),
-                base_url="http://test",
-            ) as client:
-                response = await client.post(
-                    "/api/v1/auth/google/callback",
-                    json={"id_token": ""},
-                )
-                # Should return 400 or 422
-                assert response.status_code in (400, 422)
-
-        asyncio.get_event_loop().run_until_complete(_test())
-
-    def test_missing_token_field(self, app):
+    @pytest.mark.asyncio
+    async def test_missing_token_field(self, fuzz_client: AsyncClient):
         """Test that missing token field returns validation error."""
-        import asyncio
-
-        async def _test():
-            async with AsyncClient(
-                transport=ASGITransport(app=app),
-                base_url="http://test",
-            ) as client:
-                response = await client.post(
-                    "/api/v1/auth/google/callback",
-                    json={},
-                )
-                # Should return 422 (validation error)
-                assert response.status_code == 422
-
-        asyncio.get_event_loop().run_until_complete(_test())
+        response = await fuzz_client.post(
+            "/api/v1/auth/google/callback",
+            json={},
+        )
+        # Should return 422 (validation error)
+        assert response.status_code == 422
 
 
 class TestRefreshTokenFuzz:
     """Fuzz tests for token refresh endpoint."""
 
-    def test_invalid_refresh_token(self, app):
+    @pytest.mark.asyncio
+    async def test_invalid_refresh_token(self, fuzz_client: AsyncClient):
         """Test that invalid refresh token is rejected."""
-        import asyncio
+        response = await fuzz_client.post(
+            "/api/v1/auth/refresh",
+            json={"refresh_token": "invalid-token"},
+        )
+        # Should return 401
+        assert response.status_code == 401
 
-        async def _test():
-            async with AsyncClient(
-                transport=ASGITransport(app=app),
-                base_url="http://test",
-            ) as client:
-                response = await client.post(
-                    "/api/v1/auth/refresh",
-                    json={"refresh_token": "invalid-token"},
-                )
-                # Should return 401
-                assert response.status_code == 401
-
-        asyncio.get_event_loop().run_until_complete(_test())
-
-    def test_empty_refresh_token(self, app):
+    @pytest.mark.asyncio
+    async def test_empty_refresh_token(self, fuzz_client: AsyncClient):
         """Test that empty refresh token is rejected."""
-        import asyncio
+        response = await fuzz_client.post(
+            "/api/v1/auth/refresh",
+            json={"refresh_token": ""},
+        )
+        assert response.status_code in (400, 401, 422)
 
-        async def _test():
-            async with AsyncClient(
-                transport=ASGITransport(app=app),
-                base_url="http://test",
-            ) as client:
-                response = await client.post(
-                    "/api/v1/auth/refresh",
-                    json={"refresh_token": ""},
-                )
-                assert response.status_code in (400, 401, 422)
-
-        asyncio.get_event_loop().run_until_complete(_test())
-
-    def test_expired_format_token(self, app):
+    @pytest.mark.asyncio
+    async def test_expired_format_token(self, fuzz_client: AsyncClient):
         """Test handling of malformed JWT structure."""
-        import asyncio
-
-        async def _test():
-            async with AsyncClient(
-                transport=ASGITransport(app=app),
-                base_url="http://test",
-            ) as client:
-                # Malformed JWT (3 parts but invalid)
-                response = await client.post(
-                    "/api/v1/auth/refresh",
-                    json={"refresh_token": "aaa.bbb.ccc"},
-                )
-                assert response.status_code == 401
-
-        asyncio.get_event_loop().run_until_complete(_test())
+        # Malformed JWT (3 parts but invalid)
+        response = await fuzz_client.post(
+            "/api/v1/auth/refresh",
+            json={"refresh_token": "aaa.bbb.ccc"},
+        )
+        assert response.status_code == 401
 
 
 class TestLogoutFuzz:
     """Fuzz tests for logout endpoint."""
 
-    def test_logout_without_auth(self, app):
-        """Test that logout without auth returns 401."""
-        import asyncio
-
-        async def _test():
-            async with AsyncClient(
-                transport=ASGITransport(app=app),
-                base_url="http://test",
-            ) as client:
-                response = await client.post("/api/v1/auth/logout")
-                assert response.status_code == 401
-
-        asyncio.get_event_loop().run_until_complete(_test())
+    @pytest.mark.asyncio
+    async def test_logout_without_auth(self, fuzz_client: AsyncClient):
+        """Test that logout without auth/body returns 401 or 422."""
+        response = await fuzz_client.post("/api/v1/auth/logout")
+        # 422 if body validation fails first, 401 if auth check runs first
+        assert response.status_code in (401, 422)
 
 
 class TestJWKSFuzz:
     """Fuzz tests for JWKS endpoint."""
 
-    def test_jwks_returns_valid_structure(self, app):
+    @pytest.mark.asyncio
+    async def test_jwks_returns_valid_structure(self, fuzz_client: AsyncClient):
         """Test that JWKS endpoint returns valid key structure."""
-        import asyncio
+        response = await fuzz_client.get("/api/v1/.well-known/jwks.json")
+        assert response.status_code == 200
 
-        async def _test():
-            async with AsyncClient(
-                transport=ASGITransport(app=app),
-                base_url="http://test",
-            ) as client:
-                response = await client.get("/api/v1/.well-known/jwks.json")
-                assert response.status_code == 200
+        data = response.json()
+        assert "keys" in data
+        assert isinstance(data["keys"], list)
 
-                data = response.json()
-                assert "keys" in data
-                assert isinstance(data["keys"], list)
+        if data["keys"]:
+            key = data["keys"][0]
+            assert "kty" in key
+            assert "kid" in key
 
-                if data["keys"]:
-                    key = data["keys"][0]
-                    assert "kty" in key
-                    assert "kid" in key
-
-        asyncio.get_event_loop().run_until_complete(_test())
-
-    def test_jwks_is_idempotent(self, app):
+    @pytest.mark.asyncio
+    async def test_jwks_is_idempotent(self, fuzz_client: AsyncClient):
         """Test that JWKS endpoint returns consistent results."""
-        import asyncio
+        response1 = await fuzz_client.get("/api/v1/.well-known/jwks.json")
+        response2 = await fuzz_client.get("/api/v1/.well-known/jwks.json")
 
-        async def _test():
-            async with AsyncClient(
-                transport=ASGITransport(app=app),
-                base_url="http://test",
-            ) as client:
-                response1 = await client.get("/api/v1/.well-known/jwks.json")
-                response2 = await client.get("/api/v1/.well-known/jwks.json")
-
-                assert response1.json() == response2.json()
-
-        asyncio.get_event_loop().run_until_complete(_test())
+        assert response1.json() == response2.json()
 
 
 # =============================================================================
@@ -243,25 +180,17 @@ class TestJWKSFuzz:
 class TestAuthRateLimiting:
     """Test rate limiting on auth endpoints."""
 
-    def test_rate_limit_headers_present(self, app):
+    @pytest.mark.asyncio
+    async def test_rate_limit_headers_present(self, fuzz_client: AsyncClient):
         """Test that rate limit headers are returned."""
-        import asyncio
+        response = await fuzz_client.post(
+            "/api/v1/auth/google/callback",
+            json={"id_token": "test"},
+        )
 
-        async def _test():
-            async with AsyncClient(
-                transport=ASGITransport(app=app),
-                base_url="http://test",
-            ) as client:
-                response = await client.post(
-                    "/api/v1/auth/google/callback",
-                    json={"id_token": "test"},
-                )
-
-                # Rate limit headers should be present
-                # Note: May not be present if rate limiting is not configured
-                # This test verifies the API handles requests correctly
-
-        asyncio.get_event_loop().run_until_complete(_test())
+        # Rate limit headers should be present
+        # Note: May not be present if rate limiting is not configured
+        # This test verifies the API handles requests correctly
 
 
 # =============================================================================

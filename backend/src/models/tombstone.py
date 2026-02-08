@@ -3,7 +3,7 @@
 T041: DeletionTombstone model per data-model.md Entity 12 (FR-062)
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
@@ -64,7 +64,7 @@ class DeletionTombstone(SQLModel, table=True):
 
     # Deletion timestamp (immutable)
     deleted_at: datetime = Field(
-        default_factory=datetime.utcnow,
+        default_factory=lambda: datetime.now(UTC),
         nullable=False,
         index=True,
         description="Deletion time (UTC)",

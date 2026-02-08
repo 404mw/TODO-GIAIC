@@ -126,6 +126,7 @@ async def _expire_daily_credits(
                 credit_type=credit.credit_type,
                 operation=CreditOperation.EXPIRE,
                 amount=-remaining,  # Negative to show expiration
+                balance_after=0,
                 consumed=0,
                 expires_at=None,
                 expired=True,
@@ -274,6 +275,7 @@ async def _grant_daily_credits(
             credit_type=CreditType.DAILY,
             operation=CreditOperation.GRANT,
             amount=daily_credits,
+            balance_after=daily_credits,
             consumed=0,
             expires_at=expires_at,
             expired=False,

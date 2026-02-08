@@ -1,38 +1,21 @@
 import { calculateReminderTriggerTime } from '@/lib/utils/date';
 import type { Reminder } from '@/lib/schemas/reminder.schema';
-import type { Task } from '@/lib/schemas/task.schema';
 
 describe('calculateReminderTriggerTime', () => {
-  const baseTask: Task = {
-    id: 'task-1',
-    title: 'Test Task',
-    description: '',
-    tags: [],
-    priority: 'medium',
-    estimatedDuration: null,
-    reminders: [],
-    hidden: false,
-    completed: false,
-    completedAt: null,
+  const baseTask = {
     dueDate: '2026-01-15T14:00:00.000Z', // 2pm UTC - ISO string format
-    createdAt: '2026-01-10T10:00:00Z',
-    updatedAt: '2026-01-10T10:00:00Z',
-    parentTaskId: null,
-    isRecurringInstance: false,
   };
 
-  // Helper function to create a reminder with the correct timing structure
+  // Helper function to create a reminder with the new schema shape
   const createReminder = (id: string, offsetMinutes: number): Reminder => ({
     id,
     taskId: 'task-1',
-    title: 'Task reminder',
-    timing: {
-      type: 'relative_to_due_date',
-      offsetMinutes,
-    },
-    deliveryMethod: 'both',
-    enabled: true,
-    delivered: false,
+    type: 'before',
+    offsetMinutes,
+    scheduledAt: '2026-01-15T13:45:00Z',
+    method: 'in_app',
+    fired: false,
+    firedAt: null,
     createdAt: '2026-01-10T10:00:00Z',
   });
 
@@ -86,10 +69,7 @@ describe('calculateReminderTriggerTime', () => {
 
   describe('edge cases', () => {
     it('should return null when task has no due date', () => {
-      const taskWithoutDueDate: Task = {
-        ...baseTask,
-        dueDate: null,
-      };
+      const taskWithoutDueDate = { dueDate: null };
 
       const reminder = createReminder('reminder-6', -15);
 
@@ -117,10 +97,7 @@ describe('calculateReminderTriggerTime', () => {
     });
 
     it('should handle invalid due date', () => {
-      const taskWithInvalidDate: Task = {
-        ...baseTask,
-        dueDate: 'invalid-date',
-      };
+      const taskWithInvalidDate = { dueDate: 'invalid-date' };
 
       const reminder = createReminder('reminder-9', -15);
 
@@ -132,9 +109,7 @@ describe('calculateReminderTriggerTime', () => {
 
   describe('timezone handling', () => {
     it('should work consistently across timezones', () => {
-      // Due date specified in different timezone format - 9am EST = 2pm UTC
-      const taskWithTimezone: Task = {
-        ...baseTask,
+      const taskWithTimezone = {
         dueDate: '2026-01-15T14:00:00.000Z', // Already in UTC
       };
 
@@ -143,7 +118,6 @@ describe('calculateReminderTriggerTime', () => {
       const triggerTime = calculateReminderTriggerTime(reminder, taskWithTimezone);
 
       expect(triggerTime).not.toBeNull();
-      // Should still calculate 1 hour before in UTC
       expect(triggerTime?.toISOString()).toBe('2026-01-15T13:00:00.000Z');
     });
   });

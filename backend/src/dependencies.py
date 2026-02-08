@@ -88,8 +88,8 @@ class JWTKeyManager:
 
     def __init__(self, settings: Settings):
         self.settings = settings
-        self._private_key = settings.jwt_private_key.get_secret_value()
-        self._public_key = settings.jwt_public_key
+        self._private_key = settings.get_jwt_private_key()
+        self._public_key = settings.get_jwt_public_key()
         self._algorithm = settings.jwt_algorithm
         self._kid = "perpetua-flow-v1"  # Key ID for rotation support
 

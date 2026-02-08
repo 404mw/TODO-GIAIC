@@ -118,11 +118,7 @@ export function TaskCard({ task, showProgress = false }: TaskCardProps) {
     })
   }
 
-  // Calculate total duration from subtasks
-  const totalSubtaskDuration = subtasks.reduce(
-    (acc: number, st: SubTask) => acc + (st.estimatedDuration || 0),
-    0
-  )
+  // Subtasks don't have durations - use task's estimated duration
 
   return (
     <div ref={cardRef} className="relative">
@@ -291,7 +287,7 @@ export function TaskCard({ task, showProgress = false }: TaskCardProps) {
                 )}
 
                 {/* Duration */}
-                {(task.estimatedDuration || totalSubtaskDuration > 0) && (
+                {task.estimatedDuration && (
                   <span
                     className={
                       isPending
@@ -312,7 +308,7 @@ export function TaskCard({ task, showProgress = false }: TaskCardProps) {
                         d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
                       />
                     </svg>
-                    {totalSubtaskDuration > 0 ? totalSubtaskDuration : task.estimatedDuration} min
+                    {task.estimatedDuration} min
                   </span>
                 )}
 
@@ -353,23 +349,6 @@ export function TaskCard({ task, showProgress = false }: TaskCardProps) {
                       />
                     </svg>
                     {task.recurrence.humanReadable || 'Recurring'}
-                  </span>
-                )}
-
-                {/* Recurring instance indicator */}
-                {task.isRecurringInstance && (
-                  <span
-                    className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-2 py-0.5 text-purple-700 dark:bg-purple-900 dark:text-purple-300"
-                    title="This task was generated from a recurring task"
-                  >
-                    <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
-                      <path
-                        fillRule="evenodd"
-                        d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                    Instance
                   </span>
                 )}
 
@@ -488,11 +467,6 @@ export function TaskCard({ task, showProgress = false }: TaskCardProps) {
               >
                 {subtask.title}
               </span>
-              {subtask.estimatedDuration && (
-                <span className="text-xs text-gray-400 dark:text-gray-500 ml-auto">
-                  {subtask.estimatedDuration} min
-                </span>
-              )}
             </div>
           ))}
         </div>

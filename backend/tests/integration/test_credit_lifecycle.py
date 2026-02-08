@@ -119,7 +119,7 @@ async def test_credit_lifecycle_with_expiration(
     """
     service = CreditService(db_session, settings)
 
-    # Manually create an expired credit entry
+    # Manually create an expired credit entry (created yesterday so daily grant dedup won't trigger)
     yesterday = datetime.now(timezone.utc) - timedelta(days=1)
     expired_entry = AICreditLedger(
         id=uuid4(),
@@ -131,6 +131,7 @@ async def test_credit_lifecycle_with_expiration(
         consumed=0,
         expires_at=yesterday,
         expired=False,
+        created_at=yesterday,
     )
     db_session.add(expired_entry)
     await db_session.commit()

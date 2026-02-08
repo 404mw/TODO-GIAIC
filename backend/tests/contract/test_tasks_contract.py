@@ -252,11 +252,11 @@ class TestTaskContractValidation:
         assert response.status_code == 404
         data = response.json()
 
-        # Error response should have detail
-        assert "detail" in data
-        detail = data["detail"]
-        assert "code" in detail
-        assert "message" in detail
+        # Error response uses {"error": {"code": ..., "message": ...}} format
+        assert "error" in data
+        error = data["error"]
+        assert "code" in error
+        assert "message" in error
 
 
 class TestSubtaskContractValidation:

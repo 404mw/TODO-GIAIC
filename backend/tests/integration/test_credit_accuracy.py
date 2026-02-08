@@ -37,10 +37,12 @@ class TestCreditFIFOOrder:
         FR-042: FIFO order: daily → subscription → purchased.
         """
         service = CreditService(db_session, settings)
+        daily_amount = settings.pro_daily_credits  # 10
+        monthly_amount = settings.pro_monthly_credits  # 100
 
         # Grant different credit types
-        await service.grant_daily_credits(pro_user.id, 5)
-        await service.grant_monthly_credits(pro_user.id, 10)
+        await service.grant_daily_credits(pro_user.id)
+        await service.grant_monthly_credits(pro_user.id)
         await service.grant_purchased_credits(pro_user.id, 20)
         await db_session.commit()
 
@@ -51,10 +53,10 @@ class TestCreditFIFOOrder:
         # Get balance breakdown
         balance = await service.get_balance(pro_user.id)
 
-        # Daily should be reduced (5 - 3 = 2)
-        assert balance.daily == 2
+        # Daily should be reduced
+        assert balance.daily == daily_amount - 3
         # Subscription and purchased should be untouched
-        assert balance.subscription == 10
+        assert balance.subscription == monthly_amount
         assert balance.purchased == 20
 
     @pytest.mark.asyncio
@@ -63,21 +65,24 @@ class TestCreditFIFOOrder:
     ):
         """Subscription credits consumed after daily exhausted (SC-011)."""
         service = CreditService(db_session, settings)
+        daily_amount = settings.pro_daily_credits
+        monthly_amount = settings.pro_monthly_credits
 
         # Grant credits
-        await service.grant_daily_credits(pro_user.id, 3)
-        await service.grant_monthly_credits(pro_user.id, 10)
+        await service.grant_daily_credits(pro_user.id)
+        await service.grant_monthly_credits(pro_user.id)
         await service.grant_purchased_credits(pro_user.id, 20)
         await db_session.commit()
 
-        # Consume 5 credits (3 daily + 2 subscription)
-        result = await service.consume_credits(pro_user.id, 5, "fifo_test_2")
+        # Consume daily + 2 extra (should exhaust daily and take 2 from subscription)
+        consume_amount = daily_amount + 2
+        result = await service.consume_credits(pro_user.id, consume_amount, "fifo_test_2")
         await db_session.commit()
 
         balance = await service.get_balance(pro_user.id)
 
         assert balance.daily == 0
-        assert balance.subscription == 8  # 10 - 2
+        assert balance.subscription == monthly_amount - 2
         assert balance.purchased == 20
 
     @pytest.mark.asyncio
@@ -86,14 +91,17 @@ class TestCreditFIFOOrder:
     ):
         """Purchased credits consumed after daily and subscription (SC-011)."""
         service = CreditService(db_session, settings)
+        daily_amount = settings.pro_daily_credits
+        monthly_amount = settings.pro_monthly_credits
 
-        await service.grant_daily_credits(pro_user.id, 2)
-        await service.grant_monthly_credits(pro_user.id, 3)
+        await service.grant_daily_credits(pro_user.id)
+        await service.grant_monthly_credits(pro_user.id)
         await service.grant_purchased_credits(pro_user.id, 20)
         await db_session.commit()
 
-        # Consume 8 credits (2 daily + 3 subscription + 3 purchased)
-        result = await service.consume_credits(pro_user.id, 8, "fifo_test_3")
+        # Consume all daily + all subscription + 3 purchased
+        consume_amount = daily_amount + monthly_amount + 3
+        result = await service.consume_credits(pro_user.id, consume_amount, "fifo_test_3")
         await db_session.commit()
 
         balance = await service.get_balance(pro_user.id)
@@ -109,11 +117,13 @@ class TestCreditFIFOOrder:
         """Consuming more credits than available raises error (SC-011)."""
         service = CreditService(db_session, settings)
 
-        await service.grant_daily_credits(pro_user.id, 5)
+        await service.grant_daily_credits(pro_user.id)
         await db_session.commit()
 
+        # Try to consume more than available (daily credits from settings)
+        over_amount = settings.pro_daily_credits + 5
         with pytest.raises((ValueError, Exception)):
-            await service.consume_credits(pro_user.id, 10, "over_consume")
+            await service.consume_credits(pro_user.id, over_amount, "over_consume")
 
 
 class TestCreditRaceConditions:
@@ -124,17 +134,19 @@ class TestCreditRaceConditions:
         self, db_session: AsyncSession, pro_user: User, settings: Settings
     ):
         """Credit balance never goes negative under concurrent access (SC-011)."""
+        # Capture user ID before any rollback can expire the ORM object
+        user_id = pro_user.id
         service = CreditService(db_session, settings)
 
         # Grant 10 credits
-        await service.grant_purchased_credits(pro_user.id, 10)
+        await service.grant_purchased_credits(user_id, 10)
         await db_session.commit()
 
         # Sequential consumption (since SQLite doesn't support true concurrency)
         consumed = 0
         for i in range(15):
             try:
-                await service.consume_credits(pro_user.id, 1, f"race_test_{i}")
+                await service.consume_credits(user_id, 1, f"race_test_{i}")
                 consumed += 1
                 await db_session.commit()
             except (ValueError, Exception):
@@ -145,7 +157,7 @@ class TestCreditRaceConditions:
         assert consumed <= 10
 
         # Verify balance is not negative
-        balance = await service.get_balance(pro_user.id)
+        balance = await service.get_balance(user_id)
         assert balance.total >= 0
 
     @pytest.mark.asyncio
@@ -189,12 +201,12 @@ class TestCreditExpiration:
         """
         service = CreditService(db_session, settings)
 
-        await service.grant_daily_credits(pro_user.id, 10)
+        await service.grant_daily_credits(pro_user.id)
         await db_session.commit()
 
         # Balance should include daily credits
         balance = await service.get_balance(pro_user.id)
-        assert balance.daily == 10
+        assert balance.daily == settings.pro_daily_credits
 
     @pytest.mark.asyncio
     async def test_kickstart_credits_granted_to_new_user(

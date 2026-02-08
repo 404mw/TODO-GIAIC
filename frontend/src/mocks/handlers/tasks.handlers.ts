@@ -19,7 +19,7 @@ const generateUUID = () => crypto.randomUUID()
 
 // Helper: Calculate task progress
 const calculateTaskProgress = (taskId: string): number => {
-  const taskSubtasks = subtasks.filter(st => st.parentTaskId === taskId)
+  const taskSubtasks = subtasks.filter(st => st.taskId === taskId)
   if (taskSubtasks.length === 0) return 0
   const completed = taskSubtasks.filter(st => st.completed).length
   return Math.round((completed / taskSubtasks.length) * 100)
@@ -93,8 +93,6 @@ export const createTaskHandler = http.post('/api/tasks', async ({ request }) => 
       completedAt: null,
       hidden: false,
       completed: false,
-      parentTaskId: null,
-      isRecurringInstance: false,
     }
 
     TaskSchema.parse(newTask)
@@ -208,7 +206,7 @@ export const getSubTasksHandler = http.get('/api/tasks/:id/sub-tasks', async ({ 
     )
   }
 
-  const taskSubtasks = subtasks.filter(st => st.parentTaskId === id)
+  const taskSubtasks = subtasks.filter(st => st.taskId === id)
   return HttpResponse.json(taskSubtasks, { status: 200 })
 })
 
@@ -228,7 +226,7 @@ export const createSubTaskHandler = http.post('/api/tasks/:id/sub-tasks', async 
   }
 
   // Check max subtasks limit
-  const existingSubtasks = subtasks.filter(st => st.parentTaskId === id)
+  const existingSubtasks = subtasks.filter(st => st.taskId === id)
   if (existingSubtasks.length >= 10) {
     return HttpResponse.json(
       {
@@ -246,7 +244,7 @@ export const createSubTaskHandler = http.post('/api/tasks/:id/sub-tasks', async 
     const newSubtask: SubTask = {
       id: generateUUID(),
       ...(body as any),
-      parentTaskId: id as string,
+      taskId: id as string,
       createdAt: now,
       updatedAt: now,
       completedAt: null,
@@ -279,7 +277,7 @@ export const updateSubTaskHandler = http.patch(
 
     const { id, subTaskId } = params
     const body = await request.json()
-    const subtaskIndex = subtasks.findIndex(st => st.id === subTaskId && st.parentTaskId === id)
+    const subtaskIndex = subtasks.findIndex(st => st.id === subTaskId && st.taskId === id)
 
     if (subtaskIndex === -1) {
       return HttpResponse.json(
@@ -330,7 +328,7 @@ export const deleteSubTaskHandler = http.delete(
     await simulateLatency()
 
     const { id, subTaskId } = params
-    const subtaskIndex = subtasks.findIndex(st => st.id === subTaskId && st.parentTaskId === id)
+    const subtaskIndex = subtasks.findIndex(st => st.id === subTaskId && st.taskId === id)
 
     if (subtaskIndex === -1) {
       return HttpResponse.json(

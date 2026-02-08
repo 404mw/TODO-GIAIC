@@ -170,12 +170,20 @@ class SubscriptionService:
         Returns:
             Updated or created Subscription
         """
-        # Find existing subscription
+        # Find existing subscription by checkout ID or user ID
         query = select(Subscription).where(
             Subscription.checkout_subscription_id == checkout_subscription_id
         )
         result = await self._session.execute(query)
         subscription = result.scalar_one_or_none()
+
+        # If not found by checkout ID, check by user ID (user may have switched providers)
+        if subscription is None:
+            query_by_user = select(Subscription).where(
+                Subscription.user_id == user_id
+            )
+            result_by_user = await self._session.execute(query_by_user)
+            subscription = result_by_user.scalar_one_or_none()
 
         now = datetime.now(timezone.utc)
 
@@ -195,6 +203,7 @@ class SubscriptionService:
             self._session.add(subscription)
         else:
             # Update existing subscription
+            subscription.checkout_subscription_id = checkout_subscription_id
             subscription.status = SubscriptionStatus.ACTIVE
             subscription.current_period_start = period_start
             subscription.current_period_end = period_end

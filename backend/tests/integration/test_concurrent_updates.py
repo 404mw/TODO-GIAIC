@@ -16,6 +16,7 @@ from src.config import Settings
 from src.models.task import TaskInstance
 from src.models.user import User
 from src.schemas.enums import TaskPriority, UserTier
+from src.schemas.task import TaskCreate, TaskUpdate
 from src.services.task_service import TaskService
 
 
@@ -87,8 +88,7 @@ class TestOptimisticLockingStress:
             service = TaskService(session, settings)
             task = await service.create_task(
                 user=concurrent_user,
-                title="Concurrent Lock Task",
-                priority=TaskPriority.MEDIUM,
+                data=TaskCreate(title="Concurrent Lock Task", priority=TaskPriority.MEDIUM),
             )
             await session.commit()
             task_id = task.id
@@ -102,8 +102,7 @@ class TestOptimisticLockingStress:
                     await service.update_task(
                         user=concurrent_user,
                         task_id=task_id,
-                        title=title,
-                        version=original_version,
+                        data=TaskUpdate(title=title, version=original_version),
                     )
                     await session.commit()
                     return True
@@ -139,8 +138,7 @@ class TestOptimisticLockingStress:
             service = TaskService(session, settings)
             task = await service.create_task(
                 user=concurrent_user,
-                title="Version Inc Task",
-                priority=TaskPriority.LOW,
+                data=TaskCreate(title="Version Inc Task", priority=TaskPriority.LOW),
             )
             await session.commit()
             task_id = task.id
@@ -160,8 +158,7 @@ class TestOptimisticLockingStress:
                 await service.update_task(
                     user=concurrent_user,
                     task_id=task_id,
-                    title=f"Update {i}",
-                    version=current_version,
+                    data=TaskUpdate(title=f"Update {i}", version=current_version),
                 )
                 await session.commit()
 
@@ -190,8 +187,7 @@ class TestOptimisticLockingStress:
             service = TaskService(session, settings)
             task = await service.create_task(
                 user=concurrent_user,
-                title="Stale Version Task",
-                priority=TaskPriority.HIGH,
+                data=TaskCreate(title="Stale Version Task", priority=TaskPriority.HIGH),
             )
             await session.commit()
             task_id = task.id
@@ -203,8 +199,7 @@ class TestOptimisticLockingStress:
             await service.update_task(
                 user=concurrent_user,
                 task_id=task_id,
-                title="First Update Success",
-                version=stale_version,
+                data=TaskUpdate(title="First Update Success", version=stale_version),
             )
             await session.commit()
 
@@ -215,8 +210,7 @@ class TestOptimisticLockingStress:
                 await service.update_task(
                     user=concurrent_user,
                     task_id=task_id,
-                    title="Should Fail",
-                    version=stale_version,  # Stale!
+                    data=TaskUpdate(title="Should Fail", version=stale_version),  # Stale!
                 )
                 await session.commit()
                 # If it succeeded, verify title didn't overwrite
@@ -243,8 +237,7 @@ class TestOptimisticLockingStress:
             service = TaskService(session, settings)
             task = await service.create_task(
                 user=concurrent_user,
-                title="Burst Task",
-                priority=TaskPriority.MEDIUM,
+                data=TaskCreate(title="Burst Task", priority=TaskPriority.MEDIUM),
             )
             await session.commit()
             task_id = task.id
@@ -265,8 +258,7 @@ class TestOptimisticLockingStress:
                     await service.update_task(
                         user=concurrent_user,
                         task_id=task_id,
-                        title=f"Burst {i}",
-                        version=task.version,
+                        data=TaskUpdate(title=f"Burst {i}", version=task.version),
                     )
                     await session.commit()
                     successful_updates += 1

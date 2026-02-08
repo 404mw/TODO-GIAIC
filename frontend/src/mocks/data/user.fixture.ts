@@ -1,5 +1,5 @@
 import type { UserProfile } from '@/lib/schemas/user.schema'
-import type { Achievement } from '@/lib/schemas/achievement.schema'
+import type { AchievementResponse } from '@/lib/schemas/achievement.schema'
 
 // Sample user fixture for MSW
 export const userFixture: UserProfile = {
@@ -21,30 +21,55 @@ export const userFixture: UserProfile = {
 }
 
 // Sample achievement fixture for MSW
-export const achievementFixture: Achievement = {
-  id: 'aa0e8400-e29b-41d4-a716-446655440001',
-  userId: '990e8400-e29b-41d4-a716-446655440001',
-  highPrioritySlays: 12, // 12 high-priority tasks completed
-  consistencyStreak: {
-    currentStreak: 5, // 5 consecutive days
-    longestStreak: 14, // Best streak was 14 days
-    lastCompletionDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Yesterday (YYYY-MM-DD)
-    graceDayUsed: false,
+export const achievementFixture: AchievementResponse = {
+  stats: {
+    lifetimeTasksCompleted: 42,
+    currentStreak: 5,
+    longestStreak: 14,
+    focusCompletions: 18,
+    notesConverted: 8,
   },
-  completionRatio: 67, // 67% completion ratio
-  milestones: [
+  unlocked: [
     {
       id: 'streak_7',
       name: 'Week Warrior',
       description: 'Completed tasks for 7 consecutive days',
       unlockedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+      perk: {
+        type: 'max_tasks',
+        value: 10,
+      },
     },
     {
       id: 'slays_10',
       name: 'Priority Master',
       description: 'Completed 10 high-priority tasks',
       unlockedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+      perk: {
+        type: 'daily_credits',
+        value: 5,
+      },
     },
   ],
-  updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+  progress: [
+    {
+      id: 'streak_30',
+      name: 'Monthly Maestro',
+      current: 5,
+      threshold: 30,
+      unlocked: false,
+    },
+    {
+      id: 'focus_50',
+      name: 'Focus Champion',
+      current: 18,
+      threshold: 50,
+      unlocked: false,
+    },
+  ],
+  effectiveLimits: {
+    maxTasks: 110, // Base 100 + 10 from perk
+    maxNotes: 50,
+    dailyAiCredits: 55, // Base 50 + 5 from perk
+  },
 }

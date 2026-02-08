@@ -12,6 +12,7 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 from sqlmodel import select
 
 from src.config import Settings
@@ -233,8 +234,8 @@ class TaskService:
             raise TaskNotFoundError(f"Task {task_id} not found")
 
         if include_subtasks:
-            # Eagerly load subtasks
-            await self.session.refresh(task, ["subtasks"])
+            # Eagerly load subtasks and reminders
+            await self.session.refresh(task, ["subtasks", "reminders"])
 
         return task
 
@@ -290,15 +291,16 @@ class TaskService:
         count_result = await self.session.execute(count_query)
         total = count_result.scalar() or 0
 
-        # Apply pagination and ordering
+        # Apply pagination and ordering with eager loading
         query = (
-            query.order_by(TaskInstance.created_at.desc())
+            query.options(selectinload(TaskInstance.subtasks))
+            .order_by(TaskInstance.created_at.desc())
             .offset(offset)
             .limit(min(limit, 100))
         )
 
         result = await self.session.execute(query)
-        tasks = result.scalars().all()
+        tasks = result.scalars().unique().all()
 
         return tasks, total
 
@@ -754,6 +756,8 @@ class TaskService:
         # Check for auto-completion if subtask was completed
         if completed is True:
             await self._check_auto_complete(user=user, task_id=subtask.task_id)
+            # Refresh subtask after auto-complete since session state changed
+            await self.session.refresh(subtask)
 
         return subtask
 

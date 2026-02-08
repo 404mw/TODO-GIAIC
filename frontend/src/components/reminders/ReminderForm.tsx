@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import type { Task } from '@/lib/schemas/task.schema'
+import type { Task, TaskDetail } from '@/lib/schemas/task.schema'
 import type { ReminderCreate } from '@/lib/schemas/reminder.schema'
 import { REMINDER_PRESETS, REMINDER_PRESET_LABELS } from '@/lib/schemas/reminder.schema'
 import { Button } from '@/components/ui/Button'
@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/Select'
 
 interface ReminderFormProps {
-  task: Task
+  task: Task | TaskDetail
   onSubmit: (reminder: ReminderCreate) => void | Promise<void>
   onCancel?: () => void
 }
@@ -56,14 +56,10 @@ export function ReminderForm({ task, onSubmit, onCancel }: ReminderFormProps) {
       setIsSubmitting(true)
 
       const reminderData: ReminderCreate = {
-        taskId: task.id,
-        title: `Reminder for: ${task.title}`,
-        timing: {
-          type: 'relative_to_due_date',
-          offsetMinutes,
-        },
-        deliveryMethod: 'both',
-        enabled: true,
+        type: 'before',
+        offsetMinutes,
+        scheduledAt: null,
+        method: 'in_app',
       }
 
       await onSubmit(reminderData)

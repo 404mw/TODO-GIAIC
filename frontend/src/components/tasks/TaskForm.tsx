@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import type { Task, TaskCreate, Recurrence } from '@/lib/schemas/task.schema'
-import { useCreateTask, useUpdateTask, type TaskUpdateInput } from '@/lib/hooks/useTasks'
+import type { Task, TaskDetail, TaskCreate, TaskUpdate, Recurrence } from '@/lib/schemas/task.schema'
+import { useCreateTask, useUpdateTask } from '@/lib/hooks/useTasks'
 import { useToast } from '@/lib/hooks/useToast'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -14,7 +14,7 @@ import { RecurrenceEditor } from '@/components/recurrence/RecurrenceEditor'
 import { RecurrencePreview } from '@/components/recurrence/RecurrencePreview'
 
 interface TaskFormProps {
-  task?: Task
+  task?: Task | TaskDetail
   onSuccess?: () => void
   onCancel?: () => void
 }
@@ -35,7 +35,7 @@ export function TaskForm({ task, onSuccess, onCancel }: TaskFormProps) {
   const [tagInput, setTagInput] = useState('')
   const [dueDate, setDueDate] = useState(task?.dueDate ? task.dueDate.slice(0, 16) : '')
   const [estimatedDuration, setEstimatedDuration] = useState(task?.estimatedDuration?.toString() || '')
-  const [recurrence, setRecurrence] = useState<Recurrence | undefined>(task?.recurrence)
+  const [recurrence, setRecurrence] = useState<Recurrence | undefined>(task?.recurrence || undefined)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -54,7 +54,8 @@ export function TaskForm({ task, onSuccess, onCancel }: TaskFormProps) {
 
     try {
       if (isEditing) {
-        const updateData: TaskUpdateInput = {
+        const updateData: TaskUpdate = {
+          version: task!.version,
           title: title.trim(),
           description: description.trim(),
           priority,
@@ -64,7 +65,7 @@ export function TaskForm({ task, onSuccess, onCancel }: TaskFormProps) {
           recurrence,
         }
         await updateTask.mutateAsync({
-          id: task.id,
+          id: task!.id,
           input: updateData,
         })
 

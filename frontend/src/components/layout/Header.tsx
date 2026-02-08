@@ -5,7 +5,10 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useSidebarStore } from '@/lib/stores/useSidebarStore'
 import { useNewTaskModalStore } from '@/lib/stores/useNewTaskModalStore'
+import { useNewNoteModalStore } from '@/lib/stores/useNewNoteModalStore'
+import { useCreditsStore } from '@/lib/stores/useCreditsStore'
 import { NotificationDropdown } from '@/components/layout/NotificationDropdown'
+import { CreditsPopover } from '@/components/dashboard/CreditsPopover'
 import { navigationItems } from '@/lib/config/navigation'
 
 /**
@@ -21,8 +24,12 @@ import { navigationItems } from '@/lib/config/navigation'
 export function Header() {
   const { isOpen: isSidebarOpen, toggle: toggleSidebar } = useSidebarStore()
   const openNewTaskModal = useNewTaskModalStore((state) => state.open)
+  const openNewNoteModal = useNewNoteModalStore((state) => state.open)
+  const { balance, isLoading: creditsLoading, fetchCredits } = useCreditsStore()
   const [showNewDropdown, setShowNewDropdown] = useState(false)
+  const [showCreditsPopover, setShowCreditsPopover] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const creditsButtonRef = useRef<HTMLButtonElement>(null)
   const pathname = usePathname()
 
   // Find active navigation item for page title
@@ -33,6 +40,11 @@ export function Header() {
     return pathname.startsWith(item.href)
   })
   const pageTitle = activeNavItem?.label || 'Dashboard'
+
+  // Fetch credits on mount
+  useEffect(() => {
+    fetchCredits()
+  }, [fetchCredits])
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -52,8 +64,7 @@ export function Header() {
 
   const handleNewNote = () => {
     setShowNewDropdown(false)
-    // TODO: Open new note modal when implemented
-    console.log('New note clicked')
+    openNewNoteModal()
   }
 
   return (
@@ -101,7 +112,7 @@ export function Header() {
               <span className="text-lg font-bold text-white">P</span>
             </div>
             <span className="text-xl font-bold text-gray-900 dark:text-gray-100">
-              Perpetua
+              {pageTitle}
             </span>
           </Link>
         </div>
@@ -117,8 +128,10 @@ export function Header() {
         <div className="flex items-center gap-2">
           {/* Credits info button */}
           <button
+            ref={creditsButtonRef}
+            onClick={() => setShowCreditsPopover(!showCreditsPopover)}
             className="flex items-center gap-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-            aria-label="Credits info"
+            aria-label="View credits"
           >
             <svg
               className="h-4 w-4 text-yellow-500"
@@ -133,7 +146,13 @@ export function Header() {
                 d="M13 10V3L4 14h7v7l9-11h-7z"
               />
             </svg>
-            <span className="hidden sm:inline">Credits</span>
+            {creditsLoading && !balance ? (
+              <span className="hidden sm:inline">Loading...</span>
+            ) : balance ? (
+              <span className="hidden sm:inline">{balance.total} Credits</span>
+            ) : (
+              <span className="hidden sm:inline">Credits</span>
+            )}
           </button>
 
           {/* New Task/Note dropdown */}
@@ -222,6 +241,13 @@ export function Header() {
           <NotificationDropdown />
         </div>
       </div>
+
+      {/* Credits Popover */}
+      <CreditsPopover
+        isOpen={showCreditsPopover}
+        onClose={() => setShowCreditsPopover(false)}
+        anchorEl={creditsButtonRef.current}
+      />
     </header>
   )
 }

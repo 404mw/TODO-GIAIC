@@ -256,7 +256,7 @@ async def activity_log_handler(
             entity_id=_get_entity_id(event),
             action=action,
             source=_get_source(event),
-            metadata=metadata,
+            extra_data=metadata,
             created_at=datetime.utcnow(),
         )
 

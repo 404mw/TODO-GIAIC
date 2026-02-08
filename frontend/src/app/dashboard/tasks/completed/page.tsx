@@ -23,10 +23,11 @@ export default function CompletedTasksPage() {
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
 
   const {
-    data: tasks = [],
+    data: tasksResponse,
     isLoading,
     error,
   } = useTasks({ hidden: false })
+  const tasks = tasksResponse?.data || []
 
   // Filter only completed tasks
   const completedTasks = tasks.filter((task: Task) => task.completed)

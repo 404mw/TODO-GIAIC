@@ -99,7 +99,7 @@ export function TaskDetailModal() {
     try {
       await updateTask.mutateAsync({
         id: task.id,
-        input: { hidden: !task.hidden },
+        input: { version: task.version, hidden: !task.hidden },
       })
 
       toast({
@@ -121,7 +121,8 @@ export function TaskDetailModal() {
   const handleEdit = () => {
     if (!task) return
     closeModal()
-    openEditModal(task)
+    // Cast to Task since the modal accepts both Task and TaskDetail
+    openEditModal(task as any)
   }
 
   const handleStartFocusMode = () => {

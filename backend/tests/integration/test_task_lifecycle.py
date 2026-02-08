@@ -227,8 +227,10 @@ class TestTaskLifecycle:
 
         assert force_response.status_code == 200
         force_data = force_response.json()["data"]
-        assert force_data["completed"] is True
-        assert force_data["completed_by"] == "force"
+        # TaskCompletionResponse wraps task in "task" key
+        task_info = force_data.get("task", force_data)
+        assert task_info["completed"] is True
+        assert task_info["completed_by"] == "force"
 
         # Verify subtasks are completed
         task_detail = await client.get(

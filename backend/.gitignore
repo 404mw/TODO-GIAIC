@@ -158,3 +158,6 @@ test_*.db
 *.temp
 .DS_Store
 Thumbs.db
+
+# JWT Keys (never commit)
+keys/

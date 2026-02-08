@@ -1,15 +1,16 @@
 'use client'
 
 import { motion, AnimatePresence } from 'framer-motion'
-import type { Reminder, Task } from '@/lib/schemas/task.schema'
+import type { Reminder } from '@/lib/schemas/reminder.schema'
+import type { Task, TaskDetail, ReminderInTask } from '@/lib/schemas/task.schema'
 import { formatReminderOffset, calculateReminderTriggerTime } from '@/lib/utils/date'
 import { Button } from '@/components/ui/Button'
 import { format } from 'date-fns'
 
 interface ReminderListProps {
-  task: Task
-  reminders: Reminder[]
-  onEdit?: (reminder: Reminder) => void
+  task: Task | TaskDetail
+  reminders: Reminder[] | ReminderInTask[]
+  onEdit?: (reminder: Reminder | ReminderInTask) => void
   onDelete: (reminderId: string) => void | Promise<void>
 }
 
@@ -51,7 +52,7 @@ export function ReminderList({ task, reminders, onEdit, onDelete }: ReminderList
       <AnimatePresence mode="popLayout">
         {reminders.map((reminder) => {
           const triggerTime = calculateReminderTriggerTime(reminder, task)
-          const offsetLabel = formatReminderOffset(reminder.timing.offsetMinutes)
+          const offsetLabel = reminder.offsetMinutes ? formatReminderOffset(reminder.offsetMinutes) : 'At scheduled time'
 
           return (
             <motion.div
@@ -68,7 +69,7 @@ export function ReminderList({ task, reminders, onEdit, onDelete }: ReminderList
                 <div className="flex-shrink-0 mt-1">
                   <svg
                     className={`h-5 w-5 ${
-                      reminder.delivered ? 'text-gray-500' : 'text-blue-400'
+                      reminder.fired ? 'text-gray-500' : 'text-blue-400'
                     }`}
                     fill="none"
                     viewBox="0 0 24 24"
@@ -89,7 +90,7 @@ export function ReminderList({ task, reminders, onEdit, onDelete }: ReminderList
                     <p className="text-sm font-medium text-gray-200">
                       {offsetLabel}
                     </p>
-                    {reminder.delivered && (
+                    {reminder.fired && (
                       <span className="inline-flex items-center rounded-full bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-400 border border-green-500/20">
                         ✓ Delivered
                       </span>
@@ -115,7 +116,7 @@ export function ReminderList({ task, reminders, onEdit, onDelete }: ReminderList
 
               {/* Actions */}
               <div className="flex items-center gap-2 ml-4">
-                {onEdit && !reminder.delivered && (
+                {onEdit && !reminder.fired && (
                   <Button
                     variant="ghost"
                     size="sm"

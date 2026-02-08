@@ -1,10 +1,10 @@
 'use client'
 
 import { format } from 'date-fns'
-import type { Task } from '@/lib/schemas/task.schema'
+import type { Task, TaskDetail } from '@/lib/schemas/task.schema'
 
 interface TaskMetadataProps {
-  task: Task
+  task: Task | TaskDetail
 }
 
 export function TaskMetadata({ task }: TaskMetadataProps) {

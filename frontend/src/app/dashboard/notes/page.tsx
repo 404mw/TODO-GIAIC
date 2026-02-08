@@ -14,10 +14,11 @@ export default function NotesPage() {
   const [editingNote, setEditingNote] = useState<Note | null>(null)
 
   const {
-    data: notes = [],
+    data: notesResponse,
     isLoading,
     error,
   } = useNotes({ archived: showArchived })
+  const notes = notesResponse?.data || []
 
   const handleEdit = (note: Note) => {
     setEditingNote(note)

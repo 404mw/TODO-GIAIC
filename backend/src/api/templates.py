@@ -15,8 +15,8 @@ from src.dependencies import get_current_user, get_db_session
 from src.models.user import User
 from src.schemas.common import (
     DataResponse,
-    DeleteResponse,
     ErrorResponse,
+    MessageResponse,
     PaginatedResponse,
     PaginationMeta,
 )
@@ -74,7 +74,7 @@ async def list_templates(
 
     return PaginatedResponse(
         data=items,
-        meta=PaginationMeta(
+        pagination=PaginationMeta(
             offset=offset,
             limit=limit,
             total=len(items),  # Note: This should be actual total from DB
@@ -268,7 +268,7 @@ async def update_template(
 
 @router.delete(
     "/{template_id}",
-    response_model=DeleteResponse,
+    response_model=MessageResponse,
     summary="Delete a recurring task template",
     description="Delete a recurring task template. Existing instances are preserved as standalone tasks.",
     responses={
@@ -281,7 +281,7 @@ async def delete_template(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db_session),
     settings: Settings = Depends(get_settings),
-) -> DeleteResponse:
+) -> MessageResponse:
     """T156: DELETE /api/v1/templates/:id - Delete template."""
     service = get_recurring_service(session, settings)
 
@@ -295,7 +295,6 @@ async def delete_template(
 
     await session.commit()
 
-    return DeleteResponse(
+    return MessageResponse(
         message=f"Template {template_id} deleted successfully",
-        deleted_id=template_id,
     )

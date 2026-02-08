@@ -15,6 +15,8 @@ from src.models.task import TaskInstance
 from src.models.tombstone import DeletionTombstone
 from src.models.user import User
 from src.schemas.enums import TaskPriority, TombstoneEntityType
+from src.schemas.subtask import SubtaskCreate
+from src.schemas.task import TaskCreate
 from src.services.recovery_service import RecoveryService
 from src.services.task_service import TaskService
 
@@ -40,8 +42,7 @@ class TestTaskRecoveryPerformance:
         # Create and then hard-delete a task
         task = await task_service.create_task(
             user=test_user,
-            title="Recovery Perf Task",
-            priority=TaskPriority.HIGH,
+            data=TaskCreate(title="Recovery Perf Task", priority=TaskPriority.HIGH),
         )
         await db_session.commit()
 
@@ -85,8 +86,7 @@ class TestTaskRecoveryPerformance:
         # Create task with subtasks
         task = await task_service.create_task(
             user=test_user,
-            title="Recovery Subtask Perf Task",
-            priority=TaskPriority.MEDIUM,
+            data=TaskCreate(title="Recovery Subtask Perf Task", priority=TaskPriority.MEDIUM),
         )
         await db_session.commit()
 
@@ -96,7 +96,7 @@ class TestTaskRecoveryPerformance:
                 await task_service.create_subtask(
                     user=test_user,
                     task_id=task.id,
-                    title=f"Subtask {i}",
+                    data=SubtaskCreate(title=f"Subtask {i}"),
                 )
             except Exception:
                 pass  # Some may fail due to limits
@@ -144,8 +144,7 @@ class TestTaskRecoveryPerformance:
         for i in range(3):
             task = await task_service.create_task(
                 user=test_user,
-                title=f"Multi Recovery Task {i}",
-                priority=TaskPriority.LOW,
+                data=TaskCreate(title=f"Multi Recovery Task {i}", priority=TaskPriority.LOW),
             )
             await db_session.commit()
 

@@ -32,10 +32,11 @@ export default function TasksPage() {
   const openNewTaskModal = useNewTaskModalStore((state) => state.open)
 
   const {
-    data: tasks = [],
+    data: tasksResponse,
     isLoading,
     error,
   } = useTasks({ hidden: false })
+  const tasks = tasksResponse?.data || []
 
   // Apply filters - only show non-completed tasks (completed tasks have their own page)
   const filteredTasks = tasks.filter((task: Task) => {

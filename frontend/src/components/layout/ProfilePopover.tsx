@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/Popover'
+import { useAuth } from '@/lib/contexts/AuthContext'
 
 /**
  * ProfilePopover Component
@@ -9,31 +10,33 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/Popover
  * Features:
  * - User profile information display
  * - Quick links to settings
- * - Logout functionality (placeholder)
+ * - Logout functionality
  *
  * FR-037: User profile display
  * FR-038: Settings access
- *
- * Note: This is a placeholder component for Phase 3.
- * Full user authentication will be implemented in later phases.
  */
 
 interface ProfilePopoverProps {
-  userName?: string
-  userEmail?: string
   collapsed?: boolean
 }
 
 export function ProfilePopover({
-  userName = 'Demo User',
-  userEmail = 'demo@perpetua.app',
   collapsed = false,
 }: ProfilePopoverProps) {
-  const handleLogout = () => {
-    // Placeholder for logout functionality
-    // Will be implemented with authentication in later phases
-    console.log('Logout clicked')
+  const { user, logout } = useAuth()
+
+  const handleLogout = async () => {
+    try {
+      await logout()
+    } catch (error) {
+      console.error('Logout error:', error)
+    }
   }
+
+  // Use demo data if no user (shouldn't happen in protected routes, but fallback for safety)
+  const userName = user?.name || 'Demo User'
+  const userEmail = user?.email || 'demo@perpetua.app'
+  const avatarUrl = user?.avatar_url
 
   return (
     <Popover>
@@ -45,9 +48,17 @@ export function ProfilePopover({
           aria-label="User profile menu"
           title={collapsed ? userName : undefined}
         >
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-white font-semibold text-sm shrink-0">
-            {userName.charAt(0).toUpperCase()}
-          </div>
+          {avatarUrl ? (
+            <img
+              src={avatarUrl}
+              alt={userName}
+              className="h-8 w-8 rounded-full shrink-0 object-cover"
+            />
+          ) : (
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-white font-semibold text-sm shrink-0">
+              {userName.charAt(0).toUpperCase()}
+            </div>
+          )}
           {!collapsed && (
             <div className="flex flex-col items-start">
               <span className="font-medium">{userName}</span>
@@ -64,9 +75,17 @@ export function ProfilePopover({
           {/* User Info */}
           <div className="pb-3 border-b border-gray-200 dark:border-gray-800">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-white font-semibold">
-                {userName.charAt(0).toUpperCase()}
-              </div>
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt={userName}
+                  className="h-10 w-10 rounded-full object-cover"
+                />
+              ) : (
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-white font-semibold">
+                  {userName.charAt(0).toUpperCase()}
+                </div>
+              )}
               <div className="flex flex-col">
                 <span className="font-medium text-gray-900 dark:text-gray-100">
                   {userName}

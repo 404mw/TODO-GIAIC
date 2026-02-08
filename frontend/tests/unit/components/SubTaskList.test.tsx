@@ -17,6 +17,21 @@ const mockToast = jest.fn()
 const mockConfirm = jest.fn()
 global.confirm = mockConfirm
 
+/** Create a valid SubTask with overrides */
+let orderCounter = 0
+function makeSubTask(overrides: Partial<SubTask> & { id: string; title: string }): SubTask {
+  return {
+    taskId: 'task-1',
+    completed: false,
+    completedAt: null,
+    orderIndex: orderCounter++,
+    source: 'user',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    ...overrides,
+  }
+}
+
 describe('SubTaskList', () => {
   beforeEach(() => {
     jest.clearAllMocks()
@@ -42,33 +57,9 @@ describe('SubTaskList', () => {
   describe('T068: Sub-task progress calculation', () => {
     it('should calculate 33% progress for 1 of 3 completed subtasks', () => {
       const subtasks: SubTask[] = [
-        {
-          id: 'sub-1',
-          taskId: 'task-1',
-          title: 'Subtask 1',
-          completed: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          completedAt: new Date().toISOString(),
-        },
-        {
-          id: 'sub-2',
-          taskId: 'task-1',
-          title: 'Subtask 2',
-          completed: false,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          completedAt: null,
-        },
-        {
-          id: 'sub-3',
-          taskId: 'task-1',
-          title: 'Subtask 3',
-          completed: false,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          completedAt: null,
-        },
+        makeSubTask({ id: 'sub-1', title: 'Subtask 1', completed: true, completedAt: new Date().toISOString() }),
+        makeSubTask({ id: 'sub-2', title: 'Subtask 2' }),
+        makeSubTask({ id: 'sub-3', title: 'Subtask 3' }),
       ]
 
       render(<SubTaskList taskId="task-1" subtasks={subtasks} />)
@@ -91,24 +82,8 @@ describe('SubTaskList', () => {
 
     it('should calculate 100% progress when all subtasks completed', () => {
       const subtasks: SubTask[] = [
-        {
-          id: 'sub-1',
-          taskId: 'task-1',
-          title: 'Subtask 1',
-          completed: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          completedAt: new Date().toISOString(),
-        },
-        {
-          id: 'sub-2',
-          taskId: 'task-1',
-          title: 'Subtask 2',
-          completed: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          completedAt: new Date().toISOString(),
-        },
+        makeSubTask({ id: 'sub-1', title: 'Subtask 1', completed: true, completedAt: new Date().toISOString() }),
+        makeSubTask({ id: 'sub-2', title: 'Subtask 2', completed: true, completedAt: new Date().toISOString() }),
       ]
 
       render(<SubTaskList taskId="task-1" subtasks={subtasks} />)
@@ -122,24 +97,8 @@ describe('SubTaskList', () => {
 
     it('should calculate 0% progress when no subtasks completed', () => {
       const subtasks: SubTask[] = [
-        {
-          id: 'sub-1',
-          taskId: 'task-1',
-          title: 'Subtask 1',
-          completed: false,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          completedAt: null,
-        },
-        {
-          id: 'sub-2',
-          taskId: 'task-1',
-          title: 'Subtask 2',
-          completed: false,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          completedAt: null,
-        },
+        makeSubTask({ id: 'sub-1', title: 'Subtask 1' }),
+        makeSubTask({ id: 'sub-2', title: 'Subtask 2' }),
       ]
 
       render(<SubTaskList taskId="task-1" subtasks={subtasks} />)
@@ -155,33 +114,9 @@ describe('SubTaskList', () => {
       const user = userEvent.setup()
 
       const subtasks: SubTask[] = [
-        {
-          id: 'sub-1',
-          taskId: 'task-1',
-          title: 'Subtask 1',
-          completed: false,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          completedAt: null,
-        },
-        {
-          id: 'sub-2',
-          taskId: 'task-1',
-          title: 'Subtask 2',
-          completed: false,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          completedAt: null,
-        },
-        {
-          id: 'sub-3',
-          taskId: 'task-1',
-          title: 'Subtask 3',
-          completed: false,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          completedAt: null,
-        },
+        makeSubTask({ id: 'sub-1', title: 'Subtask 1' }),
+        makeSubTask({ id: 'sub-2', title: 'Subtask 2' }),
+        makeSubTask({ id: 'sub-3', title: 'Subtask 3' }),
       ]
 
       mockUpdateSubTask.mockResolvedValue({})
@@ -213,15 +148,7 @@ describe('SubTaskList', () => {
       const user = userEvent.setup()
 
       const subtasks: SubTask[] = [
-        {
-          id: 'sub-1',
-          taskId: 'task-1',
-          title: 'Subtask 1',
-          completed: false,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          completedAt: null,
-        },
+        makeSubTask({ id: 'sub-1', title: 'Subtask 1' }),
       ]
 
       mockDeleteSubTask.mockResolvedValue({})
@@ -250,15 +177,7 @@ describe('SubTaskList', () => {
       mockConfirm.mockReturnValue(false) // User clicks "Cancel"
 
       const subtasks: SubTask[] = [
-        {
-          id: 'sub-1',
-          taskId: 'task-1',
-          title: 'Subtask 1',
-          completed: false,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          completedAt: null,
-        },
+        makeSubTask({ id: 'sub-1', title: 'Subtask 1' }),
       ]
 
       render(<SubTaskList taskId="task-1" subtasks={subtasks} />)
@@ -285,15 +204,7 @@ describe('SubTaskList', () => {
       mockConfirm.mockReturnValue(true) // User clicks "OK"
 
       const subtasks: SubTask[] = [
-        {
-          id: 'sub-1',
-          taskId: 'task-1',
-          title: 'Subtask 1',
-          completed: false,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          completedAt: null,
-        },
+        makeSubTask({ id: 'sub-1', title: 'Subtask 1' }),
       ]
 
       mockDeleteSubTask.mockResolvedValue({})
@@ -336,15 +247,7 @@ describe('SubTaskList', () => {
       mockDeleteSubTask.mockRejectedValue(new Error('Network error'))
 
       const subtasks: SubTask[] = [
-        {
-          id: 'sub-1',
-          taskId: 'task-1',
-          title: 'Subtask 1',
-          completed: false,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          completedAt: null,
-        },
+        makeSubTask({ id: 'sub-1', title: 'Subtask 1' }),
       ]
 
       render(<SubTaskList taskId="task-1" subtasks={subtasks} />)
@@ -384,15 +287,7 @@ describe('SubTaskList', () => {
 
     it('should render subtask title with completed styling', () => {
       const subtasks: SubTask[] = [
-        {
-          id: 'sub-1',
-          taskId: 'task-1',
-          title: 'Completed Subtask',
-          completed: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          completedAt: new Date().toISOString(),
-        },
+        makeSubTask({ id: 'sub-1', title: 'Completed Subtask', completed: true, completedAt: new Date().toISOString() }),
       ]
 
       render(<SubTaskList taskId="task-1" subtasks={subtasks} />)
@@ -404,15 +299,7 @@ describe('SubTaskList', () => {
 
     it('should show checkmark icon for completed subtask', () => {
       const subtasks: SubTask[] = [
-        {
-          id: 'sub-1',
-          taskId: 'task-1',
-          title: 'Completed Subtask',
-          completed: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          completedAt: new Date().toISOString(),
-        },
+        makeSubTask({ id: 'sub-1', title: 'Completed Subtask', completed: true, completedAt: new Date().toISOString() }),
       ]
 
       const { container } = render(<SubTaskList taskId="task-1" subtasks={subtasks} />)
@@ -428,15 +315,7 @@ describe('SubTaskList', () => {
       const user = userEvent.setup()
 
       const subtasks: SubTask[] = [
-        {
-          id: 'sub-1',
-          taskId: 'task-1',
-          title: 'Incomplete Subtask',
-          completed: false,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          completedAt: null,
-        },
+        makeSubTask({ id: 'sub-1', title: 'Incomplete Subtask' }),
       ]
 
       mockUpdateSubTask.mockResolvedValue({})
@@ -468,15 +347,7 @@ describe('SubTaskList', () => {
       const user = userEvent.setup()
 
       const subtasks: SubTask[] = [
-        {
-          id: 'sub-1',
-          taskId: 'task-1',
-          title: 'Complete Subtask',
-          completed: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          completedAt: new Date().toISOString(),
-        },
+        makeSubTask({ id: 'sub-1', title: 'Complete Subtask', completed: true, completedAt: new Date().toISOString() }),
       ]
 
       mockUpdateSubTask.mockResolvedValue({})

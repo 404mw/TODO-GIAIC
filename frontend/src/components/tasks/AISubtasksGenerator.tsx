@@ -86,12 +86,13 @@ export function AISubtasksGenerator({
 
   const handleAddSubtasks = () => {
     if (onSubtasksGenerated) {
-      const subtasks = previewSubtasks.map((title) => ({
+      const subtasks = previewSubtasks.map((title, index) => ({
+        taskId,
         title,
         completed: false,
         completedAt: null,
-        parentTaskId: taskId,
-        estimatedDuration: null,
+        orderIndex: index,
+        source: 'ai' as const,
       }))
       onSubtasksGenerated(subtasks)
     }

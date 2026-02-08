@@ -13,7 +13,9 @@ from sqlmodel import select
 
 from src.models.task import TaskInstance
 from src.models.user import User
-from src.schemas.enums import TaskPriority, UserTier
+from src.schemas.enums import CompletedBy, TaskPriority, UserTier
+from src.schemas.subtask import SubtaskCreate
+from src.schemas.task import TaskCreate, TaskUpdate
 from src.services.task_service import TaskService
 
 
@@ -33,11 +35,13 @@ class TestTransactionRollback:
 
         SC-006: Data integrity maintained during failed operations.
         """
+        # Capture user ID before any rollback can expire the ORM object
+        user_id = test_user.id
         service = TaskService(db_session, settings)
 
         # Count initial tasks
         result = await db_session.execute(
-            select(TaskInstance).where(TaskInstance.user_id == test_user.id)
+            select(TaskInstance).where(TaskInstance.user_id == user_id)
         )
         initial_count = len(result.scalars().all())
 
@@ -46,15 +50,14 @@ class TestTransactionRollback:
             # Simulate a failure by using excessively long title
             await service.create_task(
                 user=test_user,
-                title="x" * 10000,  # Exceeds limits
-                priority=TaskPriority.MEDIUM,
+                data=TaskCreate(title="x" * 10000, priority=TaskPriority.MEDIUM),
             )
         except (ValueError, Exception):
             await db_session.rollback()
 
         # Verify count unchanged
         result = await db_session.execute(
-            select(TaskInstance).where(TaskInstance.user_id == test_user.id)
+            select(TaskInstance).where(TaskInstance.user_id == user_id)
         )
         final_count = len(result.scalars().all())
 
@@ -75,8 +78,7 @@ class TestTransactionRollback:
         # Create a valid task
         task = await service.create_task(
             user=test_user,
-            title="Integrity Test Task",
-            priority=TaskPriority.HIGH,
+            data=TaskCreate(title="Integrity Test Task", priority=TaskPriority.HIGH),
         )
         await db_session.commit()
 
@@ -88,8 +90,7 @@ class TestTransactionRollback:
             await service.update_task(
                 user=test_user,
                 task_id=task.id,
-                title="",  # Invalid: empty title
-                version=task.version,
+                data=TaskUpdate(title="", version=task.version),
             )
         except (ValueError, Exception):
             await db_session.rollback()
@@ -116,8 +117,7 @@ class TestConcurrentUpdates:
         # Create task
         task = await service.create_task(
             user=test_user,
-            title="Concurrent Test Task",
-            priority=TaskPriority.LOW,
+            data=TaskCreate(title="Concurrent Test Task", priority=TaskPriority.LOW),
         )
         await db_session.commit()
 
@@ -128,8 +128,7 @@ class TestConcurrentUpdates:
             await service.update_task(
                 user=test_user,
                 task_id=task_id,
-                title="Updated Title",
-                version=task.version,
+                data=TaskUpdate(title="Updated Title", version=task.version),
             )
             await db_session.commit()
         except Exception:
@@ -152,8 +151,7 @@ class TestConcurrentUpdates:
         # Create task
         task = await service.create_task(
             user=test_user,
-            title="Lock Test Task",
-            priority=TaskPriority.MEDIUM,
+            data=TaskCreate(title="Lock Test Task", priority=TaskPriority.MEDIUM),
         )
         await db_session.commit()
         original_version = task.version
@@ -163,8 +161,7 @@ class TestConcurrentUpdates:
             updated = await service.update_task(
                 user=test_user,
                 task_id=task.id,
-                title="First Update",
-                version=original_version,
+                data=TaskUpdate(title="First Update", version=original_version),
             )
             await db_session.commit()
         except Exception:
@@ -176,8 +173,7 @@ class TestConcurrentUpdates:
             await service.update_task(
                 user=test_user,
                 task_id=task.id,
-                title="Stale Update",
-                version=original_version,  # Stale version
+                data=TaskUpdate(title="Stale Update", version=original_version),  # Stale version
             )
             await db_session.commit()
             # If no exception, the service may not enforce locking strictly
@@ -206,8 +202,7 @@ class TestDataConsistency:
         # Create task with subtasks
         task = await service.create_task(
             user=test_user,
-            title="Delete Integrity Task",
-            priority=TaskPriority.HIGH,
+            data=TaskCreate(title="Delete Integrity Task", priority=TaskPriority.HIGH),
         )
         await db_session.commit()
 
@@ -218,7 +213,7 @@ class TestDataConsistency:
             await service.create_subtask(
                 user=test_user,
                 task_id=task_id,
-                title="Subtask 1",
+                data=SubtaskCreate(title="Subtask 1"),
             )
             await db_session.commit()
         except Exception:
@@ -267,8 +262,7 @@ class TestDataConsistency:
         # Create task for User A
         task_a = await service.create_task(
             user=user_a,
-            title="User A Task",
-            priority=TaskPriority.MEDIUM,
+            data=TaskCreate(title="User A Task", priority=TaskPriority.MEDIUM),
         )
         await db_session.commit()
 
@@ -293,14 +287,13 @@ class TestDataConsistency:
 
         task = await service.create_task(
             user=test_user,
-            title="Completion Integrity Task",
-            priority=TaskPriority.LOW,
+            data=TaskCreate(title="Completion Integrity Task", priority=TaskPriority.LOW),
         )
         await db_session.commit()
 
         # Complete the task
         try:
-            await service.complete_task(user=test_user, task_id=task.id)
+            await service.complete_task(user=test_user, task_id=task.id, completed_by=CompletedBy.MANUAL)
             await db_session.commit()
         except Exception:
             await db_session.rollback()

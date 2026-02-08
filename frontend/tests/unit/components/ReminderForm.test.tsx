@@ -27,18 +27,21 @@ describe('ReminderForm', () => {
     id: 'task-1',
     title: 'Test Task',
     description: '',
-    tags: [],
     priority: 'medium',
     estimatedDuration: null,
-    reminders: [],
-    recurring: null,
-    hidden: false,
+    focusTimeSeconds: 0,
     completed: false,
     completedAt: null,
-    dueDate: new Date('2026-01-15T10:00:00Z'),
+    completedBy: null,
+    hidden: false,
+    archived: false,
+    templateId: null,
+    subtaskCount: 0,
+    subtaskCompletedCount: 0,
+    version: 1,
+    dueDate: '2026-01-15T10:00:00Z',
     createdAt: '2026-01-10T10:00:00Z',
     updatedAt: '2026-01-10T10:00:00Z',
-    parentTaskId: null,
   };
 
   const mockTaskWithoutDueDate: Task = {
@@ -115,8 +118,14 @@ describe('ReminderForm', () => {
       await waitFor(() => {
         expect(mockOnSubmit).toHaveBeenCalledWith(
           expect.objectContaining({
-            offsetMinutes: -30,
             taskId: 'task-1',
+            title: 'Reminder for: Test Task',
+            timing: expect.objectContaining({
+              type: 'relative_to_due_date',
+              offsetMinutes: 30,
+            }),
+            deliveryMethod: 'both',
+            enabled: true,
           })
         );
       });
@@ -128,16 +137,21 @@ describe('ReminderForm', () => {
       const user = userEvent.setup();
       render(<ReminderForm task={mockTaskWithDueDate} onSubmit={mockOnSubmit} />);
 
-      // Submit without changing the default selection (-15 minutes)
+      // Submit without changing the default selection (15 minutes)
       const submitButton = screen.getByRole('button', { name: /add reminder/i });
       await user.click(submitButton);
 
       await waitFor(() => {
         expect(mockOnSubmit).toHaveBeenCalledWith(
           expect.objectContaining({
-            offsetMinutes: -15, // Default value
             taskId: 'task-1',
             title: 'Reminder for: Test Task',
+            timing: expect.objectContaining({
+              type: 'relative_to_due_date',
+              offsetMinutes: 15,
+            }),
+            deliveryMethod: 'both',
+            enabled: true,
           })
         );
       });

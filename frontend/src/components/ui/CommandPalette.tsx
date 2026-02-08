@@ -21,8 +21,10 @@ export function CommandPalette() {
   const router = useRouter()
   const { isOpen, close } = useCommandPaletteStore()
   const openNewTaskModal = useNewTaskModalStore((state) => state.open)
-  const { data: tasks = [] } = useTasks({ hidden: false })
-  const { data: notes = [] } = useNotes({ archived: false })
+  const { data: tasksResponse } = useTasks({ hidden: false })
+  const tasks = tasksResponse?.data || []
+  const { data: notesResponse } = useNotes({ archived: false })
+  const notes = notesResponse?.data || []
 
   const [query, setQuery] = useState('')
   const [selectedIndex, setSelectedIndex] = useState(0)

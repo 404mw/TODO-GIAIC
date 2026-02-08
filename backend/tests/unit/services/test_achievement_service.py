@@ -681,3 +681,329 @@ class TestStreakEdgeCases:
 
         assert achievement_state.current_streak == 7
         assert achievement_state.last_completion_date == date(2024, 3, 1)
+
+
+# =============================================================================
+# INCREMENT METHODS (coverage for lines 249-286)
+# =============================================================================
+
+
+class TestIncrementMethods:
+    """Test increment methods on AchievementService."""
+
+    @pytest.mark.asyncio
+    async def test_increment_lifetime_tasks(self, mock_session, mock_settings, achievement_state):
+        """increment_lifetime_tasks should increment counter."""
+        from src.services.achievement_service import AchievementService
+
+        service = AchievementService(mock_session, mock_settings)
+
+        achievement_state.lifetime_tasks_completed = 10
+        result = await service.increment_lifetime_tasks(achievement_state)
+
+        assert result.lifetime_tasks_completed == 11
+        mock_session.add.assert_called()
+        mock_session.flush.assert_awaited()
+
+    @pytest.mark.asyncio
+    async def test_increment_focus_completions(self, mock_session, mock_settings, achievement_state):
+        """increment_focus_completions should increment counter."""
+        from src.services.achievement_service import AchievementService
+
+        service = AchievementService(mock_session, mock_settings)
+
+        achievement_state.focus_completions = 5
+        result = await service.increment_focus_completions(achievement_state)
+
+        assert result.focus_completions == 6
+        mock_session.add.assert_called()
+        mock_session.flush.assert_awaited()
+
+    @pytest.mark.asyncio
+    async def test_increment_notes_converted(self, mock_session, mock_settings, achievement_state):
+        """increment_notes_converted should increment counter."""
+        from src.services.achievement_service import AchievementService
+
+        service = AchievementService(mock_session, mock_settings)
+
+        achievement_state.notes_converted = 3
+        result = await service.increment_notes_converted(achievement_state)
+
+        assert result.notes_converted == 4
+        mock_session.add.assert_called()
+        mock_session.flush.assert_awaited()
+
+
+# =============================================================================
+# GET / CREATE ACHIEVEMENT STATE (coverage for lines 365-416)
+# =============================================================================
+
+
+class TestAchievementStateManagement:
+    """Test achievement state get/create methods."""
+
+    @pytest.mark.asyncio
+    async def test_get_or_create_returns_existing(self, mock_session, mock_settings):
+        """get_or_create_achievement_state should return existing state."""
+        from src.services.achievement_service import AchievementService
+
+        service = AchievementService(mock_session, mock_settings)
+
+        existing_state = MagicMock()
+        result_mock = MagicMock()
+        result_mock.scalar_one_or_none.return_value = existing_state
+        mock_session.execute.return_value = result_mock
+
+        result = await service.get_or_create_achievement_state(uuid4())
+
+        assert result == existing_state
+
+    @pytest.mark.asyncio
+    async def test_get_or_create_creates_new(self, mock_session, mock_settings):
+        """get_or_create_achievement_state should create new state if none exists."""
+        from src.services.achievement_service import AchievementService
+
+        service = AchievementService(mock_session, mock_settings)
+
+        result_mock = MagicMock()
+        result_mock.scalar_one_or_none.return_value = None
+        mock_session.execute.return_value = result_mock
+
+        result = await service.get_or_create_achievement_state(uuid4())
+
+        # Should have created a new state
+        mock_session.add.assert_called_once()
+        mock_session.flush.assert_awaited()
+        mock_session.refresh.assert_awaited()
+        assert result is not None
+
+    @pytest.mark.asyncio
+    async def test_get_achievement_state_found(self, mock_session, mock_settings):
+        """get_achievement_state should return state when found."""
+        from src.services.achievement_service import AchievementService
+
+        service = AchievementService(mock_session, mock_settings)
+
+        existing_state = MagicMock()
+        result_mock = MagicMock()
+        result_mock.scalar_one_or_none.return_value = existing_state
+        mock_session.execute.return_value = result_mock
+
+        result = await service.get_achievement_state(uuid4())
+
+        assert result == existing_state
+
+    @pytest.mark.asyncio
+    async def test_get_achievement_state_not_found(self, mock_session, mock_settings):
+        """get_achievement_state should raise when not found."""
+        from src.services.achievement_service import (
+            AchievementService,
+            AchievementStateNotFoundError,
+        )
+
+        service = AchievementService(mock_session, mock_settings)
+
+        result_mock = MagicMock()
+        result_mock.scalar_one_or_none.return_value = None
+        mock_session.execute.return_value = result_mock
+
+        with pytest.raises(AchievementStateNotFoundError):
+            await service.get_achievement_state(uuid4())
+
+
+# =============================================================================
+# GET ACHIEVEMENT RESPONSE (coverage for lines 435-516)
+# =============================================================================
+
+
+class TestGetAchievementResponse:
+    """Test full achievement response generation."""
+
+    @pytest.mark.asyncio
+    async def test_get_achievement_response_with_no_achievements(
+        self, mock_session, mock_settings
+    ):
+        """Should return response with empty unlocked list."""
+        from src.services.achievement_service import AchievementService
+        from src.models.achievement import UserAchievementState
+
+        service = AchievementService(mock_session, mock_settings)
+
+        state = UserAchievementState(
+            id=uuid4(),
+            user_id=uuid4(),
+            lifetime_tasks_completed=0,
+            current_streak=0,
+            longest_streak=0,
+            focus_completions=0,
+            notes_converted=0,
+            unlocked_achievements=[],
+        )
+
+        result_mock = MagicMock()
+        result_mock.scalar_one_or_none.return_value = state
+        mock_session.execute.return_value = result_mock
+
+        response = await service.get_achievement_response(state.user_id, UserTier.FREE)
+
+        assert response.stats.lifetime_tasks_completed == 0
+        assert response.unlocked == []
+        assert len(response.progress) > 0  # Should have progress entries
+        assert response.effective_limits is not None
+
+    @pytest.mark.asyncio
+    async def test_get_achievement_response_with_unlocked_achievements(
+        self, mock_session, mock_settings
+    ):
+        """Should include unlocked achievements in response."""
+        from src.services.achievement_service import AchievementService
+        from src.models.achievement import UserAchievementState
+
+        service = AchievementService(mock_session, mock_settings)
+
+        state = UserAchievementState(
+            id=uuid4(),
+            user_id=uuid4(),
+            lifetime_tasks_completed=50,
+            current_streak=10,
+            longest_streak=15,
+            focus_completions=12,
+            notes_converted=8,
+            unlocked_achievements=["tasks_5", "tasks_25"],
+        )
+
+        result_mock = MagicMock()
+        result_mock.scalar_one_or_none.return_value = state
+        mock_session.execute.return_value = result_mock
+
+        response = await service.get_achievement_response(state.user_id, UserTier.PRO)
+
+        assert response.stats.lifetime_tasks_completed == 50
+        assert len(response.unlocked) == 2
+        assert response.stats.current_streak == 10
+
+    @pytest.mark.asyncio
+    async def test_get_progress_value_for_each_category(self, mock_session, mock_settings):
+        """_get_progress_value should return correct values per category."""
+        from src.services.achievement_service import AchievementService
+        from src.models.achievement import UserAchievementState, ACHIEVEMENT_SEED_DATA
+        from src.schemas.enums import AchievementCategory
+
+        service = AchievementService(mock_session, mock_settings)
+
+        state = UserAchievementState(
+            id=uuid4(),
+            user_id=uuid4(),
+            lifetime_tasks_completed=42,
+            current_streak=5,
+            longest_streak=15,
+            focus_completions=8,
+            notes_converted=3,
+            unlocked_achievements=[],
+        )
+
+        # Test each category
+        tasks_data = {"category": AchievementCategory.TASKS, "threshold": 5}
+        assert service._get_progress_value(state, tasks_data) == 42
+
+        streaks_data = {"category": AchievementCategory.STREAKS, "threshold": 7}
+        assert service._get_progress_value(state, streaks_data) == 15  # longest_streak
+
+        focus_data = {"category": AchievementCategory.FOCUS, "threshold": 10}
+        assert service._get_progress_value(state, focus_data) == 8
+
+        notes_data = {"category": AchievementCategory.NOTES, "threshold": 5}
+        assert service._get_progress_value(state, notes_data) == 3
+
+    @pytest.mark.asyncio
+    async def test_check_qualification_unknown_category(self, mock_session, mock_settings):
+        """_check_qualification should return False for unknown categories."""
+        from src.services.achievement_service import AchievementService
+        from src.models.achievement import UserAchievementState
+
+        service = AchievementService(mock_session, mock_settings)
+
+        state = UserAchievementState(
+            id=uuid4(),
+            user_id=uuid4(),
+            unlocked_achievements=[],
+        )
+
+        # Unknown category
+        result = service._check_qualification(state, {"category": "unknown", "threshold": 1})
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_get_progress_value_unknown_category(self, mock_session, mock_settings):
+        """_get_progress_value should return 0 for unknown categories."""
+        from src.services.achievement_service import AchievementService
+        from src.models.achievement import UserAchievementState
+
+        service = AchievementService(mock_session, mock_settings)
+
+        state = UserAchievementState(
+            id=uuid4(),
+            user_id=uuid4(),
+            unlocked_achievements=[],
+        )
+
+        result = service._get_progress_value(state, {"category": "unknown"})
+        assert result == 0
+
+
+# =============================================================================
+# FOCUS COMPLETION EDGE CASES
+# =============================================================================
+
+
+class TestFocusCompletionEdgeCases:
+    """Test edge cases for focus completion check."""
+
+    @pytest.mark.asyncio
+    async def test_focus_completion_zero_focus_time(self, mock_session, mock_settings):
+        """Task with 0 focus_time_seconds should not count."""
+        from src.services.achievement_service import AchievementService
+
+        service = AchievementService(mock_session, mock_settings)
+
+        task = MagicMock()
+        task.estimated_duration = 30
+        task.focus_time_seconds = 0
+
+        assert service.is_focus_completion(task) is False
+
+    @pytest.mark.asyncio
+    async def test_focus_completion_none_focus_time(self, mock_session, mock_settings):
+        """Task with None focus_time_seconds should not count."""
+        from src.services.achievement_service import AchievementService
+
+        service = AchievementService(mock_session, mock_settings)
+
+        task = MagicMock()
+        task.estimated_duration = 30
+        task.focus_time_seconds = None
+
+        assert service.is_focus_completion(task) is False
+
+
+# =============================================================================
+# FACTORY FUNCTION
+# =============================================================================
+
+
+class TestAchievementFactoryFunction:
+    """Test the factory function."""
+
+    def test_get_achievement_service(self):
+        """get_achievement_service should return an AchievementService."""
+        from src.services.achievement_service import (
+            AchievementService,
+            get_achievement_service,
+        )
+
+        session = AsyncMock()
+        settings = MagicMock()
+
+        result = get_achievement_service(session, settings)
+
+        assert isinstance(result, AchievementService)

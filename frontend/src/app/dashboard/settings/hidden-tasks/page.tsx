@@ -17,7 +17,8 @@ import type { Task } from '@/lib/schemas/task.schema'
 
 export default function HiddenTasksPage() {
   const { toast } = useToast()
-  const { data: tasks = [], isLoading, error } = useTasks({ hidden: true })
+  const { data: tasksResponse, isLoading, error } = useTasks({ hidden: true })
+  const tasks = tasksResponse?.data || []
   const updateTask = useUpdateTask()
   const deleteTask = useDeleteTask()
 
@@ -25,7 +26,7 @@ export default function HiddenTasksPage() {
     try {
       await updateTask.mutateAsync({
         id: task.id,
-        input: { hidden: false },
+        input: { version: task.version, hidden: false },
       })
       toast({
         title: 'Task restored',

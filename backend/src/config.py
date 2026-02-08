@@ -32,13 +32,22 @@ class Settings(BaseSettings):
     # ==========================================================================
     # JWT CONFIGURATION
     # ==========================================================================
+    # Keys can be provided inline OR via file paths (file paths take precedence)
     jwt_private_key: SecretStr = Field(
-        ...,
-        description="RSA private key for signing JWTs (PEM format)",
+        default=SecretStr(""),
+        description="RSA private key for signing JWTs (PEM format, inline)",
     )
     jwt_public_key: str = Field(
-        ...,
-        description="RSA public key for verifying JWTs (PEM format)",
+        default="",
+        description="RSA public key for verifying JWTs (PEM format, inline)",
+    )
+    jwt_private_key_path: str | None = Field(
+        default=None,
+        description="Path to RSA private key file (overrides jwt_private_key)",
+    )
+    jwt_public_key_path: str | None = Field(
+        default=None,
+        description="Path to RSA public key file (overrides jwt_public_key)",
     )
     jwt_algorithm: str = Field(
         default="RS256",
@@ -56,6 +65,20 @@ class Settings(BaseSettings):
         le=30,
         description="Refresh token expiry in days",
     )
+
+    def get_jwt_private_key(self) -> str:
+        """Get JWT private key from file or inline value."""
+        if self.jwt_private_key_path:
+            with open(self.jwt_private_key_path) as f:
+                return f.read()
+        return self.jwt_private_key.get_secret_value()
+
+    def get_jwt_public_key(self) -> str:
+        """Get JWT public key from file or inline value."""
+        if self.jwt_public_key_path:
+            with open(self.jwt_public_key_path) as f:
+                return f.read()
+        return self.jwt_public_key
 
     # ==========================================================================
     # GOOGLE OAUTH
