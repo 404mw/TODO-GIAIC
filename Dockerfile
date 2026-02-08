@@ -54,8 +54,8 @@ ENV PYTHONDONTWRITEBYTECODE=1
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
 
-# Expose port
-EXPOSE 8000
+# Expose port (Railway uses PORT env var, typically 8080)
+EXPOSE 8080
 
 # Run the API server using startup script
 CMD ["./start.sh"]
