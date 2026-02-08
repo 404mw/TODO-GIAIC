@@ -40,6 +40,10 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 COPY backend/src/ ./src/
 COPY backend/alembic/ ./alembic/
 COPY backend/alembic.ini ./
+COPY backend/start.sh ./start.sh
+
+# Make startup script executable
+RUN chmod +x ./start.sh
 
 # Set environment variables
 ENV PYTHONPATH=/app
@@ -57,5 +61,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8000/health/live || exit 1
 
-# Run the API server
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+# Run the API server using startup script
+CMD ["./start.sh"]
