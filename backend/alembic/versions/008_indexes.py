@@ -92,12 +92,15 @@ def upgrade() -> None:
     # ==========================================================================
 
     # Available credits (for FIFO consumption)
+    # Note: Removed expires_at > CURRENT_TIMESTAMP from WHERE clause
+    # because CURRENT_TIMESTAMP is volatile and not allowed in partial indexes
+    # The query will still filter by expiration at runtime
     op.create_index(
         "idx_ai_credit_available",
         "ai_credit_ledger",
         ["user_id", "credit_type", "created_at"],
         postgresql_where=sa.text(
-            "amount > 0 AND operation = 'grant' AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)"
+            "amount > 0 AND operation = 'grant'"
         ),
     )
 
