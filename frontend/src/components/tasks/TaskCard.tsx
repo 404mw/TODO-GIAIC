@@ -7,7 +7,7 @@ import type { Task } from '@/lib/schemas/task.schema'
 import type { SubTask } from '@/lib/schemas/subtask.schema'
 import { useSubtasks } from '@/lib/hooks/useSubtasks'
 import { useToast } from '@/lib/hooks/useToast'
-import { useFocusModeStore } from '@/lib/stores/useFocusModeStore'
+import { useFocusModeStore } from '@/lib/stores/focus-mode.store'
 import { usePendingCompletionsStore } from '@/lib/stores/usePendingCompletionsStore'
 import { formatDistanceToNow } from 'date-fns'
 
