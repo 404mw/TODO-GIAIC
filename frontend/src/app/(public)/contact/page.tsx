@@ -346,7 +346,7 @@ export default function ContactPage() {
                 </div>
                 <div>
                   <h3 className="font-medium text-white">Email</h3>
-                  <p className="mt-1 text-gray-400">support@perpetua.app</p>
+                  <p className="mt-1 text-gray-400">perpetua@404mw.com</p>
                   <p className="mt-1 text-sm text-gray-500">
                     We respond within 24-48 hours
                   </p>

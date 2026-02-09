@@ -19,6 +19,26 @@ import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
 
 const VALUES = [
   {
+    title: 'Free Forever Core',
+    message:
+      'We believe productivity tools should be accessible to everyone. Perpetua's core features are completely free—no trials, no credit card required, no hidden fees. Get 50 tasks, streaks, notes, focus mode, and more at zero cost.',
+    icon: (
+      <svg
+        className="h-6 w-6 text-emerald-400"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+        />
+      </svg>
+    ),
+  },
+  {
     title: 'Simplicity First',
     message:
       'We believe productivity tools should reduce complexity, not add to it. Every feature is designed to be intuitive and accessible.',
@@ -203,6 +223,11 @@ export default function AboutPage() {
                 away the complexity that plagues most productivity tools and
                 leave you with what actually matters: getting things done.
               </p>
+              <p className="font-medium text-emerald-400">
+                Our commitment: Perpetua's core features will always be free.
+                50 tasks, streaks, notes, focus mode, and more—no credit card
+                required, no strings attached.
+              </p>
             </div>
           </motion.div>
         </div>
@@ -239,32 +264,6 @@ export default function AboutPage() {
               </motion.div>
             ))}
           </div>
-        </div>
-      </section>
-
-      {/* Technology Section */}
-      <section className="px-4 py-24">
-        <div className="mx-auto max-w-4xl">
-          <motion.div {...fadeIn} className="text-center">
-            <h2 className="text-3xl font-bold text-white">Built with Modern Tech</h2>
-            <p className="mx-auto mt-4 max-w-2xl text-gray-400">
-              Perpetua is built with Next.js, React, and TypeScript for a fast,
-              reliable, and type-safe experience. We use TailwindCSS for styling
-              and Framer Motion for smooth animations.
-            </p>
-            <div className="mt-12 flex flex-wrap justify-center gap-4">
-              {['Next.js', 'React', 'TypeScript', 'TailwindCSS', 'Framer Motion', 'Zod'].map(
-                (tech) => (
-                  <span
-                    key={tech}
-                    className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-gray-300"
-                  >
-                    {tech}
-                  </span>
-                )
-              )}
-            </div>
-          </motion.div>
         </div>
       </section>
 

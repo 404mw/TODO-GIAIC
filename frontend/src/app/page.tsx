@@ -258,8 +258,7 @@ export default function LandingPage() {
                 className="mx-auto mt-6 max-w-2xl text-lg text-gray-400"
               >
                 Perpetua helps you build lasting productivity habits with smart task
-                management, focus sessions, and achievement tracking. Never lose
-                your streak again.
+                management, focus sessions, and achievement tracking. Completely free to start — no credit card required.
               </motion.p>
               <motion.div
                 initial={shouldReduceMotion ? {} : { opacity: 0, y: 20 }}
@@ -271,7 +270,7 @@ export default function LandingPage() {
                   href="/dashboard"
                   className="rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 px-6 py-3 text-base font-medium text-white shadow-lg shadow-blue-500/25 transition-all hover:from-blue-600 hover:to-purple-700 hover:shadow-blue-500/40"
                 >
-                  Start Free Trial
+                  Start Free Now
                 </Link>
                 <Link
                   href="#features"
@@ -279,6 +278,103 @@ export default function LandingPage() {
                 >
                   Learn More
                 </Link>
+              </motion.div>
+            </div>
+          </section>
+
+          {/* Free Tier Highlight Section */}
+          <section className="relative border-t border-white/10 py-16">
+            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+              <motion.div
+                initial={shouldReduceMotion ? {} : { opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4 }}
+                viewport={{ once: true }}
+                className="overflow-hidden rounded-2xl bg-gradient-to-br from-green-500/10 to-emerald-500/10 px-8 py-12 text-center backdrop-blur-sm border border-green-500/20"
+              >
+                <div className="mx-auto max-w-3xl">
+                  <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-green-500/20 px-4 py-1.5 text-sm font-medium text-green-400 border border-green-500/30">
+                    <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" />
+                    </svg>
+                    <span>Start Free - No Credit Card Required</span>
+                  </div>
+                  <h2 className="text-3xl font-bold text-white mb-4">
+                    Everything You Need, Absolutely Free
+                  </h2>
+                  <p className="text-gray-300 mb-8 text-lg">
+                    Get started with Perpetua's powerful core features at zero cost. No trials, no hidden fees.
+                  </p>
+
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 text-left">
+                    <div className="flex items-start gap-3 rounded-lg bg-gray-900/50 p-4 backdrop-blur-sm border border-white/5">
+                      <svg className="h-5 w-5 text-green-400 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                      <div>
+                        <h3 className="font-semibold text-white text-sm">50 Active Tasks</h3>
+                        <p className="text-xs text-gray-400 mt-1">Organize your work effectively</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-3 rounded-lg bg-gray-900/50 p-4 backdrop-blur-sm border border-white/5">
+                      <svg className="h-5 w-5 text-green-400 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                      <div>
+                        <h3 className="font-semibold text-white text-sm">Streak Tracking</h3>
+                        <p className="text-xs text-gray-400 mt-1">Build consistent habits</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-3 rounded-lg bg-gray-900/50 p-4 backdrop-blur-sm border border-white/5">
+                      <svg className="h-5 w-5 text-green-400 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                      <div>
+                        <h3 className="font-semibold text-white text-sm">Quick Notes</h3>
+                        <p className="text-xs text-gray-400 mt-1">Capture ideas instantly</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-3 rounded-lg bg-gray-900/50 p-4 backdrop-blur-sm border border-white/5">
+                      <svg className="h-5 w-5 text-green-400 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                      <div>
+                        <h3 className="font-semibold text-white text-sm">Focus Mode</h3>
+                        <p className="text-xs text-gray-400 mt-1">Eliminate distractions</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-3 rounded-lg bg-gray-900/50 p-4 backdrop-blur-sm border border-white/5">
+                      <svg className="h-5 w-5 text-green-400 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                      <div>
+                        <h3 className="font-semibold text-white text-sm">Smart Notifications</h3>
+                        <p className="text-xs text-gray-400 mt-1">Never miss a deadline</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-3 rounded-lg bg-gray-900/50 p-4 backdrop-blur-sm border border-white/5">
+                      <svg className="h-5 w-5 text-green-400 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                      <div>
+                        <h3 className="font-semibold text-white text-sm">Achievements</h3>
+                        <p className="text-xs text-gray-400 mt-1">Track your progress</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Link
+                    href="/dashboard"
+                    className="mt-8 inline-block rounded-lg bg-gradient-to-r from-green-500 to-emerald-600 px-8 py-3 text-base font-medium text-white shadow-lg shadow-green-500/25 transition-all hover:from-green-600 hover:to-emerald-700 hover:shadow-green-500/40"
+                  >
+                    Start Using Perpetua Free
+                  </Link>
+                </div>
               </motion.div>
             </div>
           </section>
@@ -342,16 +438,47 @@ export default function LandingPage() {
                   </h2>
                   <p className="mx-auto mt-4 max-w-xl text-gray-300">
                     Join thousands of people who use Perpetua to stay productive and
-                    achieve their goals every day.
+                    achieve their goals every day. Start for free — no credit card, no commitments.
                   </p>
                   <Link
                     href="/dashboard"
                     className="mt-8 inline-block rounded-lg bg-white px-6 py-3 text-base font-medium text-gray-900 transition-colors hover:bg-gray-100"
                   >
-                    Start Your Free Trial
+                    Get Started Free
                   </Link>
+                  <p className="mt-4 text-sm text-gray-400">
+                    ✨ Free tier includes 50 tasks, streaks, notes, and more
+                  </p>
                 </div>
               </motion.div>
+            </div>
+          </section>
+
+          {/* Open Source Section */}
+          <section className="relative border-t border-white/10 py-12">
+            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+              <div className="flex flex-col items-center justify-center gap-4 text-center">
+                <div className="flex items-center gap-2 text-gray-400">
+                  <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
+                    <path fillRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clipRule="evenodd" />
+                  </svg>
+                  <span className="text-lg font-medium">Proudly Open Source</span>
+                </div>
+                <p className="max-w-2xl text-sm text-gray-500">
+                  Perpetua is open source and built in public. Check out the code, contribute, or deploy your own instance.
+                </p>
+                <a
+                  href="https://github.com/yourusername/perpetua-flow"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-sm font-medium text-white backdrop-blur-sm transition-colors hover:bg-white/10"
+                >
+                  <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path fillRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clipRule="evenodd" />
+                  </svg>
+                  View on GitHub
+                </a>
+              </div>
             </div>
           </section>
         </div>

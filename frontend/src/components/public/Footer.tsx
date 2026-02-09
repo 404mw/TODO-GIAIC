@@ -49,6 +49,11 @@ const SOCIAL_LINKS = [
 const LEGAL_LINKS = [
   { name: 'Privacy Policy', href: '/privacy' },
   { name: 'Terms of Service', href: '/terms' },
+  {
+    name: 'Open Source',
+    href: 'https://github.com/yourusername/perpetua-flow',
+    external: true
+  },
 ]
 
 const NAV_LINKS = [
@@ -123,12 +128,36 @@ export function Footer() {
             <ul className="mt-4 space-y-3">
               {LEGAL_LINKS.map((link) => (
                 <li key={link.name}>
-                  <Link
-                    href={link.href}
-                    className="text-sm text-gray-400 transition-colors hover:text-white"
-                  >
-                    {link.name}
-                  </Link>
+                  {link.external ? (
+                    <a
+                      href={link.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-gray-400 transition-colors hover:text-white inline-flex items-center gap-1"
+                    >
+                      {link.name}
+                      <svg
+                        className="h-3 w-3"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                        />
+                      </svg>
+                    </a>
+                  ) : (
+                    <Link
+                      href={link.href}
+                      className="text-sm text-gray-400 transition-colors hover:text-white"
+                    >
+                      {link.name}
+                    </Link>
+                  )}
                 </li>
               ))}
             </ul>
