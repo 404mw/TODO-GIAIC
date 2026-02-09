@@ -147,7 +147,7 @@ export const taskCompletedHandler = http.post(
     achievement = checkMilestones(achievement)
 
     // Update timestamp
-    achievement.updatedAt = new Date().toISOString()
+    achievement.updated_at = new Date().toISOString()
 
     return HttpResponse.json(achievement, { status: 200 })
   }
@@ -175,7 +175,7 @@ export const updateCompletionRatioHandler = http.patch(
     }
 
     achievement.completionRatio = completionRatio
-    achievement.updatedAt = new Date().toISOString()
+    achievement.updated_at = new Date().toISOString()
 
     return HttpResponse.json(achievement, { status: 200 })
   }

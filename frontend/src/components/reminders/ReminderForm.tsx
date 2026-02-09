@@ -34,7 +34,7 @@ export function ReminderForm({ task, onSubmit, onCancel }: ReminderFormProps) {
   const [error, setError] = useState<string | null>(null)
 
   // Validation: Task must have due date for reminders
-  const hasDueDate = task.dueDate !== null && task.dueDate !== undefined
+  const hasDueDate = task.due_date !== null && task.due_date !== undefined
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

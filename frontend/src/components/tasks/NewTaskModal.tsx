@@ -70,8 +70,8 @@ export function NewTaskModal({ open, onOpenChange, editTask }: NewTaskModalProps
       setEstimatedDuration(editTask.estimatedDuration?.toString() || '')
       setRecurrence(editTask.recurrence)
       // Format dueDate for datetime-local input
-      if (editTask.dueDate) {
-        const date = new Date(editTask.dueDate)
+      if (editTask.due_date) {
+        const date = new Date(editTask.due_date)
         const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
         setDueDate(localDate.toISOString().slice(0, 16))
       } else {

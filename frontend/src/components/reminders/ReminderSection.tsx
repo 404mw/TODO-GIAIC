@@ -67,7 +67,7 @@ export function ReminderSection({
           )}
         </button>
 
-        {isExpanded && !showForm && task.dueDate && (
+        {isExpanded && !showForm && task.due_date && (
           <Button
             variant="primary"
             size="sm"
@@ -118,7 +118,7 @@ export function ReminderSection({
           )}
 
           {/* No due date warning */}
-          {!task.dueDate && (
+          {!task.due_date && (
             <div className="text-center py-6 text-gray-400">
               <svg
                 className="mx-auto h-12 w-12 text-gray-500"
@@ -143,7 +143,7 @@ export function ReminderSection({
           )}
 
           {/* Empty state */}
-          {task.dueDate && (!task.reminders || task.reminders.length === 0) && !showForm && (
+          {task.due_date && (!task.reminders || task.reminders.length === 0) && !showForm && (
             <div className="text-center py-6 text-gray-400">
               <svg
                 className="mx-auto h-12 w-12 text-gray-500"

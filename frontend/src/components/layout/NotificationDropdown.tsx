@@ -66,7 +66,7 @@ export function NotificationDropdown() {
 
   const handleNotificationClick = (notification: Notification) => {
     markAsRead(notification.id)
-    if (notification.taskId) {
+    if (notification.task_id) {
       close()
     }
   }
@@ -155,9 +155,9 @@ export function NotificationDropdown() {
 
                   {/* Content */}
                   <div className="flex-1 min-w-0">
-                    {notification.taskId ? (
+                    {notification.task_id ? (
                       <Link
-                        href={`/dashboard/tasks/${notification.taskId}`}
+                        href={`/dashboard/tasks/${notification.task_id}`}
                         onClick={() => handleNotificationClick(notification)}
                         className="block"
                       >
@@ -179,7 +179,7 @@ export function NotificationDropdown() {
                       </div>
                     )}
                     <p className="mt-1 text-xs text-gray-500 dark:text-gray-500">
-                      {formatDistanceToNow(notification.createdAt, { addSuffix: true })}
+                      {formatDistanceToNow(notification.created_at, { addSuffix: true })}
                     </p>
                   </div>
 

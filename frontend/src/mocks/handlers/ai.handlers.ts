@@ -49,7 +49,7 @@ export const getAILogsHandler = http.get('/api/ai/logs', async ({ request }) => 
   let filtered = aiLogs
 
   if (taskId) {
-    filtered = filtered.filter(log => log.taskId === taskId)
+    filtered = filtered.filter(log => log.task_id === taskId)
   }
 
   if (noteId) {

@@ -35,13 +35,13 @@ export function TaskMetadata({ task }: TaskMetadataProps) {
       )}
 
       {/* Due Date */}
-      {task.dueDate && (
+      {task.due_date && (
         <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
           <div className="text-sm font-medium text-gray-500 dark:text-gray-400">
             Due Date
           </div>
           <div className="mt-1 text-sm text-gray-900 dark:text-gray-100">
-            {format(new Date(task.dueDate), 'PPP')}
+            {format(new Date(task.due_date), 'PPP')}
           </div>
         </div>
       )}
@@ -110,7 +110,7 @@ export function TaskMetadata({ task }: TaskMetadataProps) {
               Created
             </div>
             <div className="mt-1 text-sm text-gray-900 dark:text-gray-100">
-              {format(new Date(task.createdAt), 'PPpp')}
+              {format(new Date(task.created_at), 'PPpp')}
             </div>
           </div>
           <div>
@@ -118,7 +118,7 @@ export function TaskMetadata({ task }: TaskMetadataProps) {
               Last Updated
             </div>
             <div className="mt-1 text-sm text-gray-900 dark:text-gray-100">
-              {format(new Date(task.updatedAt), 'PPpp')}
+              {format(new Date(task.updated_at), 'PPpp')}
             </div>
           </div>
         </div>

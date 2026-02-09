@@ -115,7 +115,7 @@ export function NoteCard({ note, onEdit }: NoteCardProps) {
       {/* Footer */}
       <div className="flex items-center justify-between">
         <span className="text-xs text-gray-500 dark:text-gray-400">
-          {format(new Date(note.updatedAt), 'MMM d, yyyy HH:mm')}
+          {format(new Date(note.updated_at), 'MMM d, yyyy HH:mm')}
         </span>
 
         <div className="flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">

@@ -142,7 +142,7 @@ export const updateTaskHandler = http.patch('/api/tasks/:id', async ({ params, r
 
     // Set completedAt when marking as complete
     if ((body as any)?.completed === true && !task.completed) {
-      updatedTask.completedAt = new Date().toISOString()
+      updatedTask.completed_at = new Date().toISOString()
     }
 
     tasks[taskIndex] = updatedTask
@@ -189,7 +189,7 @@ export const deleteTaskHandler = http.delete('/api/tasks/:id', async ({ params }
   }
 
   tasks[taskIndex].hidden = true
-  tasks[taskIndex].updatedAt = new Date().toISOString()
+  tasks[taskIndex].updated_at = new Date().toISOString()
 
   return HttpResponse.json(null, { status: 204 })
 })
@@ -300,9 +300,9 @@ export const updateSubTaskHandler = http.patch(
 
       // Set completedAt when marking as complete
       if ((body as any)?.completed === true && !subtask.completed) {
-        updatedSubtask.completedAt = new Date().toISOString()
+        updatedSubtask.completed_at = new Date().toISOString()
       } else if ((body as any)?.completed === false) {
-        updatedSubtask.completedAt = null
+        updatedSubtask.completed_at = null
       }
 
       subtasks[subtaskIndex] = updatedSubtask

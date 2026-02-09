@@ -33,7 +33,7 @@ export function TaskForm({ task, onSuccess, onCancel }: TaskFormProps) {
   const [priority, setPriority] = useState<'low' | 'medium' | 'high'>(task?.priority || 'medium')
   const [tags, setTags] = useState<string[]>(task?.tags || [])
   const [tagInput, setTagInput] = useState('')
-  const [dueDate, setDueDate] = useState(task?.dueDate ? task.dueDate.slice(0, 16) : '')
+  const [dueDate, setDueDate] = useState(task?.due_date ? task.due_date.slice(0, 16) : '')
   const [estimatedDuration, setEstimatedDuration] = useState(task?.estimatedDuration?.toString() || '')
   const [recurrence, setRecurrence] = useState<Recurrence | undefined>(task?.recurrence)
   const [isSubmitting, setIsSubmitting] = useState(false)

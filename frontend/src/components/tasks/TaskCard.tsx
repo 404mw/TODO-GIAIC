@@ -317,8 +317,8 @@ export function TaskCard({ task, showProgress = false }: TaskCardProps) {
                 )}
 
                 {/* Due date */}
-                {task.dueDate && (
-                  <span className={getDueDateColor(task.dueDate)}>
+                {task.due_date && (
+                  <span className={getDueDateColor(task.due_date)}>
                     <svg
                       className="inline h-3.5 w-3.5 mr-1"
                       fill="none"
@@ -332,7 +332,7 @@ export function TaskCard({ task, showProgress = false }: TaskCardProps) {
                         d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
                       />
                     </svg>
-                    {formatDistanceToNow(new Date(task.dueDate), { addSuffix: true })}
+                    {formatDistanceToNow(new Date(task.due_date), { addSuffix: true })}
                   </span>
                 )}
 

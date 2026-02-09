@@ -29,7 +29,7 @@ export const getNotesHandler = http.get('/api/notes', async ({ request }) => {
 
   // Sort by most recent first
   filtered = filtered.sort((a, b) =>
-    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   )
 
   return HttpResponse.json(filtered, { status: 200 })
@@ -143,7 +143,7 @@ export const deleteNoteHandler = http.delete('/api/notes/:id', async ({ params }
   }
 
   notes[noteIndex].archived = true
-  notes[noteIndex].updatedAt = new Date().toISOString()
+  notes[noteIndex].updated_at = new Date().toISOString()
 
   return HttpResponse.json(null, { status: 204 })
 })

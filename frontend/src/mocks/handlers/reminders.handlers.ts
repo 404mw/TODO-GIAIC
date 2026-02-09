@@ -23,7 +23,7 @@ export const getRemindersHandler = http.get('/api/reminders', async ({ request }
   let filtered = reminders
 
   if (taskId) {
-    filtered = filtered.filter(r => r.taskId === taskId)
+    filtered = filtered.filter(r => r.task_id === taskId)
   }
 
   if (delivered === 'true') {

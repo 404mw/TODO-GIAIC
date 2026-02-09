@@ -29,8 +29,8 @@ export function useCreateSubtask() {
     mutationFn: ({ taskId, ...subtask }: Partial<Subtask> & { taskId: string }) =>
       apiClient.post(`/tasks/${taskId}/subtasks`, subtask, SubtaskResponseSchema),
     onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['subtasks', variables.taskId] });
-      queryClient.invalidateQueries({ queryKey: ['tasks', variables.taskId] });
+      queryClient.invalidateQueries({ queryKey: ['subtasks', variables.task_id] });
+      queryClient.invalidateQueries({ queryKey: ['tasks', variables.task_id] });
     },
   });
 }
@@ -42,8 +42,8 @@ export function useUpdateSubtask() {
     mutationFn: ({ id, taskId, ...subtask }: Partial<Subtask> & { id: string; taskId: string }) =>
       apiClient.put(`/subtasks/${id}`, subtask, SubtaskResponseSchema),
     onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['subtasks', variables.taskId] });
-      queryClient.invalidateQueries({ queryKey: ['tasks', variables.taskId] });
+      queryClient.invalidateQueries({ queryKey: ['subtasks', variables.task_id] });
+      queryClient.invalidateQueries({ queryKey: ['tasks', variables.task_id] });
     },
   });
 }
@@ -55,8 +55,8 @@ export function useDeleteSubtask() {
     mutationFn: ({ id, taskId }: { id: string; taskId: string }) =>
       apiClient.delete(`/subtasks/${id}`),
     onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['subtasks', variables.taskId] });
-      queryClient.invalidateQueries({ queryKey: ['tasks', variables.taskId] });
+      queryClient.invalidateQueries({ queryKey: ['subtasks', variables.task_id] });
+      queryClient.invalidateQueries({ queryKey: ['tasks', variables.task_id] });
     },
   });
 }
@@ -68,8 +68,8 @@ export function useCompleteSubtask() {
     mutationFn: ({ id, taskId }: { id: string; taskId: string }) =>
       apiClient.post(`/subtasks/${id}/complete`, {}, SubtaskResponseSchema),
     onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['subtasks', variables.taskId] });
-      queryClient.invalidateQueries({ queryKey: ['tasks', variables.taskId] });
+      queryClient.invalidateQueries({ queryKey: ['subtasks', variables.task_id] });
+      queryClient.invalidateQueries({ queryKey: ['tasks', variables.task_id] });
     },
   });
 }

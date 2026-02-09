@@ -85,7 +85,7 @@ export default function TasksPage() {
         break
       }
       case 'created':
-        comparison = a.createdAt.localeCompare(b.createdAt)
+        comparison = a.created_at.localeCompare(b.created_at)
         break
       case 'title':
         comparison = a.title.localeCompare(b.title)
