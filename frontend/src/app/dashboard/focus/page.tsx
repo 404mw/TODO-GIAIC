@@ -94,8 +94,8 @@ export default function FocusModePage() {
     if (!selectedTaskId) {
       toast({
         title: 'Select a task',
-        description: 'Please select a task to focus on',
-        variant: 'error',
+        message: 'Please select a task to focus on',
+        type: 'error',
       })
       return
     }
@@ -103,8 +103,8 @@ export default function FocusModePage() {
     if (incompleteSubtasks.length > 0 && selectedSubtaskIds.size === 0) {
       toast({
         title: 'Select subtasks',
-        description: 'Please select at least one subtask to work on',
-        variant: 'error',
+        message: 'Please select at least one subtask to work on',
+        type: 'error',
       })
       return
     }
@@ -112,8 +112,8 @@ export default function FocusModePage() {
     if (incompleteSubtasks.length > 0 && totalDuration === 0) {
       toast({
         title: 'No duration set',
-        description: 'Selected subtasks have no estimated duration. Please add durations to subtasks first.',
-        variant: 'error',
+        message: 'Selected subtasks have no estimated duration. Please add durations to subtasks first.',
+        type: 'error',
       })
       return
     }
@@ -125,8 +125,8 @@ export default function FocusModePage() {
     const durationText = totalDuration > 0 ? `for ${totalDuration} minutes` : ''
     toast({
       title: 'Focus mode started',
-      description: `Focusing on "${selectedTask?.title}" ${durationText}`,
-      variant: 'success',
+      message: `Focusing on "${selectedTask?.title}" ${durationText}`,
+      type: 'success',
     })
   }
 
@@ -169,14 +169,14 @@ export default function FocusModePage() {
           })
           toast({
             title: 'Task completed!',
-            description: 'Great work on finishing your focus session!',
-            variant: 'success',
+            message: 'Great work on finishing your focus session!',
+            type: 'success',
           })
         } catch (error) {
           toast({
             title: 'Error',
-            description: 'Failed to mark task as complete',
-            variant: 'error',
+            message: 'Failed to mark task as complete',
+            type: 'error',
           })
         }
       }
@@ -189,8 +189,8 @@ export default function FocusModePage() {
 
     toast({
       title: 'Focus session complete!',
-      description: `Completed ${pendingSubtaskCompletions.size} subtask${pendingSubtaskCompletions.size !== 1 ? 's' : ''}`,
-      variant: 'success',
+      message: `Completed ${pendingSubtaskCompletions.size} subtask${pendingSubtaskCompletions.size !== 1 ? 's' : ''}`,
+      type: 'success',
     })
   }
 

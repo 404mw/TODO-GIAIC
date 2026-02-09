@@ -68,7 +68,7 @@ function MetricCard({ title, value, subtitle, icon, color }: MetricCardProps) {
 }
 
 export default function AchievementsPage() {
-  const { data: achievements, isLoading, error } = useAchievements()
+  const { data: achievementsResponse, isLoading, error } = useAchievements()
 
   if (isLoading) {
     return (
@@ -91,10 +91,18 @@ export default function AchievementsPage() {
     )
   }
 
-  const streak = achievements?.consistencyStreak
-  const highPrioritySlays = achievements?.highPrioritySlays || 0
-  const completionRatio = achievements?.completionRatio || 0
-  const milestones = achievements?.milestones || []
+  // Unwrap API response
+  const achievements = achievementsResponse?.data
+
+  // Map to component data structure using actual schema properties
+  const streak = {
+    currentStreak: achievements?.current_streak || 0,
+    longestStreak: achievements?.longest_streak || 0,
+    graceDayUsed: false, // TODO: Implement grace day logic
+  }
+  const highPrioritySlays = 0 // TODO: Calculate from task completion history
+  const completionRatio = 0 // TODO: Calculate from task statistics
+  const milestones = achievements?.unlocked_achievements || []
 
   return (
     <DashboardLayout>
@@ -203,9 +211,9 @@ export default function AchievementsPage() {
               Earned Milestones
             </h2>
             <div className="grid gap-3 sm:grid-cols-2">
-              {milestones.map((milestone) => (
+              {milestones.map((achievementId: string) => (
                 <div
-                  key={milestone.id}
+                  key={achievementId}
                   className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900"
                 >
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-yellow-100 dark:bg-yellow-900/30">
@@ -223,10 +231,10 @@ export default function AchievementsPage() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="font-medium text-gray-900 dark:text-gray-100">
-                      {milestone.name}
+                      {achievementId}
                     </p>
                     <p className="truncate text-sm text-gray-500 dark:text-gray-400">
-                      {milestone.description}
+                      Achievement unlocked
                     </p>
                   </div>
                 </div>

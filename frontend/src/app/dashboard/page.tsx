@@ -4,6 +4,7 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout'
 import { TaskList } from '@/components/tasks/TaskList'
 import { useTasks } from '@/lib/hooks/useTasks'
 import { useAchievements } from '@/lib/hooks/useAchievements'
+import type { Task } from '@/lib/schemas/task.schema'
 
 /**
  * Dashboard home page
@@ -30,25 +31,25 @@ export default function DashboardPage() {
 
   // Filter high-priority incomplete tasks
   const highPriorityTasks = tasks
-    .filter((t) => t.priority === 'high' && !t.completed)
+    .filter((t: Task) => t.priority === 'high' && !t.completed)
     .slice(0, 5)
 
   // Filter tasks due today
   const today = new Date().toISOString().split('T')[0]
   const todayTasks = tasks
-    .filter((t) => t.due_date && t.due_date.startsWith(today) && !t.completed)
+    .filter((t: Task) => t.due_date && t.due_date.startsWith(today) && !t.completed)
     .slice(0, 5)
 
   // Calculate stats
   const completedToday = tasks.filter(
-    (t) => t.completed_at && t.completed_at.split('T')[0] === today
+    (t: Task) => t.completed_at && t.completed_at.split('T')[0] === today
   ).length
-  const totalActive = tasks.filter((t) => !t.completed).length
-  const currentStreak = 0 // TODO: Fix when achievements structure is defined
+  const totalActive = tasks.filter((t: Task) => !t.completed).length
+  const currentStreak = achievements?.current_streak || 0
 
   // Filter overdue tasks (due date before today and not completed)
   const overdueTasks = tasks.filter(
-    (t) => t.due_date && t.due_date.split('T')[0] < today && !t.completed
+    (t: Task) => t.due_date && t.due_date.split('T')[0] < today && !t.completed
   )
 
   return (

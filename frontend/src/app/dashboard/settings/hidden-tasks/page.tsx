@@ -33,14 +33,14 @@ export default function HiddenTasksPage() {
       })
       toast({
         title: 'Task restored',
-        description: `"${task.title}" is now visible in your task list`,
-        variant: 'success',
+        message: `"${task.title}" is now visible in your task list`,
+        type: 'success',
       })
     } catch (err) {
       toast({
         title: 'Error',
-        description: 'Failed to restore task',
-        variant: 'error',
+        message: 'Failed to restore task',
+        type: 'error',
       })
     }
   }
@@ -55,14 +55,14 @@ export default function HiddenTasksPage() {
       await deleteTask.mutateAsync(task.id)
       toast({
         title: 'Task deleted',
-        description: 'The task has been permanently deleted',
-        variant: 'success',
+        message: 'The task has been permanently deleted',
+        type: 'success',
       })
     } catch (err) {
       toast({
         title: 'Error',
-        description: 'Failed to delete task',
-        variant: 'error',
+        message: 'Failed to delete task',
+        type: 'error',
       })
     }
   }
