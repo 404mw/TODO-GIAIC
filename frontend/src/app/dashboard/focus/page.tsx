@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useTasks, useUpdateTask } from '@/lib/hooks/useTasks'
-import { useSubTasks, useUpdateSubTask } from '@/lib/hooks/useSubTasks'
+import { useSubtasks, useUpdateSubtask } from '@/lib/hooks/useSubtasks'
 import { useFocusModeStore } from '@/lib/stores/useFocusModeStore'
 import { useToast } from '@/lib/hooks/useToast'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
@@ -29,7 +29,7 @@ export default function FocusModePage() {
   const { toast } = useToast()
   const { data: tasks = [], isLoading } = useTasks({ hidden: false })
   const updateTask = useUpdateTask()
-  const updateSubTask = useUpdateSubTask()
+  const updateSubTask = useUpdateSubtask()
   const { isActive, taskId, activate, deactivate } = useFocusModeStore()
 
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
@@ -43,7 +43,7 @@ export default function FocusModePage() {
   const selectedTask = tasks.find((t) => t.id === selectedTaskId)
 
   // Fetch subtasks for selected task
-  const { data: subtasks = [] } = useSubTasks(selectedTaskId || '')
+  const { data: subtasks = [] } = useSubtasks(selectedTaskId || '')
 
   // Filter to only incomplete subtasks
   const incompleteSubtasks = subtasks.filter((st: SubTask) => !st.completed)

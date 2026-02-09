@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { SubTaskList } from '@/components/tasks/SubTaskList'
-import { useUpdateSubTask, useDeleteSubTask } from '@/lib/hooks/useSubTasks'
+import { useUpdateSubtask, useDeleteSubtask } from '@/lib/hooks/useSubtasks'
 import { useToast } from '@/lib/hooks/useToast'
 import type { SubTask } from '@/lib/schemas/subtask.schema'
 

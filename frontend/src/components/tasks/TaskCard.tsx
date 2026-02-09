@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import type { Task } from '@/lib/schemas/task.schema'
 import type { SubTask } from '@/lib/schemas/subtask.schema'
-import { useSubTasks } from '@/lib/hooks/useSubTasks'
+import { useSubtasks } from '@/lib/hooks/useSubtasks'
 import { useToast } from '@/lib/hooks/useToast'
 import { useFocusModeStore } from '@/lib/stores/useFocusModeStore'
 import { usePendingCompletionsStore } from '@/lib/stores/usePendingCompletionsStore'
@@ -36,7 +36,7 @@ export function TaskCard({ task, showProgress = false }: TaskCardProps) {
   const { activate: activateFocusMode } = useFocusModeStore()
   const { togglePending, hasPending } = usePendingCompletionsStore()
   const [isExpanded, setIsExpanded] = useState(false)
-  const { data: subtasks = [] } = useSubTasks(task.id)
+  const { data: subtasks = [] } = useSubtasks(task.id)
   const cardRef = useRef<HTMLDivElement>(null)
 
   const isPending = hasPending(task.id)

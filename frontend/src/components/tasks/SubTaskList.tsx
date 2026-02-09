@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import type { SubTask } from '@/lib/schemas/subtask.schema'
-import { useUpdateSubTask, useDeleteSubTask } from '@/lib/hooks/useSubTasks'
+import { useUpdateSubtask, useDeleteSubtask } from '@/lib/hooks/useSubtasks'
 import { useToast } from '@/lib/hooks/useToast'
 import { Button } from '@/components/ui/Button'
 
@@ -13,8 +13,8 @@ interface SubTaskListProps {
 
 export function SubTaskList({ taskId, subtasks }: SubTaskListProps) {
   const { toast } = useToast()
-  const updateSubTask = useUpdateSubTask()
-  const deleteSubTask = useDeleteSubTask()
+  const updateSubTask = useUpdateSubtask()
+  const deleteSubTask = useDeleteSubtask()
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const handleToggleComplete = async (subtask: SubTask) => {

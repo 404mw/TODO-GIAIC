@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { format } from 'date-fns'
 import type { Task } from '@/lib/schemas/task.schema'
 import { useUpdateTask, useDeleteTask } from '@/lib/hooks/useTasks'
-import { useSubTasks } from '@/lib/hooks/useSubTasks'
+import { useSubtasks } from '@/lib/hooks/useSubtasks'
 import { useToast } from '@/lib/hooks/useToast'
 import { useNewTaskModalStore } from '@/lib/stores/useNewTaskModalStore'
 import { useFocusStore } from '@/lib/stores/useFocusStore'
@@ -25,7 +25,7 @@ export function TaskDetailView({ task }: TaskDetailViewProps) {
   const { toast } = useToast()
   const updateTask = useUpdateTask()
   const deleteTask = useDeleteTask()
-  const { data: subtasks = [], isLoading: subtasksLoading } = useSubTasks(task.id)
+  const { data: subtasks = [], isLoading: subtasksLoading } = useSubtasks(task.id)
   const [isDeleting, setIsDeleting] = useState(false)
   const openEditModal = useNewTaskModalStore((state) => state.openEdit)
   const { activate: activateFocusMode } = useFocusStore()

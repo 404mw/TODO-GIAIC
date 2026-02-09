@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useCreateSubTask } from '@/lib/hooks/useSubTasks'
+import { useCreateSubtask } from '@/lib/hooks/useSubtasks'
 import { useToast } from '@/lib/hooks/useToast'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -29,7 +29,7 @@ export function AddSubTaskForm({
   onSuccess,
 }: AddSubTaskFormProps) {
   const [title, setTitle] = useState('')
-  const createSubTask = useCreateSubTask()
+  const createSubTask = useCreateSubtask()
   const { toast } = useToast()
 
   // T081: Check if max limit reached
