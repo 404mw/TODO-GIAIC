@@ -24,12 +24,14 @@ const PLANS = [
     price: '$0',
     period: 'forever',
     features: [
-      'Up to 50 active tasks',
-      'Basic task management',
-      'Streak tracking',
-      'Quick notes',
+      '50 active tasks',
+      '4 subtasks per task',
+      '10 quick notes',
+      '5 kickstart AI credits',
+      'Streak tracking & achievements',
       'Focus mode timer',
       'Browser notifications',
+      'Smart reminders',
     ],
     cta: 'Get Started Free',
     ctaLink: '/dashboard/tasks',
@@ -41,57 +43,68 @@ const PLANS = [
     price: '$9',
     period: 'per month',
     features: [
-      'Unlimited tasks',
+      '200 active tasks',
+      '10 subtasks per task',
+      '25 quick notes',
+      '100 monthly AI credits + 10 daily',
       'AI-powered sub-task generation',
+      'Voice notes & transcription',
       'Recurring tasks',
-      'Advanced analytics',
-      'Custom themes',
       'Priority support',
-      'Cloud sync across devices',
-      'Export & backup',
     ],
-    cta: 'Start 14-Day Trial',
+    cta: 'Upgrade to Pro',
     ctaLink: '/dashboard/tasks',
     highlighted: true,
   },
 ]
 
 const COMPARISON_FEATURES = [
-  { name: 'Active Tasks', free: '50 tasks', pro: 'Unlimited' },
+  { name: 'Active Tasks', free: '50', pro: '200' },
+  { name: 'Subtasks per Task', free: '4', pro: '10' },
+  { name: 'Quick Notes', free: '10', pro: '25' },
+  { name: 'Task Description Length', free: '1000 chars', pro: '2000 chars' },
+  { name: 'AI Credits (Monthly)', free: '5 kickstart', pro: '100 + 10 daily' },
   { name: 'AI Sub-task Generation', free: false, pro: true },
+  { name: 'Voice Notes & Transcription', free: false, pro: true },
   { name: 'Recurring Tasks', free: false, pro: true },
   { name: 'Streak Tracking', free: true, pro: true },
   { name: 'Focus Mode', free: true, pro: true },
-  { name: 'Quick Notes', free: true, pro: true },
   { name: 'Smart Reminders', free: true, pro: true },
-  { name: 'Achievements', free: true, pro: true },
-  { name: 'Analytics Dashboard', free: false, pro: true },
-  { name: 'Custom Themes', free: false, pro: true },
-  { name: 'Cloud Sync', free: 'Basic', pro: 'Advanced' },
-  { name: 'Data Export', free: false, pro: true },
+  { name: 'Achievements & Perks', free: true, pro: true },
+  { name: 'Browser Notifications', free: true, pro: true },
   { name: 'Support', free: 'Community', pro: 'Priority' },
 ]
 
 const FAQS = [
   {
+    question: 'How do AI credits work?',
+    answer:
+      'AI credits power intelligent features like sub-task generation, chat, note-to-task conversion, and voice transcription. Free users get 5 kickstart credits. Pro users receive 100 monthly credits (carry over up to 50) plus 10 daily credits. Credit costs: Chat (1), Subtasks (1), Conversion (1), Voice (5/min). You can also purchase additional credits if needed.',
+  },
+  {
+    question: 'What are Achievements and Perks?',
+    answer:
+      'Achievements are milestones you unlock by completing tasks, maintaining streaks, and using focus mode. Many achievements grant permanent perks like increased task limits, more notes, or bonus daily AI credits. For example, completing 100 tasks unlocks +50 max tasks. Both Free and Pro users can earn achievements.',
+  },
+  {
     question: 'Can I switch plans later?',
     answer:
-      "Yes! You can upgrade or downgrade your plan at any time. When upgrading, you'll be charged the prorated difference. When downgrading, the difference will be credited to your account.",
+      "Yes! You can upgrade or downgrade your plan at any time. When upgrading, you'll be charged immediately and gain instant access to Pro features. When downgrading, you'll retain Pro access until the end of your current billing period.",
   },
   {
     question: 'What happens to my data if I downgrade?',
     answer:
-      "Your data is always safe. If you exceed the free tier limits, you'll still have access to view and edit your existing tasks, but you won't be able to create new ones until you're within the limits.",
-  },
-  {
-    question: 'Is there a free trial for Pro?',
-    answer:
-      'Yes! Pro comes with a 14-day free trial. No credit card required to start. You can explore all Pro features risk-free before deciding to subscribe.',
+      "Your data is always safe. If you exceed the free tier limits (50 tasks, 10 notes), you'll still have read-only access to your existing content, but you won't be able to create new items until you're within the limits. Any achievement perks you've earned remain active.",
   },
   {
     question: 'How does the AI sub-task generation work?',
     answer:
-      'Our AI analyzes your task description and automatically suggests relevant sub-tasks to help break down complex projects. You can review and customize the suggestions before adding them.',
+      'Our AI analyzes your task description and automatically suggests relevant sub-tasks to help break down complex projects. Each generation costs 1 AI credit. You can review and customize the suggestions before adding them. Pro users can generate subtasks for all their tasks.',
+  },
+  {
+    question: 'What is voice transcription?',
+    answer:
+      'Voice transcription (Pro only) converts your spoken notes into text using AI. It costs 5 credits per minute of audio. Perfect for capturing ideas on the go. Maximum audio duration is 5 minutes per recording. Transcriptions are powered by Deepgram for high accuracy.',
   },
   {
     question: 'How do I upgrade from Free to Pro?',
@@ -101,12 +114,7 @@ const FAQS = [
   {
     question: 'Can I cancel anytime?',
     answer:
-      'Absolutely! There are no long-term commitments. You can cancel your Pro subscription at any time from your account settings. You\'ll retain Pro access until the end of your current billing period.',
-  },
-  {
-    question: 'Do you offer refunds?',
-    answer:
-      'We offer a full refund within 14 days of your initial purchase if you\'re not satisfied with Pro. For subsequent billing cycles, refunds are handled on a case-by-case basis. Contact our support team to discuss your situation.',
+      'Absolutely! There are no long-term commitments. You can cancel your Pro subscription at any time from your account settings. You\'ll retain Pro access until the end of your current billing period. No refunds for partial months.',
   },
   {
     question: 'What payment methods do you accept?',
