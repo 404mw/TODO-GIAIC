@@ -1,0 +1,115 @@
+'use client';
+
+import { createContext, useState, useEffect, ReactNode } from 'react';
+import { apiClient } from '@/lib/api/client';
+import { AuthTokenSchema, LoginRequestSchema, type LoginRequest } from '@/lib/schemas/auth.schema';
+import type { User } from '@/lib/schemas/user.schema';
+import { z } from 'zod';
+
+const UserResponseSchema = z.object({
+  data: z.object({
+    id: z.string().uuid(),
+    email: z.string().email(),
+    full_name: z.string(),
+    is_active: z.boolean(),
+    tier: z.enum(['free', 'pro']).default('free'),
+    created_at: z.string(),
+    updated_at: z.string().optional(),
+  }),
+});
+
+interface AuthContextType {
+  user: User | null;
+  login: (credentials: LoginRequest) => Promise<void>;
+  logout: () => void;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  error: string | null;
+  clearError: () => void;
+}
+
+export const AuthContext = createContext<AuthContextType | null>(null);
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Restore session on mount
+    const token = localStorage.getItem('auth_token');
+    if (token) {
+      fetchCurrentUser().finally(() => setIsLoading(false));
+    } else {
+      setIsLoading(false);
+    }
+  }, []);
+
+  async function fetchCurrentUser() {
+    try {
+      const response = await apiClient.get('/users/me', UserResponseSchema);
+      setUser(response.data);
+      setError(null);
+    } catch (err) {
+      console.error('Failed to fetch current user:', err);
+      localStorage.removeItem('auth_token');
+      setUser(null);
+      // Don't set error here - this is silent background refresh
+    }
+  }
+
+  async function login(credentials: LoginRequest) {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      // Validate credentials
+      const validatedCredentials = LoginRequestSchema.parse(credentials);
+
+      // Get auth token
+      const tokenResponse = await apiClient.post(
+        '/auth/login',
+        validatedCredentials,
+        AuthTokenSchema
+      );
+
+      // Store token
+      localStorage.setItem('auth_token', tokenResponse.access_token);
+
+      // Fetch user details
+      await fetchCurrentUser();
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Login failed';
+      setError(errorMessage);
+      throw err; // Re-throw so UI can handle
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  function logout() {
+    localStorage.removeItem('auth_token');
+    setUser(null);
+    setError(null);
+  }
+
+  function clearError() {
+    setError(null);
+  }
+
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        login,
+        logout,
+        isAuthenticated: !!user,
+        isLoading,
+        error,
+        clearError,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+}
