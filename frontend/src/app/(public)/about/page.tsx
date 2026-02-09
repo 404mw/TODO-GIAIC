@@ -21,7 +21,7 @@ const VALUES = [
   {
     title: 'Free Forever Core',
     message:
-      'We believe productivity tools should be accessible to everyone. Perpetua's core features are completely free—no trials, no credit card required, no hidden fees. Get 50 tasks, streaks, notes, focus mode, and more at zero cost.',
+      'We believe productivity tools should be accessible to everyone. Perpetua\'s core features are completely free—no trials, no credit card required, no hidden fees. Get 50 tasks, streaks, notes, focus mode, and more at zero cost.',
     icon: (
       <svg
         className="h-6 w-6 text-emerald-400"
