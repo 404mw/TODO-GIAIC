@@ -11,7 +11,10 @@ export default function TaskDetailPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = use(params)
-  const { data: task, isLoading, error } = useTask(id)
+  const { data: taskResponse, isLoading, error } = useTask(id)
+
+  // Unwrap API response
+  const task = taskResponse?.data
 
   if (isLoading) {
     return (

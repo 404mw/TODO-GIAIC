@@ -18,11 +18,15 @@ import { useAchievements } from '@/lib/hooks/useAchievements'
 export default function DashboardPage() {
   // Fetch data
   const {
-    data: tasks = [],
+    data: tasksResponse,
     isLoading: tasksLoading,
     error: tasksError,
-  } = useTasks({ archived: false, hidden: false })
-  const { data: achievements, isLoading: achievementsLoading } = useAchievements()
+  } = useTasks({ completed: false })
+  const { data: achievementsResponse, isLoading: achievementsLoading } = useAchievements()
+
+  // Unwrap API responses
+  const tasks = tasksResponse?.data || []
+  const achievements = achievementsResponse?.data
 
   // Filter high-priority incomplete tasks
   const highPriorityTasks = tasks
@@ -32,19 +36,19 @@ export default function DashboardPage() {
   // Filter tasks due today
   const today = new Date().toISOString().split('T')[0]
   const todayTasks = tasks
-    .filter((t) => t.dueDate && t.dueDate.startsWith(today) && !t.completed)
+    .filter((t) => t.due_date && t.due_date.startsWith(today) && !t.completed)
     .slice(0, 5)
 
   // Calculate stats
   const completedToday = tasks.filter(
-    (t) => t.completedAt && t.completedAt.split('T')[0] === today
+    (t) => t.completed_at && t.completed_at.split('T')[0] === today
   ).length
   const totalActive = tasks.filter((t) => !t.completed).length
-  const currentStreak = achievements?.consistencyStreak.currentStreak || 0
+  const currentStreak = 0 // TODO: Fix when achievements structure is defined
 
   // Filter overdue tasks (due date before today and not completed)
   const overdueTasks = tasks.filter(
-    (t) => t.dueDate && t.dueDate.split('T')[0] < today && !t.completed
+    (t) => t.due_date && t.due_date.split('T')[0] < today && !t.completed
   )
 
   return (

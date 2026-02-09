@@ -27,7 +27,7 @@ import type { SubTask } from '@/lib/schemas/subtask.schema'
 export default function FocusModePage() {
   const router = useRouter()
   const { toast } = useToast()
-  const { data: tasks = [], isLoading } = useTasks({ hidden: false })
+  const { data: tasksResponse, isLoading } = useTasks({ completed: false })
   const updateTask = useUpdateTask()
   const updateSubTask = useUpdateSubtask()
   const { isActive, taskId, activate, deactivate } = useFocusModeStore()
@@ -39,11 +39,15 @@ export default function FocusModePage() {
   const [showSubtaskSelection, setShowSubtaskSelection] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
 
+  // Unwrap API response
+  const tasks = tasksResponse?.data || []
+
   // Get selected task
   const selectedTask = tasks.find((t) => t.id === selectedTaskId)
 
   // Fetch subtasks for selected task
-  const { data: subtasks = [] } = useSubtasks(selectedTaskId || '')
+  const { data: subtasksResponse } = useSubtasks(selectedTaskId || '')
+  const subtasks = subtasksResponse?.data || []
 
   // Filter to only incomplete subtasks
   const incompleteSubtasks = subtasks.filter((st: SubTask) => !st.completed)

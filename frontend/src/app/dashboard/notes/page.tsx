@@ -14,10 +14,14 @@ export default function NotesPage() {
   const [editingNote, setEditingNote] = useState<Note | null>(null)
 
   const {
-    data: notes = [],
+    data: notesResponse,
     isLoading,
     error,
-  } = useNotes({ archived: showArchived })
+  } = useNotes()
+
+  // Unwrap API response and filter based on archived state
+  const allNotes = notesResponse?.data || []
+  const notes = allNotes.filter((note: Note) => note.archived === showArchived)
 
   const handleEdit = (note: Note) => {
     setEditingNote(note)

@@ -32,10 +32,13 @@ export default function TasksPage() {
   const openNewTaskModal = useNewTaskModalStore((state) => state.open)
 
   const {
-    data: tasks = [],
+    data: tasksResponse,
     isLoading,
     error,
-  } = useTasks({ hidden: false })
+  } = useTasks({ completed: false })
+
+  // Unwrap API response
+  const tasks = tasksResponse?.data || []
 
   // Apply filters - only show non-completed tasks (completed tasks have their own page)
   const filteredTasks = tasks.filter((task: Task) => {
@@ -49,7 +52,7 @@ export default function TasksPage() {
         return task.priority === 'high'
       case 'today': {
         const today = new Date().toISOString().split('T')[0]
-        return task.dueDate?.startsWith(today)
+        return task.due_date?.startsWith(today)
       }
       default:
         return true
@@ -69,16 +72,16 @@ export default function TasksPage() {
           comparison = aPriority - bPriority
         } else {
           // Secondary sort by due date
-          if (a.dueDate && b.dueDate) comparison = a.dueDate.localeCompare(b.dueDate)
-          else if (a.dueDate) comparison = -1
-          else if (b.dueDate) comparison = 1
+          if (a.due_date && b.due_date) comparison = a.due_date.localeCompare(b.due_date)
+          else if (a.due_date) comparison = -1
+          else if (b.due_date) comparison = 1
         }
         break
       }
       case 'dueDate': {
-        if (a.dueDate && b.dueDate) comparison = a.dueDate.localeCompare(b.dueDate)
-        else if (a.dueDate) comparison = -1
-        else if (b.dueDate) comparison = 1
+        if (a.due_date && b.due_date) comparison = a.due_date.localeCompare(b.due_date)
+        else if (a.due_date) comparison = -1
+        else if (b.due_date) comparison = 1
         break
       }
       case 'created':

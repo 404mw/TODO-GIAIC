@@ -17,9 +17,13 @@ import type { Task } from '@/lib/schemas/task.schema'
 
 export default function HiddenTasksPage() {
   const { toast } = useToast()
-  const { data: tasks = [], isLoading, error } = useTasks({ hidden: true })
+  const { data: tasksResponse, isLoading, error } = useTasks()
   const updateTask = useUpdateTask()
   const deleteTask = useDeleteTask()
+
+  // Unwrap API response and filter for hidden tasks
+  const allTasks = tasksResponse?.data || []
+  const tasks = allTasks.filter((t: Task) => t.hidden)
 
   const handleUnhide = async (task: Task) => {
     try {
@@ -162,9 +166,9 @@ export default function HiddenTasksPage() {
                       <span className="text-green-600 dark:text-green-400">Completed</span>
                     )}
                     {/* Due date */}
-                    {task.dueDate && (
+                    {task.due_date && (
                       <span>
-                        Due: {new Date(task.dueDate).toLocaleDateString()}
+                        Due: {new Date(task.due_date).toLocaleDateString()}
                       </span>
                     )}
                   </div>

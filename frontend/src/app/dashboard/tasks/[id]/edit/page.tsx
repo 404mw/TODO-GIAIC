@@ -12,7 +12,10 @@ export default function EditTaskPage({
   params: { id: string }
 }) {
   const router = useRouter()
-  const { data: task, isLoading, error } = useTask(params.id)
+  const { data: taskResponse, isLoading, error } = useTask(params.id)
+
+  // Unwrap API response
+  const task = taskResponse?.data
 
   if (isLoading) {
     return (

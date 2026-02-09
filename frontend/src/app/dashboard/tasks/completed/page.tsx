@@ -23,10 +23,13 @@ export default function CompletedTasksPage() {
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
 
   const {
-    data: tasks = [],
+    data: tasksResponse,
     isLoading,
     error,
-  } = useTasks({ hidden: false })
+  } = useTasks({ completed: true })
+
+  // Unwrap API response
+  const tasks = tasksResponse?.data || []
 
   // Filter only completed tasks
   const completedTasks = tasks.filter((task: Task) => task.completed)
@@ -37,9 +40,9 @@ export default function CompletedTasksPage() {
 
     switch (sort) {
       case 'completedAt': {
-        // Sort by completedAt if available, otherwise by updatedAt
-        const aDate = a.completedAt || a.updatedAt
-        const bDate = b.completedAt || b.updatedAt
+        // Sort by completed_at if available, otherwise by updated_at
+        const aDate = a.completed_at || a.updated_at
+        const bDate = b.completed_at || b.updated_at
         comparison = aDate.localeCompare(bDate)
         break
       }
