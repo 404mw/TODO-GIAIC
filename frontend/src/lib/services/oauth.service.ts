@@ -9,7 +9,16 @@ import { apiClient } from '@/lib/api/client'
 import { z } from 'zod'
 
 /**
- * OAuth callback response schema
+ * OAuth token response schema (matches backend TokenResponse)
+ */
+const TokenResponseSchema = z.object({
+  access_token: z.string(),
+  refresh_token: z.string().optional(),
+  token_type: z.string().default('Bearer'),
+})
+
+/**
+ * OAuth callback response schema (legacy, for authorization code flow)
  */
 const OAuthCallbackResponseSchema = z.object({
   data: z.object({
@@ -25,11 +34,43 @@ const OAuthCallbackResponseSchema = z.object({
  */
 export const oauthService = {
   /**
-   * Initiate Google OAuth login flow
+   * Authenticate with Google using ID token (recommended method)
+   * Sends Google ID token to backend for verification and JWT generation
+   *
+   * @param idToken - Google ID token from Google Sign-In SDK
+   * @returns Promise with access token
+   */
+  async authenticateWithGoogle(idToken: string): Promise<{ access_token: string; refresh_token?: string }> {
+    try {
+      const response = await apiClient.post(
+        '/auth/google/callback',
+        { id_token: idToken },
+        TokenResponseSchema
+      )
+
+      // Store tokens in localStorage
+      localStorage.setItem('auth_token', response.access_token)
+      if (response.refresh_token) {
+        localStorage.setItem('refresh_token', response.refresh_token)
+      }
+
+      return {
+        access_token: response.access_token,
+        refresh_token: response.refresh_token,
+      }
+    } catch (error) {
+      console.error('Google authentication failed:', error)
+      throw new Error('Failed to authenticate with Google')
+    }
+  },
+
+  /**
+   * Initiate Google OAuth login flow (legacy authorization code flow)
    * Redirects user to backend OAuth initiation endpoint
    * Backend will redirect to Google for authentication
    *
    * @param redirectTo - Optional URL to redirect to after successful login
+   * @deprecated Use authenticateWithGoogle with Google Sign-In SDK instead
    */
   initiateGoogleLogin(redirectTo?: string): void {
     if (typeof window === 'undefined') return

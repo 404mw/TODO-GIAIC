@@ -4,7 +4,8 @@ import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Chrome, AlertCircle, Loader2, CheckCircle } from 'lucide-react'
-import { oauthService, getOAuthError, OAuthError } from '@/lib/services/oauth.service'
+import { GoogleOAuthProvider, GoogleLogin, CredentialResponse } from '@react-oauth/google'
+import { oauthService } from '@/lib/services/oauth.service'
 import { useAuth } from '@/lib/hooks/useAuth'
 
 /**
@@ -21,49 +22,39 @@ function LoginPageContent() {
   const [error, setError] = useState<string | null>(null)
 
   const redirectTo = searchParams?.get('redirect') || '/dashboard'
-  const errorParam = searchParams?.get('error')
 
   useEffect(() => {
     // If already authenticated, redirect to dashboard
     if (!authLoading && user) {
       router.push(redirectTo)
     }
+  }, [user, authLoading, router, redirectTo])
 
-    // Check for OAuth error in URL
-    const oauthError = getOAuthError()
-    if (oauthError) {
-      setError(getErrorMessage(oauthError))
-    } else if (errorParam) {
-      setError(getErrorMessage(errorParam))
+  const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
+    if (!credentialResponse.credential) {
+      setError('No credential received from Google')
+      return
     }
-  }, [user, authLoading, router, redirectTo, errorParam])
 
-  const handleGoogleLogin = () => {
     try {
       setIsLoading(true)
       setError(null)
-      oauthService.initiateGoogleLogin(redirectTo)
+
+      // Send ID token to backend
+      await oauthService.authenticateWithGoogle(credentialResponse.credential)
+
+      // Redirect to dashboard or specified redirect path
+      router.push(redirectTo)
     } catch (err) {
-      console.error('Failed to initiate Google login:', err)
-      setError('Failed to start sign-in process. Please try again.')
+      console.error('Google authentication failed:', err)
+      setError('Authentication failed. Please try again.')
       setIsLoading(false)
     }
   }
 
-  function getErrorMessage(error: string): string {
-    switch (error) {
-      case OAuthError.CANCELLED:
-        return 'Sign-in was cancelled. Please try again.'
-      case OAuthError.FAILED:
-      case 'auth_failed':
-        return 'Authentication failed. Please try again.'
-      case OAuthError.NETWORK_ERROR:
-        return 'Network error. Please check your connection and try again.'
-      case OAuthError.INVALID_STATE:
-        return 'Invalid authentication state. Please try again.'
-      default:
-        return 'An error occurred during sign-in. Please try again.'
-    }
+  const handleGoogleError = () => {
+    console.error('Google sign-in failed')
+    setError('Google sign-in failed. Please try again.')
   }
 
   // Show loading while checking auth status
@@ -131,23 +122,24 @@ function LoginPageContent() {
             )}
 
             {/* Google Sign-In Button */}
-            <button
-              onClick={handleGoogleLogin}
-              disabled={isLoading}
-              className="w-full flex items-center justify-center gap-3 px-6 py-3 rounded-lg bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-700 hover:border-purple-600 dark:hover:border-purple-500 hover:bg-gray-50 dark:hover:bg-gray-750 text-gray-900 dark:text-white font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
+            <div className="w-full">
               {isLoading ? (
-                <>
+                <div className="w-full flex items-center justify-center gap-3 px-6 py-3 rounded-lg bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white font-semibold">
                   <Loader2 className="h-5 w-5 animate-spin" />
                   <span>Signing in...</span>
-                </>
+                </div>
               ) : (
-                <>
-                  <Chrome className="h-5 w-5 text-[#4285F4]" />
-                  <span>Continue with Google</span>
-                </>
+                <GoogleLogin
+                  onSuccess={handleGoogleSuccess}
+                  onError={handleGoogleError}
+                  useOneTap
+                  theme="outline"
+                  size="large"
+                  width="100%"
+                  text="continue_with"
+                />
               )}
-            </button>
+            </div>
 
             {/* Divider */}
             <div className="my-6 flex items-center gap-4">
@@ -212,22 +204,42 @@ function LoginPageContent() {
 /**
  * Login Page
  *
- * Provides Google OAuth authentication
+ * Provides Google OAuth authentication with Google Sign-In SDK
  * Shows error messages and handles redirects
  */
 export default function LoginPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
-          <div className="text-center">
-            <Loader2 className="h-8 w-8 animate-spin text-purple-600 dark:text-purple-400 mx-auto mb-4" />
-            <p className="text-gray-600 dark:text-gray-400">Loading...</p>
-          </div>
+  const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
+
+  if (!clientId) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <AlertCircle className="h-12 w-12 text-red-600 mx-auto mb-4" />
+          <p className="text-gray-900 dark:text-white font-semibold mb-2">
+            Configuration Error
+          </p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Google OAuth is not configured. Please set NEXT_PUBLIC_GOOGLE_CLIENT_ID environment variable.
+          </p>
         </div>
-      }
-    >
-      <LoginPageContent />
-    </Suspense>
+      </div>
+    )
+  }
+
+  return (
+    <GoogleOAuthProvider clientId={clientId}>
+      <Suspense
+        fallback={
+          <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
+            <div className="text-center">
+              <Loader2 className="h-8 w-8 animate-spin text-purple-600 dark:text-purple-400 mx-auto mb-4" />
+              <p className="text-gray-600 dark:text-gray-400">Loading...</p>
+            </div>
+          </div>
+        }
+      >
+        <LoginPageContent />
+      </Suspense>
+    </GoogleOAuthProvider>
   )
 }
