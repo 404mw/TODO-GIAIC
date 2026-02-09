@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
 import { TaskList } from '@/components/tasks/TaskList'
 import { useTasks } from '@/lib/hooks/useTasks'
-import { useNewTaskModalStore } from '@/lib/stores/useNewTaskModalStore'
+import { useNewTaskModalStore } from '@/lib/stores/new-task-modal.store'
 import { Button } from '@/components/ui/Button'
 import type { Task } from '@/lib/schemas/task.schema'
 

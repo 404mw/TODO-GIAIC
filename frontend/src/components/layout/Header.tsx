@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useSidebarStore } from '@/lib/stores/useSidebarStore'
-import { useNewTaskModalStore } from '@/lib/stores/useNewTaskModalStore'
+import { useNewTaskModalStore } from '@/lib/stores/new-task-modal.store'
 import { NotificationDropdown } from '@/components/layout/NotificationDropdown'
 import { navigationItems } from '@/lib/config/navigation'
 

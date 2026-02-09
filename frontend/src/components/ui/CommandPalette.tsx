@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useCommandPaletteStore } from '@/lib/stores/useCommandPaletteStore'
-import { useNewTaskModalStore } from '@/lib/stores/useNewTaskModalStore'
+import { useNewTaskModalStore } from '@/lib/stores/new-task-modal.store'
 import { useTasks } from '@/lib/hooks/useTasks'
 import { useNotes } from '@/lib/hooks/useNotes'
 // Focus mode store is handled separately since it requires a task

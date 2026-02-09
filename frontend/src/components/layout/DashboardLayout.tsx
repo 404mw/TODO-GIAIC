@@ -4,7 +4,7 @@ import { Sidebar } from './Sidebar'
 import { Header } from './Header'
 import { PendingCompletionsBar } from './PendingCompletionsBar'
 import { useSidebarStore } from '@/lib/stores/useSidebarStore'
-import { useNewTaskModalStore } from '@/lib/stores/useNewTaskModalStore'
+import { useNewTaskModalStore } from '@/lib/stores/new-task-modal.store'
 import { usePendingCompletionsStore } from '@/lib/stores/usePendingCompletionsStore'
 import { NewTaskModal } from '@/components/tasks/NewTaskModal'
 
