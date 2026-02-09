@@ -10,12 +10,11 @@ dist/
 downloads/
 eggs/
 .eggs/
-# Python lib directories (exclude frontend lib)
+# Python lib directories (not frontend)
 /lib/
 /lib64/
 backend/lib/
 backend/lib64/
-!frontend/src/lib/
 parts/
 sdist/
 var/
@@ -58,6 +57,7 @@ Thumbs.db
 # Environment variables
 .env*
 !.env.example
+keys
 
 # Claude Code settings
 .claude/settings.local.json
