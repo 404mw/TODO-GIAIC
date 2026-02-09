@@ -129,15 +129,16 @@ function LoginPageContent() {
                   <span>Signing in...</span>
                 </div>
               ) : (
-                <GoogleLogin
-                  onSuccess={handleGoogleSuccess}
-                  onError={handleGoogleError}
-                  useOneTap
-                  theme="outline"
-                  size="large"
-                  width="100%"
-                  text="continue_with"
-                />
+                <div className="flex justify-center">
+                  <GoogleLogin
+                    onSuccess={handleGoogleSuccess}
+                    onError={handleGoogleError}
+                    theme="outline"
+                    size="large"
+                    text="continue_with"
+                    width="384"
+                  />
+                </div>
               )}
             </div>
 
