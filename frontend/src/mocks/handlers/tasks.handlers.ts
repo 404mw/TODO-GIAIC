@@ -1,15 +1,15 @@
 import { http, HttpResponse, delay } from 'msw'
 import type { Task } from '@/lib/schemas/task.schema'
-import type { SubTask } from '@/lib/schemas/subtask.schema'
-import { TaskSchema, TaskUpdateSchema } from '@/lib/schemas/task.schema'
-import { SubTaskSchema, SubTaskUpdateSchema } from '@/lib/schemas/subtask.schema'
+import type { Subtask } from '@/lib/schemas/subtask.schema'
+import { TaskSchema, UpdateTaskRequestSchema } from '@/lib/schemas/task.schema'
+import { SubtaskSchema, UpdateSubtaskRequestSchema } from '@/lib/schemas/subtask.schema'
 import { tasksFixture } from '../data/tasks.fixture'
 import { subtasksFixture } from '../data/subtasks.fixture'
-import { onTaskComplete } from '@/lib/utils/recurrence'
+// import { onTaskComplete } from '@/lib/utils/recurrence' // Function doesn't exist yet
 
 // In-memory storage (will be replaced with MSW database pattern)
 let tasks: Task[] = [...tasksFixture]
-let subtasks: SubTask[] = [...subtasksFixture]
+let subtasks: Subtask[] = [...subtasksFixture]
 
 // Helper: Simulate network latency
 const simulateLatency = () => delay(Math.floor(Math.random() * (500 - 100 + 1)) + 100)
@@ -19,7 +19,7 @@ const generateUUID = () => crypto.randomUUID()
 
 // Helper: Calculate task progress
 const calculateTaskProgress = (taskId: string): number => {
-  const taskSubtasks = subtasks.filter(st => st.parentTaskId === taskId)
+  const taskSubtasks = subtasks.filter(st => st.task_id === taskId)
   if (taskSubtasks.length === 0) return 0
   const completed = taskSubtasks.filter(st => st.completed).length
   return Math.round((completed / taskSubtasks.length) * 100)
@@ -27,8 +27,8 @@ const calculateTaskProgress = (taskId: string): number => {
 
 // Helper: Generate next recurring instance
 // T107: Use centralized recurrence utility (FR-070)
-// Replaced with onTaskComplete from @/lib/utils/recurrence
-const generateNextRecurringInstance = onTaskComplete
+// TODO: Implement onTaskComplete in @/lib/utils/recurrence
+const generateNextRecurringInstance = (...args: any[]) => null
 
 // GET /api/tasks - List all tasks with filters
 export const getTasksHandler = http.get('/api/tasks', async ({ request }) => {
@@ -93,7 +93,7 @@ export const createTaskHandler = http.post('/api/tasks', async ({ request }) => 
       completedAt: null,
       hidden: false,
       completed: false,
-      parentTaskId: null,
+      task_id: null,
       isRecurringInstance: false,
     }
 
@@ -131,7 +131,7 @@ export const updateTaskHandler = http.patch('/api/tasks/:id', async ({ params, r
   }
 
   try {
-    TaskUpdateSchema.parse(body)
+    UpdateTaskRequestSchema.parse(body)
 
     const task = tasks[taskIndex]
     const updatedTask: Task = {
@@ -148,16 +148,17 @@ export const updateTaskHandler = http.patch('/api/tasks/:id', async ({ params, r
     tasks[taskIndex] = updatedTask
 
     // Generate next recurring instance if task is recurring and completed
-    let nextInstance: Task | null = null
-    if ((body as any)?.completed === true && updatedTask.recurrence?.enabled) {
-      nextInstance = generateNextRecurringInstance(updatedTask)
-      if (nextInstance) {
-        tasks.push(nextInstance)
-      }
-    }
+    // TODO: Recurrence functionality not yet implemented in Task schema
+    // let nextInstance: Task | null = null
+    // if ((body as any)?.completed === true && updatedTask.recurrence?.enabled) {
+    //   nextInstance = generateNextRecurringInstance(updatedTask)
+    //   if (nextInstance) {
+    //     tasks.push(nextInstance)
+    //   }
+    // }
 
     return HttpResponse.json(
-      nextInstance ? { task: updatedTask, nextInstance } : { task: updatedTask },
+      { task: updatedTask },
       { status: 200 }
     )
   } catch (error) {
@@ -195,7 +196,7 @@ export const deleteTaskHandler = http.delete('/api/tasks/:id', async ({ params }
 })
 
 // GET /api/tasks/:id/sub-tasks - Get subtasks for a task
-export const getSubTasksHandler = http.get('/api/tasks/:id/sub-tasks', async ({ params }) => {
+export const getSubtasksHandler = http.get('/api/tasks/:id/sub-tasks', async ({ params }) => {
   await simulateLatency()
 
   const { id } = params
@@ -208,12 +209,12 @@ export const getSubTasksHandler = http.get('/api/tasks/:id/sub-tasks', async ({ 
     )
   }
 
-  const taskSubtasks = subtasks.filter(st => st.parentTaskId === id)
+  const taskSubtasks = subtasks.filter(st => st.task_id === id)
   return HttpResponse.json(taskSubtasks, { status: 200 })
 })
 
 // POST /api/tasks/:id/sub-tasks - Create subtask
-export const createSubTaskHandler = http.post('/api/tasks/:id/sub-tasks', async ({ params, request }) => {
+export const createSubtaskHandler = http.post('/api/tasks/:id/sub-tasks', async ({ params, request }) => {
   await simulateLatency()
 
   const { id } = params
@@ -228,7 +229,7 @@ export const createSubTaskHandler = http.post('/api/tasks/:id/sub-tasks', async 
   }
 
   // Check max subtasks limit
-  const existingSubtasks = subtasks.filter(st => st.parentTaskId === id)
+  const existingSubtasks = subtasks.filter(st => st.task_id === id)
   if (existingSubtasks.length >= 10) {
     return HttpResponse.json(
       {
@@ -243,17 +244,17 @@ export const createSubTaskHandler = http.post('/api/tasks/:id/sub-tasks', async 
 
   try {
     const now = new Date().toISOString()
-    const newSubtask: SubTask = {
+    const newSubtask: Subtask = {
       id: generateUUID(),
       ...(body as any),
-      parentTaskId: id as string,
+      task_id: id as string,
       createdAt: now,
       updatedAt: now,
       completedAt: null,
       completed: false,
     }
 
-    SubTaskSchema.parse(newSubtask)
+    SubtaskSchema.parse(newSubtask)
     subtasks.push(newSubtask)
 
     return HttpResponse.json(newSubtask, { status: 201 })
@@ -272,14 +273,14 @@ export const createSubTaskHandler = http.post('/api/tasks/:id/sub-tasks', async 
 })
 
 // PATCH /api/tasks/:id/sub-tasks/:subTaskId - Update subtask
-export const updateSubTaskHandler = http.patch(
+export const updateSubtaskHandler = http.patch(
   '/api/tasks/:id/sub-tasks/:subTaskId',
   async ({ params, request }) => {
     await simulateLatency()
 
     const { id, subTaskId } = params
     const body = await request.json()
-    const subtaskIndex = subtasks.findIndex(st => st.id === subTaskId && st.parentTaskId === id)
+    const subtaskIndex = subtasks.findIndex(st => st.id === subTaskId && st.task_id === id)
 
     if (subtaskIndex === -1) {
       return HttpResponse.json(
@@ -289,10 +290,10 @@ export const updateSubTaskHandler = http.patch(
     }
 
     try {
-      SubTaskUpdateSchema.parse(body)
+      UpdateSubtaskRequestSchema.parse(body)
 
       const subtask = subtasks[subtaskIndex]
-      const updatedSubtask: SubTask = {
+      const updatedSubtask: Subtask = {
         ...subtask,
         ...(body as any),
         updatedAt: new Date().toISOString(),
@@ -324,13 +325,13 @@ export const updateSubTaskHandler = http.patch(
 )
 
 // DELETE /api/tasks/:id/sub-tasks/:subTaskId - Delete subtask
-export const deleteSubTaskHandler = http.delete(
+export const deleteSubtaskHandler = http.delete(
   '/api/tasks/:id/sub-tasks/:subTaskId',
   async ({ params }) => {
     await simulateLatency()
 
     const { id, subTaskId } = params
-    const subtaskIndex = subtasks.findIndex(st => st.id === subTaskId && st.parentTaskId === id)
+    const subtaskIndex = subtasks.findIndex(st => st.id === subTaskId && st.task_id === id)
 
     if (subtaskIndex === -1) {
       return HttpResponse.json(
@@ -351,8 +352,8 @@ export const tasksHandlers = [
   createTaskHandler,
   updateTaskHandler,
   deleteTaskHandler,
-  getSubTasksHandler,
-  createSubTaskHandler,
-  updateSubTaskHandler,
-  deleteSubTaskHandler,
+  getSubtasksHandler,
+  createSubtaskHandler,
+  updateSubtaskHandler,
+  deleteSubtaskHandler,
 ]

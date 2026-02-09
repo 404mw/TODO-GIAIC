@@ -14,7 +14,7 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout'
 
 interface SettingsSection {
   title: string
-  description: string
+  message: string
   href: string
   icon: React.ReactNode
 }
@@ -22,7 +22,7 @@ interface SettingsSection {
 const settingsSections: SettingsSection[] = [
   {
     title: 'Hidden Tasks',
-    description: 'View and manage tasks you have hidden from the main view',
+    message: 'View and manage tasks you have hidden from the main view',
     href: '/dashboard/settings/hidden-tasks',
     icon: (
       <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -37,7 +37,7 @@ const settingsSections: SettingsSection[] = [
   },
   {
     title: 'Preferences',
-    description: 'Customize your app experience and defaults',
+    message: 'Customize your app experience and defaults',
     href: '/dashboard/settings/preferences',
     icon: (
       <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -58,7 +58,7 @@ const settingsSections: SettingsSection[] = [
   },
   {
     title: 'Replay Onboarding',
-    description: 'Start the guided walkthrough again',
+    message: 'Start the guided walkthrough again',
     href: '/dashboard/settings/onboarding',
     icon: (
       <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -110,7 +110,7 @@ export default function SettingsPage() {
                     {section.title}
                   </h3>
                   <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                    {section.description}
+                    {section.message}
                   </p>
                 </div>
                 <svg

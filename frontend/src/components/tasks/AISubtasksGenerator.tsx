@@ -15,14 +15,14 @@
 'use client'
 
 import { useState } from 'react'
-import type { SubTask } from '@/lib/schemas/subtask.schema'
+import type { Subtask } from '@/lib/schemas/subtask.schema'
 import { Button } from '@/components/ui/Button'
 
 interface AISubtasksGeneratorProps {
   taskId: string
   taskTitle: string
   taskDescription?: string
-  onSubtasksGenerated?: (subtasks: Omit<SubTask, 'id' | 'createdAt' | 'updatedAt'>[]) => void
+  onSubtasksGenerated?: (subtasks: Omit<Subtask, 'id' | 'createdAt' | 'updatedAt'>[]) => void
 }
 
 // Mock AI-generated subtasks for demo purposes
@@ -86,12 +86,16 @@ export function AISubtasksGenerator({
 
   const handleAddSubtasks = () => {
     if (onSubtasksGenerated) {
-      const subtasks = previewSubtasks.map((title) => ({
+      const now = new Date().toISOString()
+      const subtasks = previewSubtasks.map((title, index) => ({
         title,
         completed: false,
-        completedAt: null,
-        parentTaskId: taskId,
-        estimatedDuration: null,
+        completed_at: null,
+        task_id: taskId,
+        order_index: index,
+        source: 'ai' as const,
+        created_at: now,
+        updated_at: now,
       }))
       onSubtasksGenerated(subtasks)
     }

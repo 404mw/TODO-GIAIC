@@ -1,10 +1,10 @@
 import { http, HttpResponse, delay } from 'msw'
-import type { UserProfile } from '@/lib/schemas/user.schema'
-import { UserProfileUpdateSchema } from '@/lib/schemas/user.schema'
+import type { User } from '@/lib/schemas/user.schema'
+import { UpdateUserRequestSchema } from '@/lib/schemas/user.schema'
 import { userFixture } from '../data/user.fixture'
 
 // In-memory storage (single user profile)
-let userProfile: UserProfile = { ...userFixture }
+let userProfile: User = { ...userFixture }
 
 // Helper: Simulate network latency
 const simulateLatency = () => delay(Math.floor(Math.random() * (500 - 100 + 1)) + 100)
@@ -23,7 +23,7 @@ export const updateUserProfileHandler = http.patch('/api/user/profile', async ({
   const body = await request.json()
 
   try {
-    UserProfileUpdateSchema.parse(body)
+    UpdateUserRequestSchema.parse(body)
 
     userProfile = {
       ...userProfile,
@@ -55,17 +55,14 @@ export const updateUserPreferencesHandler = http.patch(
     const body = await request.json()
 
     try {
-      // Merge preferences with existing ones
+      // Update user profile
       userProfile = {
         ...userProfile,
-        preferences: {
-          ...userProfile.preferences,
-          ...(body as any),
-        },
-        updatedAt: new Date().toISOString(),
+        ...(body as any),
+        updated_at: new Date().toISOString(),
       }
 
-      return HttpResponse.json(userProfile, { status: 200 })
+      return HttpResponse.json({ data: userProfile }, { status: 200 })
     } catch (error) {
       return HttpResponse.json(
         {
@@ -88,20 +85,10 @@ export const updateThemeTweaksHandler = http.patch('/api/user/theme', async ({ r
   const body = await request.json()
 
   try {
-    // Validate and merge theme tweaks
-    userProfile = {
-      ...userProfile,
-      preferences: {
-        ...userProfile.preferences,
-        themeTweaks: {
-          ...userProfile.preferences.themeTweaks,
-          ...(body as any),
-        },
-      },
-      updatedAt: new Date().toISOString(),
-    }
+    // Theme tweaks not implemented yet - just return success
+    userProfile.updated_at = new Date().toISOString()
 
-    return HttpResponse.json(userProfile, { status: 200 })
+    return HttpResponse.json({ data: userProfile }, { status: 200 })
   } catch (error) {
     return HttpResponse.json(
       {
@@ -120,14 +107,9 @@ export const updateThemeTweaksHandler = http.patch('/api/user/theme', async ({ r
 export const completeTutorialHandler = http.post('/api/user/complete-tutorial', async () => {
   await simulateLatency()
 
-  userProfile = {
-    ...userProfile,
-    tutorialCompleted: true,
-    firstLogin: false,
-    updatedAt: new Date().toISOString(),
-  }
+  userProfile.updated_at = new Date().toISOString()
 
-  return HttpResponse.json(userProfile, { status: 200 })
+  return HttpResponse.json({ data: userProfile }, { status: 200 })
 })
 
 // Export all user profile handlers

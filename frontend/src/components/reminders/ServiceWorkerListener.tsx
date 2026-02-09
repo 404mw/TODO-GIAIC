@@ -23,7 +23,7 @@ export function ServiceWorkerListener() {
     if (!checkServiceWorkerSupport()) {
       console.warn('[App] Service Worker not supported in this browser')
       const warning = showUnsupportedBrowserWarning()
-      toast(warning)
+      toast({ title: 'Browser Compatibility', message: warning, type: 'warning' })
       return
     }
 
@@ -56,7 +56,7 @@ export function ServiceWorkerListener() {
           console.error('[App] Service Worker registration failed:', error)
           // T099: Show warning on registration failure
           const warning = showUnsupportedBrowserWarning()
-          toast(warning)
+          toast({ title: 'Service Worker Error', message: warning, type: 'error' })
         })
 
       // Listen for reminder notifications from Service Worker

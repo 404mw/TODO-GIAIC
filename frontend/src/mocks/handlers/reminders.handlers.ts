@@ -1,6 +1,6 @@
 import { http, HttpResponse, delay } from 'msw'
 import type { Reminder } from '@/lib/schemas/reminder.schema'
-import { ReminderSchema, ReminderUpdateSchema } from '@/lib/schemas/reminder.schema'
+import { ReminderSchema, UpdateReminderRequestSchema } from '@/lib/schemas/reminder.schema'
 import { remindersFixture } from '../data/reminders.fixture'
 
 // In-memory storage (will be replaced with MSW database pattern)
@@ -18,7 +18,7 @@ export const getRemindersHandler = http.get('/api/reminders', async ({ request }
 
   const url = new URL(request.url)
   const taskId = url.searchParams.get('taskId')
-  const delivered = url.searchParams.get('delivered')
+  const fired = url.searchParams.get('fired')
 
   let filtered = reminders
 
@@ -26,10 +26,10 @@ export const getRemindersHandler = http.get('/api/reminders', async ({ request }
     filtered = filtered.filter(r => r.task_id === taskId)
   }
 
-  if (delivered === 'true') {
-    filtered = filtered.filter(r => r.delivered)
-  } else if (delivered === 'false') {
-    filtered = filtered.filter(r => !r.delivered)
+  if (fired === 'true') {
+    filtered = filtered.filter(r => r.fired)
+  } else if (fired === 'false') {
+    filtered = filtered.filter(r => !r.fired)
   }
 
   return HttpResponse.json({ reminders: filtered }, { status: 200 })
@@ -64,7 +64,7 @@ export const createReminderHandler = http.post('/api/reminders', async ({ reques
       id: generateUUID(),
       ...(body as any),
       createdAt: now,
-      delivered: false,
+      fired: false,
     }
 
     ReminderSchema.parse(newReminder)
@@ -101,7 +101,7 @@ export const updateReminderHandler = http.patch('/api/reminders/:id', async ({ p
   }
 
   try {
-    ReminderUpdateSchema.parse(body)
+    UpdateReminderRequestSchema.parse(body)
 
     const reminder = reminders[reminderIndex]
     const updatedReminder: Reminder = {
@@ -144,9 +144,9 @@ export const deleteReminderHandler = http.delete('/api/reminders/:id', async ({ 
   return HttpResponse.json(null, { status: 204 })
 })
 
-// POST /api/reminders/:id/delivered - Mark reminder as delivered
+// POST /api/reminders/:id/fired - Mark reminder as fired
 export const markReminderDeliveredHandler = http.post(
-  '/api/reminders/:id/delivered',
+  '/api/reminders/:id/fired',
   async ({ params }) => {
     await simulateLatency()
 
@@ -160,7 +160,7 @@ export const markReminderDeliveredHandler = http.post(
       )
     }
 
-    reminders[reminderIndex].delivered = true
+    reminders[reminderIndex].fired = true
 
     return HttpResponse.json(reminders[reminderIndex], { status: 200 })
   }

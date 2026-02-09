@@ -10,7 +10,7 @@ export const AchievementDefinitionSchema = z.object({
 
   // Achievement details
   name: z.string(),
-  description: z.string(),
+  message: z.string(),
   category: AchievementCategorySchema,
   threshold: z.number().int().min(1),
 

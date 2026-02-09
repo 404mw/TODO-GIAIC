@@ -63,9 +63,9 @@ export function TaskSelector({ tasks, selectedTaskId, onSelect }: TaskSelectorPr
                 <p className="truncate font-medium text-gray-900 dark:text-gray-100">
                   {task.title}
                 </p>
-                {task.estimatedDuration && (
+                {task.estimated_duration && (
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    ~{task.estimatedDuration} min
+                    ~{task.estimated_duration} min
                   </p>
                 )}
               </div>

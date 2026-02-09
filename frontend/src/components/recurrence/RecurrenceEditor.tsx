@@ -56,7 +56,7 @@ export function RecurrenceEditor({ value, onChange }: RecurrenceEditorProps) {
   // Generate RRule string from current settings
   const ruleString = useMemo(() => {
     return createRRuleString({
-      frequency,
+      freq: frequency,
       interval,
       byweekday: frequency === 'WEEKLY' ? selectedWeekdays : undefined,
     });
@@ -107,7 +107,7 @@ export function RecurrenceEditor({ value, onChange }: RecurrenceEditorProps) {
 
     if (enabled) {
       const newRule = createRRuleString({
-        frequency: presetConfig.frequency,
+        freq: presetConfig.frequency,
         interval: presetConfig.interval,
         byweekday: presetConfig.frequency === 'WEEKLY' ? [0] : undefined,
       });
@@ -133,7 +133,7 @@ export function RecurrenceEditor({ value, onChange }: RecurrenceEditorProps) {
 
     if (enabled) {
       const newRule = createRRuleString({
-        frequency: newFrequency,
+        freq: newFrequency,
         interval,
         byweekday: newFrequency === 'WEEKLY' ? selectedWeekdays : undefined,
       });
@@ -156,7 +156,7 @@ export function RecurrenceEditor({ value, onChange }: RecurrenceEditorProps) {
 
     if (enabled) {
       const newRule = createRRuleString({
-        frequency,
+        freq: frequency,
         interval: newInterval,
         byweekday: frequency === 'WEEKLY' ? selectedWeekdays : undefined,
       });
@@ -184,7 +184,7 @@ export function RecurrenceEditor({ value, onChange }: RecurrenceEditorProps) {
 
     if (enabled && frequency === 'WEEKLY') {
       const newRule = createRRuleString({
-        frequency,
+        freq: frequency,
         interval,
         byweekday: newWeekdays,
       });

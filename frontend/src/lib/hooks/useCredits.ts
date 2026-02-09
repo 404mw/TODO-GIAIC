@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api/client';
-import { AICreditLedgerSchema, PurchaseCreditsResponseSchema } from '@/lib/schemas/credit.schema';
+import { AICreditLedgerSchema } from '@/lib/schemas/credit.schema';
 import { z } from 'zod';
 
 const CreditBalanceResponseSchema = z.object({
@@ -14,6 +14,12 @@ const CreditBalanceResponseSchema = z.object({
 
 const CreditHistoryResponseSchema = z.object({
   data: z.array(AICreditLedgerSchema),
+});
+
+const PurchaseCreditsResponseSchema = z.object({
+  success: z.boolean(),
+  credits_purchased: z.number(),
+  new_balance: z.number(),
 });
 
 // Get current credit balance

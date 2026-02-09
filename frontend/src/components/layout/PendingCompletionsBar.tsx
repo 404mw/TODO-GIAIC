@@ -55,7 +55,7 @@ export function PendingCompletionsBar() {
       try {
         await updateTask.mutateAsync({
           id: taskId,
-          input: { completed: true },
+          completed: true,
         })
         successCount++
       } catch {
@@ -69,14 +69,14 @@ export function PendingCompletionsBar() {
     if (errorCount === 0) {
       toast({
         title: 'Tasks completed!',
-        description: `${successCount} task${successCount > 1 ? 's' : ''} marked as complete`,
-        variant: 'success',
+        message: `${successCount} task${successCount > 1 ? 's' : ''} marked as complete`,
+        type: 'success',
       })
     } else {
       toast({
         title: 'Partial success',
-        description: `${successCount} completed, ${errorCount} failed`,
-        variant: 'error',
+        message: `${successCount} completed, ${errorCount} failed`,
+        type: 'error',
       })
     }
   }
@@ -85,8 +85,8 @@ export function PendingCompletionsBar() {
     clearPending()
     toast({
       title: 'Changes discarded',
-      description: 'Pending completions have been cleared',
-      variant: 'success',
+      message: 'Pending completions have been cleared',
+      type: 'success',
     })
   }
 

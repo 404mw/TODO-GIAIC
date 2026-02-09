@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button'
 
 interface ReminderSectionProps {
   task: Task
+  reminders: Reminder[]
   onAddReminder: (reminder: ReminderCreate) => Promise<void>
   onDeleteReminder: (reminderId: string) => Promise<void>
 }
@@ -25,6 +26,7 @@ interface ReminderSectionProps {
  */
 export function ReminderSection({
   task,
+  reminders,
   onAddReminder,
   onDeleteReminder,
 }: ReminderSectionProps) {
@@ -60,9 +62,9 @@ export function ReminderSection({
             />
           </svg>
           Reminders
-          {task.reminders && task.reminders.length > 0 && (
+          {reminders && reminders.length > 0 && (
             <span className="ml-2 inline-flex items-center rounded-full bg-blue-500/10 px-2.5 py-0.5 text-sm font-medium text-blue-400 border border-blue-500/20">
-              {task.reminders.length}
+              {reminders.length}
             </span>
           )}
         </button>
@@ -95,10 +97,10 @@ export function ReminderSection({
       {isExpanded && (
         <div className="space-y-4">
           {/* Existing reminders */}
-          {task.reminders && task.reminders.length > 0 && (
+          {reminders && reminders.length > 0 && (
             <ReminderList
               task={task}
-              reminders={task.reminders}
+              reminders={reminders}
               onDelete={onDeleteReminder}
             />
           )}
@@ -143,7 +145,7 @@ export function ReminderSection({
           )}
 
           {/* Empty state */}
-          {task.due_date && (!task.reminders || task.reminders.length === 0) && !showForm && (
+          {task.due_date && (!reminders || reminders.length === 0) && !showForm && (
             <div className="text-center py-6 text-gray-400">
               <svg
                 className="mx-auto h-12 w-12 text-gray-500"

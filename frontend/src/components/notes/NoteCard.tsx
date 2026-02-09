@@ -25,21 +25,21 @@ export function NoteCard({ note, onEdit }: NoteCardProps) {
     try {
       await updateNote.mutateAsync({
         id: note.id,
-        input: { archived: !note.archived },
+        archived: !note.archived,
       })
 
       toast({
         title: note.archived ? 'Note restored' : 'Note archived',
-        description: note.archived
+        message: note.archived
           ? 'Note has been restored to your notes'
           : 'Note has been archived',
-        variant: 'success',
+        type: 'success',
       })
     } catch (error) {
       toast({
         title: 'Error',
-        description: 'Failed to archive note',
-        variant: 'error',
+        message: 'Failed to archive note',
+        type: 'error',
       })
     }
   }
@@ -56,15 +56,15 @@ export function NoteCard({ note, onEdit }: NoteCardProps) {
 
       toast({
         title: 'Note deleted',
-        description: 'Note has been permanently deleted',
-        variant: 'success',
+        message: 'Note has been permanently deleted',
+        type: 'success',
       })
     } catch (error) {
       setIsDeleting(false)
       toast({
         title: 'Error',
-        description: 'Failed to delete note',
-        variant: 'error',
+        message: 'Failed to delete note',
+        type: 'error',
       })
     }
   }
@@ -93,7 +93,7 @@ export function NoteCard({ note, onEdit }: NoteCardProps) {
       </div>
 
       {/* Voice indicator */}
-      {note.voiceMetadata && (
+      {note.voice_url && note.voice_duration_seconds && (
         <div className="mb-3 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
           <svg
             className="h-4 w-4"
@@ -108,7 +108,7 @@ export function NoteCard({ note, onEdit }: NoteCardProps) {
               d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
             />
           </svg>
-          <span>Voice note ({note.voiceMetadata.duration}s)</span>
+          <span>Voice note ({note.voice_duration_seconds}s)</span>
         </div>
       )}
 

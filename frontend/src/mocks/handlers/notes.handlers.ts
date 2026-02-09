@@ -1,6 +1,6 @@
 import { http, HttpResponse, delay } from 'msw'
 import type { Note } from '@/lib/schemas/note.schema'
-import { NoteSchema, NoteUpdateSchema } from '@/lib/schemas/note.schema'
+import { NoteSchema, UpdateNoteRequestSchema } from '@/lib/schemas/note.schema'
 import { notesFixture } from '../data/notes.fixture'
 
 // In-memory storage (will be replaced with MSW database pattern)
@@ -64,7 +64,7 @@ export const createNoteHandler = http.post('/api/notes', async ({ request }) => 
       id: generateUUID(),
       ...(body as any),
       createdAt: now,
-      updatedAt: now,
+      updated_at: now,
       archived: false,
     }
 
@@ -102,13 +102,13 @@ export const updateNoteHandler = http.patch('/api/notes/:id', async ({ params, r
   }
 
   try {
-    NoteUpdateSchema.parse(body)
+    UpdateNoteRequestSchema.parse(body)
 
     const note = notes[noteIndex]
     const updatedNote: Note = {
       ...note,
       ...(body as any),
-      updatedAt: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     }
 
     notes[noteIndex] = updatedNote

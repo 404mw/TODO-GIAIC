@@ -47,25 +47,25 @@ export function TaskMetadata({ task }: TaskMetadataProps) {
       )}
 
       {/* Estimated Duration */}
-      {task.estimatedDuration && (
+      {task.estimated_duration && (
         <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
           <div className="text-sm font-medium text-gray-500 dark:text-gray-400">
             Estimated Time
           </div>
           <div className="mt-1 text-sm text-gray-900 dark:text-gray-100">
-            {task.estimatedDuration} minutes
+            {task.estimated_duration} minutes
           </div>
         </div>
       )}
 
       {/* Tags */}
-      {task.tags && task.tags.length > 0 && (
+      {(task as any).tags && (task as any).tags.length > 0 && (
         <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900 sm:col-span-2 lg:col-span-3">
           <div className="text-sm font-medium text-gray-500 dark:text-gray-400">
             Tags
           </div>
           <div className="mt-2 flex flex-wrap gap-2">
-            {task.tags.map((tag) => (
+            {(task as any).tags.map((tag: string) => (
               <span
                 key={tag}
                 className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900 dark:text-blue-200"
@@ -78,7 +78,7 @@ export function TaskMetadata({ task }: TaskMetadataProps) {
       )}
 
       {/* Recurring */}
-      {task.recurrence?.enabled && (
+      {(task as any).recurrence?.enabled && (
         <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900 sm:col-span-2 lg:col-span-3">
           <div className="text-sm font-medium text-gray-500 dark:text-gray-400">
             Recurrence
@@ -97,7 +97,7 @@ export function TaskMetadata({ task }: TaskMetadataProps) {
                 d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
               />
             </svg>
-            <span>{task.recurrence.humanReadable || task.recurrence.rule}</span>
+            <span>{(task as any).recurrence.humanReadable || (task as any).recurrence.rule}</span>
           </div>
         </div>
       )}

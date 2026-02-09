@@ -25,3 +25,52 @@ export function isSameDay(date1: string | Date, date2: string | Date): boolean {
   const d2 = new Date(date2);
   return d1.toDateString() === d2.toDateString();
 }
+
+/**
+ * Format reminder offset in minutes to human-readable string
+ * Negative values = before, positive = after, 0 = at time
+ */
+export function formatReminderOffset(offsetMinutes: number): string {
+  if (offsetMinutes === 0) {
+    return 'At due time';
+  }
+
+  const absMinutes = Math.abs(offsetMinutes);
+  const isBefore = offsetMinutes < 0;
+  const prefix = isBefore ? 'before' : 'after';
+
+  if (absMinutes < 60) {
+    return `${absMinutes} min ${prefix}`;
+  }
+
+  const hours = Math.floor(absMinutes / 60);
+  const minutes = absMinutes % 60;
+
+  if (hours < 24) {
+    if (minutes === 0) {
+      return `${hours} hour${hours > 1 ? 's' : ''} ${prefix}`;
+    }
+    return `${hours}h ${minutes}m ${prefix}`;
+  }
+
+  const days = Math.floor(hours / 24);
+  const remainingHours = hours % 24;
+
+  if (remainingHours === 0) {
+    return `${days} day${days > 1 ? 's' : ''} ${prefix}`;
+  }
+
+  return `${days}d ${remainingHours}h ${prefix}`;
+}
+
+/**
+ * Calculate the actual trigger time for a reminder based on task due date and offset
+ */
+export function calculateReminderTriggerTime(
+  taskDueDate: string | Date,
+  offsetMinutes: number
+): Date {
+  const dueDate = new Date(taskDueDate);
+  const triggerTime = new Date(dueDate.getTime() + offsetMinutes * 60 * 1000);
+  return triggerTime;
+}

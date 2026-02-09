@@ -2,10 +2,18 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import type { Task, TaskCreate, Recurrence } from '@/lib/schemas/task.schema'
-import { useCreateTask, useUpdateTask, type TaskUpdateInput } from '@/lib/hooks/useTasks'
+import type { Task, CreateTaskRequest, UpdateTaskRequest } from '@/lib/schemas/task.schema'
+import { useCreateTask, useUpdateTask } from '@/lib/hooks/useTasks'
 import { useToast } from '@/lib/hooks/useToast'
 import { Button } from '@/components/ui/Button'
+
+type Recurrence = {
+  enabled: boolean
+  rule: string
+  timezone?: string
+  instanceGenerationMode?: 'on_completion'
+  humanReadable: string
+}
 import { Input } from '@/components/ui/Input'
 import { Label } from '@/components/ui/Label'
 import { Textarea } from '@/components/ui/Textarea'
@@ -29,13 +37,13 @@ export function TaskForm({ task, onSuccess, onCancel }: TaskFormProps) {
 
   // Form state
   const [title, setTitle] = useState(task?.title || '')
-  const [description, setDescription] = useState(task?.description || '')
+  const [description, setDescription] = useState(task?.message || '')
   const [priority, setPriority] = useState<'low' | 'medium' | 'high'>(task?.priority || 'medium')
-  const [tags, setTags] = useState<string[]>(task?.tags || [])
+  const [tags, setTags] = useState<string[]>((task as any)?.tags || [])
   const [tagInput, setTagInput] = useState('')
   const [dueDate, setDueDate] = useState(task?.due_date ? task.due_date.slice(0, 16) : '')
-  const [estimatedDuration, setEstimatedDuration] = useState(task?.estimatedDuration?.toString() || '')
-  const [recurrence, setRecurrence] = useState<Recurrence | undefined>(task?.recurrence)
+  const [estimatedDuration, setEstimatedDuration] = useState(task?.estimated_duration?.toString() || '')
+  const [recurrence, setRecurrence] = useState<Recurrence | undefined>((task as any)?.recurrence)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -44,8 +52,8 @@ export function TaskForm({ task, onSuccess, onCancel }: TaskFormProps) {
     if (!title.trim()) {
       toast({
         title: 'Error',
-        description: 'Task title is required',
-        variant: 'error',
+        message: 'Task title is required',
+        type: 'error',
       })
       return
     }
@@ -54,52 +62,52 @@ export function TaskForm({ task, onSuccess, onCancel }: TaskFormProps) {
 
     try {
       if (isEditing) {
-        const updateData: TaskUpdateInput = {
+        const updateData: UpdateTaskRequest = {
           title: title.trim(),
-          description: description.trim(),
+          message: description.trim(),
           priority,
-          tags,
-          dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
-          estimatedDuration: estimatedDuration ? parseInt(estimatedDuration, 10) : undefined,
-          recurrence,
+          // tags, // TODO: Add tags to Task schema
+          due_date: dueDate ? new Date(dueDate).toISOString() : null,
+          estimated_duration: estimatedDuration ? parseInt(estimatedDuration, 10) : null,
+          // recurrence, // TODO: Add recurrence to Task schema
         }
         await updateTask.mutateAsync({
           id: task.id,
-          input: updateData,
+          ...updateData,
         })
 
         toast({
           title: 'Task updated',
-          description: 'Your task has been successfully updated',
-          variant: 'success',
+          message: 'Your task has been successfully updated',
+          type: 'success',
         })
       } else {
-        const createData = {
+        const createData: CreateTaskRequest = {
           title: title.trim(),
-          description: description.trim(),
+          message: description.trim(),
           priority,
-          tags,
-          dueDate: dueDate ? new Date(dueDate).toISOString() : null,
-          estimatedDuration: estimatedDuration ? parseInt(estimatedDuration, 10) : undefined,
-          recurrence,
+          // tags, // TODO: Add tags to Task schema
+          due_date: dueDate ? new Date(dueDate).toISOString() : null,
+          estimated_duration: estimatedDuration ? parseInt(estimatedDuration, 10) : null,
+          // recurrence, // TODO: Add recurrence to Task schema
         }
         const newTask = await createTask.mutateAsync(createData)
 
         toast({
           title: 'Task created',
-          description: 'Your new task has been added',
-          variant: 'success',
+          message: 'Your new task has been added',
+          type: 'success',
         })
 
-        router.push(`/dashboard/tasks/${newTask.id}`)
+        router.push(`/dashboard/tasks/${newTask.data.id}`)
       }
 
       onSuccess?.()
     } catch (error) {
       toast({
         title: 'Error',
-        description: isEditing ? 'Failed to update task' : 'Failed to create task',
-        variant: 'error',
+        message: isEditing ? 'Failed to update task' : 'Failed to create task',
+        type: 'error',
       })
     } finally {
       setIsSubmitting(false)

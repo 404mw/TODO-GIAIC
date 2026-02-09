@@ -41,8 +41,8 @@ export function AddSubTaskForm({
     if (!title.trim()) {
       toast({
         title: 'Error',
-        description: 'Sub-task title is required',
-        variant: 'error',
+        message: 'Sub-task title is required',
+        type: 'error',
       })
       return
     }
@@ -51,8 +51,8 @@ export function AddSubTaskForm({
     if (isMaxReached) {
       toast({
         title: 'Limit reached',
-        description: `You can only add up to ${MAX_SUBTASKS} sub-tasks per task`,
-        variant: 'error',
+        message: `You can only add up to ${MAX_SUBTASKS} sub-tasks per task`,
+        type: 'error',
       })
       return
     }
@@ -60,13 +60,13 @@ export function AddSubTaskForm({
     try {
       await createSubTask.mutateAsync({
         taskId,
-        input: { title: title.trim() },
+        title: title.trim(),
       })
 
       toast({
         title: 'Sub-task added',
-        description: 'New sub-task has been created',
-        variant: 'success',
+        message: 'New sub-task has been created',
+        type: 'success',
       })
 
       setTitle('') // Clear input
@@ -74,8 +74,8 @@ export function AddSubTaskForm({
     } catch (error) {
       toast({
         title: 'Error',
-        description: 'Failed to create sub-task',
-        variant: 'error',
+        message: 'Failed to create sub-task',
+        type: 'error',
       })
     }
   }

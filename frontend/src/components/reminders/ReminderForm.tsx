@@ -29,7 +29,7 @@ interface ReminderFormProps {
  * - Shows error if no due date present
  */
 export function ReminderForm({ task, onSubmit, onCancel }: ReminderFormProps) {
-  const [offsetMinutes, setOffsetMinutes] = useState<number>(REMINDER_PRESETS.FIFTEEN_MINUTES)
+  const [offsetMinutes, setOffsetMinutes] = useState<number>(REMINDER_PRESETS.FIFTEEN_MIN_BEFORE)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -55,21 +55,21 @@ export function ReminderForm({ task, onSubmit, onCancel }: ReminderFormProps) {
     try {
       setIsSubmitting(true)
 
+      // Calculate scheduled_at time based on due_date and offset
+      const dueDate = new Date(task.due_date!)
+      const scheduledAt = new Date(dueDate.getTime() + offsetMinutes * 60 * 1000)
+
       const reminderData: ReminderCreate = {
-        taskId: task.id,
-        title: `Reminder for: ${task.title}`,
-        timing: {
-          type: 'relative_to_due_date',
-          offsetMinutes,
-        },
-        deliveryMethod: 'both',
-        enabled: true,
+        type: offsetMinutes < 0 ? 'before' : offsetMinutes > 0 ? 'after' : 'absolute',
+        offset_minutes: offsetMinutes,
+        scheduled_at: scheduledAt.toISOString(),
+        method: 'in_app',
       }
 
       await onSubmit(reminderData)
 
       // Reset form on success
-      setOffsetMinutes(REMINDER_PRESETS.FIFTEEN_MINUTES)
+      setOffsetMinutes(REMINDER_PRESETS.FIFTEEN_MIN_BEFORE)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create reminder')
     } finally {
@@ -110,17 +110,17 @@ export function ReminderForm({ task, onSubmit, onCancel }: ReminderFormProps) {
             <SelectValue placeholder="Select reminder time" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={REMINDER_PRESETS.FIFTEEN_MINUTES.toString()}>
-              {REMINDER_PRESET_LABELS[REMINDER_PRESETS.FIFTEEN_MINUTES]}
+            <SelectItem value={REMINDER_PRESETS.FIFTEEN_MIN_BEFORE.toString()}>
+              {REMINDER_PRESET_LABELS[REMINDER_PRESETS.FIFTEEN_MIN_BEFORE]}
             </SelectItem>
-            <SelectItem value={REMINDER_PRESETS.THIRTY_MINUTES.toString()}>
-              {REMINDER_PRESET_LABELS[REMINDER_PRESETS.THIRTY_MINUTES]}
+            <SelectItem value={REMINDER_PRESETS.THIRTY_MIN_BEFORE.toString()}>
+              {REMINDER_PRESET_LABELS[REMINDER_PRESETS.THIRTY_MIN_BEFORE]}
             </SelectItem>
-            <SelectItem value={REMINDER_PRESETS.ONE_HOUR.toString()}>
-              {REMINDER_PRESET_LABELS[REMINDER_PRESETS.ONE_HOUR]}
+            <SelectItem value={REMINDER_PRESETS.ONE_HOUR_BEFORE.toString()}>
+              {REMINDER_PRESET_LABELS[REMINDER_PRESETS.ONE_HOUR_BEFORE]}
             </SelectItem>
-            <SelectItem value={REMINDER_PRESETS.ONE_DAY.toString()}>
-              {REMINDER_PRESET_LABELS[REMINDER_PRESETS.ONE_DAY]}
+            <SelectItem value={REMINDER_PRESETS.ONE_DAY_BEFORE.toString()}>
+              {REMINDER_PRESET_LABELS[REMINDER_PRESETS.ONE_DAY_BEFORE]}
             </SelectItem>
           </SelectContent>
         </Select>

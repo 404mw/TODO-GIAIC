@@ -11,7 +11,7 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout'
 import { FocusTimer } from '@/components/focus/FocusTimer'
 import { TaskSelector } from '@/components/focus/TaskSelector'
 import { Button } from '@/components/ui/Button'
-import type { SubTask } from '@/lib/schemas/subtask.schema'
+import type { Subtask } from '@/lib/schemas/subtask.schema'
 
 /**
  * Focus Mode Page
@@ -29,8 +29,8 @@ export default function FocusModePage() {
   const { toast } = useToast()
   const { data: tasksResponse, isLoading } = useTasks({ completed: false })
   const updateTask = useUpdateTask()
-  const updateSubTask = useUpdateSubtask()
-  const { isActive, taskId, activate, deactivate } = useFocusModeStore()
+  const updateSubtask = useUpdateSubtask()
+  const { isActive, currentTaskId, activate, deactivate } = useFocusModeStore()
 
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
   const [selectedSubtaskIds, setSelectedSubtaskIds] = useState<Set<string>>(new Set())
@@ -50,28 +50,26 @@ export default function FocusModePage() {
   const subtasks = subtasksResponse?.data || []
 
   // Filter to only incomplete subtasks
-  const incompleteSubtasks = subtasks.filter((st: SubTask) => !st.completed)
+  const incompleteSubtasks = subtasks.filter((st: Subtask) => !st.completed)
 
   // Calculate total duration from selected subtasks
-  const totalDuration = Array.from(selectedSubtaskIds).reduce((acc, id) => {
-    const subtask = subtasks.find((st: SubTask) => st.id === id)
-    return acc + (subtask?.estimatedDuration || 0)
-  }, 0)
+  // Note: Subtask schema doesn't have estimatedDuration yet, so defaulting to 0 (no timer)
+  const totalDuration = 0
 
   // Initialize from store if focus is already active
   useEffect(() => {
-    if (isActive && taskId) {
-      setSelectedTaskId(taskId)
+    if (isActive && currentTaskId) {
+      setSelectedTaskId(currentTaskId)
       setSessionStarted(true)
     }
-  }, [isActive, taskId])
+  }, [isActive, currentTaskId])
 
   // When task is selected, check if it has subtasks
   useEffect(() => {
     if (selectedTaskId && incompleteSubtasks.length > 0) {
       setShowSubtaskSelection(true)
       // Auto-select all incomplete subtasks by default
-      setSelectedSubtaskIds(new Set(incompleteSubtasks.map((st: SubTask) => st.id)))
+      setSelectedSubtaskIds(new Set(incompleteSubtasks.map((st: Subtask) => st.id)))
     } else {
       setShowSubtaskSelection(false)
       setSelectedSubtaskIds(new Set())
@@ -148,10 +146,10 @@ export default function FocusModePage() {
     // Save pending subtask completions
     for (const subtaskId of pendingSubtaskCompletions) {
       try {
-        await updateSubTask.mutateAsync({
+        await updateSubtask.mutateAsync({
+          id: subtaskId,
           taskId: selectedTaskId!,
-          subtaskId,
-          input: { completed: true },
+          completed: true,
         })
       } catch (error) {
         console.error('Failed to complete subtask:', error)
@@ -165,7 +163,7 @@ export default function FocusModePage() {
         try {
           await updateTask.mutateAsync({
             id: selectedTask.id,
-            input: { completed: true },
+            completed: true,
           })
           toast({
             title: 'Task completed!',
@@ -210,7 +208,7 @@ export default function FocusModePage() {
   }
 
   // Get subtasks that are currently being worked on (selected for this session)
-  const activeSubtasks = subtasks.filter((st: SubTask) => selectedSubtaskIds.has(st.id))
+  const activeSubtasks = subtasks.filter((st: Subtask) => selectedSubtaskIds.has(st.id))
 
   // Full-screen focus view when session is active
   if (sessionStarted && selectedTask) {
@@ -262,9 +260,9 @@ export default function FocusModePage() {
             <h1 className="mt-4 text-3xl font-bold text-gray-900 dark:text-gray-100">
               {selectedTask.title}
             </h1>
-            {selectedTask.description && (
+            {selectedTask.message && (
               <p className="mt-2 text-gray-600 dark:text-gray-400">
-                {selectedTask.description}
+                {selectedTask.message}
               </p>
             )}
           </div>
@@ -292,7 +290,7 @@ export default function FocusModePage() {
                 Subtasks ({pendingSubtaskCompletions.size}/{activeSubtasks.length})
               </h3>
               <div className="space-y-3">
-                {activeSubtasks.map((subtask: SubTask) => {
+                {activeSubtasks.map((subtask: Subtask) => {
                   const isPendingCompletion = pendingSubtaskCompletions.has(subtask.id)
                   const isAlreadyCompleted = subtask.completed
 
@@ -351,11 +349,6 @@ export default function FocusModePage() {
                           </span>
                         )}
                       </div>
-                      {subtask.estimatedDuration && (
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
-                          {subtask.estimatedDuration} min
-                        </span>
-                      )}
                     </div>
                   )
                 })}
@@ -441,7 +434,7 @@ export default function FocusModePage() {
                 Duration will be calculated from selected subtasks
               </p>
               <div className="space-y-2">
-                {incompleteSubtasks.map((subtask: SubTask) => (
+                {incompleteSubtasks.map((subtask: Subtask) => (
                   <div
                     key={subtask.id}
                     className={[
@@ -481,15 +474,6 @@ export default function FocusModePage() {
                         {subtask.title}
                       </span>
                     </div>
-                    {subtask.estimatedDuration ? (
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
-                        {subtask.estimatedDuration} min
-                      </span>
-                    ) : (
-                      <span className="text-xs text-orange-500 dark:text-orange-400">
-                        No duration
-                      </span>
-                    )}
                   </div>
                 ))}
               </div>

@@ -1,7 +1,7 @@
 import { http, HttpResponse, delay } from 'msw'
 import Fuse from 'fuse.js'
 import type { Task } from '@/lib/schemas/task.schema'
-import type { SubTask } from '@/lib/schemas/subtask.schema'
+import type { Subtask } from '@/lib/schemas/subtask.schema'
 import type { Note } from '@/lib/schemas/note.schema'
 import { tasksFixture } from '../data/tasks.fixture'
 import { subtasksFixture } from '../data/subtasks.fixture'
@@ -18,9 +18,9 @@ interface TaskSearchResult {
   matches: Array<{ key: string; value: string; indices: readonly [number, number][] }>
 }
 
-interface SubTaskSearchResult {
+interface SubtaskSearchResult {
   type: 'subtask'
-  item: SubTask
+  item: Subtask
   score: number
   matches: Array<{ key: string; value: string; indices: readonly [number, number][] }>
 }
@@ -32,11 +32,11 @@ interface NoteSearchResult {
   matches: Array<{ key: string; value: string; indices: readonly [number, number][] }>
 }
 
-type SearchResult = TaskSearchResult | SubTaskSearchResult | NoteSearchResult
+type SearchResult = TaskSearchResult | SubtaskSearchResult | NoteSearchResult
 
 interface GroupedSearchResults {
   tasks: TaskSearchResult[]
-  subtasks: SubTaskSearchResult[]
+  subtasks: SubtaskSearchResult[]
   notes: NoteSearchResult[]
   totalResults: number
 }
@@ -113,7 +113,7 @@ export const searchHandler = http.get('/api/search', async ({ request }) => {
   )
 
   const subtasksResults = subtasksFuse.search(query).map(
-    (result): SubTaskSearchResult => ({
+    (result): SubtaskSearchResult => ({
       type: 'subtask',
       item: result.item,
       score: result.score || 0,
@@ -153,7 +153,7 @@ export const searchHandler = http.get('/api/search', async ({ request }) => {
   // Group results by type
   const groupedResults: GroupedSearchResults = {
     tasks: limitedResults.filter(r => r.type === 'task') as TaskSearchResult[],
-    subtasks: limitedResults.filter(r => r.type === 'subtask') as SubTaskSearchResult[],
+    subtasks: limitedResults.filter(r => r.type === 'subtask') as SubtaskSearchResult[],
     notes: limitedResults.filter(r => r.type === 'note') as NoteSearchResult[],
     totalResults: allResults.length,
   }

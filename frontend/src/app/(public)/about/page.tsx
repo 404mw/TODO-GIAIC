@@ -20,7 +20,7 @@ import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
 const VALUES = [
   {
     title: 'Simplicity First',
-    description:
+    message:
       'We believe productivity tools should reduce complexity, not add to it. Every feature is designed to be intuitive and accessible.',
     icon: (
       <svg
@@ -40,7 +40,7 @@ const VALUES = [
   },
   {
     title: 'Habit Science',
-    description:
+    message:
       'Perpetua is built on proven habit-forming principles. Streaks, achievements, and visual feedback help you build lasting productivity habits.',
     icon: (
       <svg
@@ -60,7 +60,7 @@ const VALUES = [
   },
   {
     title: 'Privacy Focused',
-    description:
+    message:
       'Your data belongs to you. We use local storage where possible and never sell your information. Your productivity is your business.',
     icon: (
       <svg
@@ -80,7 +80,7 @@ const VALUES = [
   },
   {
     title: 'Accessibility',
-    description:
+    message:
       'Productivity tools should work for everyone. We prioritize WCAG compliance, keyboard navigation, and reduced-motion support.',
     icon: (
       <svg
@@ -235,7 +235,7 @@ export default function AboutPage() {
                 <h3 className="text-lg font-semibold text-white">
                   {value.title}
                 </h3>
-                <p className="mt-2 text-gray-400">{value.description}</p>
+                <p className="mt-2 text-gray-400">{value.message}</p>
               </motion.div>
             ))}
           </div>

@@ -49,7 +49,27 @@ export const UpdateReminderRequestSchema = ReminderSchema.pick({
   scheduled_at: true,
 }).partial();
 
+// Reminder presets for common use cases
+export const REMINDER_PRESETS = {
+  FIVE_MIN_BEFORE: -5,
+  FIFTEEN_MIN_BEFORE: -15,
+  THIRTY_MIN_BEFORE: -30,
+  ONE_HOUR_BEFORE: -60,
+  ONE_DAY_BEFORE: -1440,
+  AT_DUE_TIME: 0,
+} as const;
+
+export const REMINDER_PRESET_LABELS: Record<number, string> = {
+  [REMINDER_PRESETS.FIVE_MIN_BEFORE]: '5 minutes before',
+  [REMINDER_PRESETS.FIFTEEN_MIN_BEFORE]: '15 minutes before',
+  [REMINDER_PRESETS.THIRTY_MIN_BEFORE]: '30 minutes before',
+  [REMINDER_PRESETS.ONE_HOUR_BEFORE]: '1 hour before',
+  [REMINDER_PRESETS.ONE_DAY_BEFORE]: '1 day before',
+  [REMINDER_PRESETS.AT_DUE_TIME]: 'At due time',
+};
+
 // Type exports
 export type Reminder = z.infer<typeof ReminderSchema>;
 export type CreateReminderRequest = z.infer<typeof CreateReminderRequestSchema>;
 export type UpdateReminderRequest = z.infer<typeof UpdateReminderRequestSchema>;
+export type ReminderCreate = CreateReminderRequest;

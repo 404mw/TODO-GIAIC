@@ -1,66 +1,66 @@
 'use client'
 
 import { useState } from 'react'
-import type { SubTask } from '@/lib/schemas/subtask.schema'
+import type { Subtask } from '@/lib/schemas/subtask.schema'
 import { useUpdateSubtask, useDeleteSubtask } from '@/lib/hooks/useSubtasks'
 import { useToast } from '@/lib/hooks/useToast'
 import { Button } from '@/components/ui/Button'
 
-interface SubTaskListProps {
+interface SubtaskListProps {
   taskId: string
-  subtasks: SubTask[]
+  subtasks: Subtask[]
 }
 
-export function SubTaskList({ taskId, subtasks }: SubTaskListProps) {
+export function SubTaskList({ taskId, subtasks }: SubtaskListProps) {
   const { toast } = useToast()
-  const updateSubTask = useUpdateSubtask()
-  const deleteSubTask = useDeleteSubtask()
+  const updateSubtask = useUpdateSubtask()
+  const deleteSubtask = useDeleteSubtask()
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
-  const handleToggleComplete = async (subtask: SubTask) => {
+  const handleToggleComplete = async (subtask: Subtask) => {
     try {
-      await updateSubTask.mutateAsync({
+      await updateSubtask.mutateAsync({
         taskId,
-        subtaskId: subtask.id,
-        input: { completed: !subtask.completed },
+        id: subtask.id,
+        completed: !subtask.completed,
       })
 
       toast({
         title: subtask.completed ? 'Subtask reopened' : 'Subtask completed!',
-        description: subtask.completed
+        message: subtask.completed
           ? 'Subtask marked as incomplete'
           : 'Keep going! You\'re making progress.',
-        variant: 'success',
+        type: 'success',
       })
     } catch (error) {
       toast({
         title: 'Error',
-        description: 'Failed to update subtask',
-        variant: 'error',
+        message: 'Failed to update subtask',
+        type: 'error',
       })
     }
   }
 
-  const handleDelete = async (subtaskId: string) => {
+  const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this subtask?')) {
       return
     }
 
-    setDeletingId(subtaskId)
+    setDeletingId(id)
 
     try {
-      await deleteSubTask.mutateAsync({ taskId, subtaskId })
+      await deleteSubtask.mutateAsync({ taskId, id })
 
       toast({
         title: 'Subtask deleted',
-        description: 'Subtask has been removed',
-        variant: 'success',
+        message: 'Subtask has been removed',
+        type: 'success',
       })
     } catch (error) {
       toast({
         title: 'Error',
-        description: 'Failed to delete subtask',
-        variant: 'error',
+        message: 'Failed to delete subtask',
+        type: 'error',
       })
     } finally {
       setDeletingId(null)
@@ -85,7 +85,7 @@ export function SubTaskList({ taskId, subtasks }: SubTaskListProps) {
           {/* Checkbox */}
           <button
             onClick={() => handleToggleComplete(subtask)}
-            disabled={updateSubTask.isPending}
+            disabled={updateSubtask.isPending}
             className="flex-shrink-0"
           >
             <div

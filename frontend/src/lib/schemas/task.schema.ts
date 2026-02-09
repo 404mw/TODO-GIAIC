@@ -12,7 +12,7 @@ export const TaskSchema = z.object({
 
   // Task details
   title: z.string().min(1).max(200),
-  description: z.string().max(2000).default(''),
+  message: z.string().max(2000).default(''),
   priority: PrioritySchema.default('medium'),
   due_date: z.string().datetime().nullable(),
   estimated_duration: z.number().int().min(1).max(720).nullable(),
@@ -45,7 +45,7 @@ export const TaskTemplateSchema = z.object({
 
   // Template details
   title: z.string().min(1).max(200),
-  description: z.string().max(2000).default(''),
+  message: z.string().max(2000).default(''),
   priority: PrioritySchema.default('medium'),
   estimated_duration: z.number().int().min(1).max(720).nullable(),
 
@@ -64,12 +64,12 @@ export const TaskTemplateSchema = z.object({
  */
 export const CreateTaskRequestSchema = TaskSchema.pick({
   title: true,
-  description: true,
+  message: true,
   priority: true,
   due_date: true,
   estimated_duration: true,
 }).partial({
-  description: true,
+  message: true,
   priority: true,
   due_date: true,
   estimated_duration: true,
@@ -80,7 +80,7 @@ export const CreateTaskRequestSchema = TaskSchema.pick({
  */
 export const UpdateTaskRequestSchema = TaskSchema.pick({
   title: true,
-  description: true,
+  message: true,
   priority: true,
   due_date: true,
   estimated_duration: true,

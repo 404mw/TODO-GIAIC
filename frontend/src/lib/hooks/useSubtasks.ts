@@ -55,8 +55,8 @@ export function useDeleteSubtask() {
     mutationFn: ({ id, taskId }: { id: string; taskId: string }) =>
       apiClient.delete(`/subtasks/${id}`),
     onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['subtasks', variables.task_id] });
-      queryClient.invalidateQueries({ queryKey: ['tasks', variables.task_id] });
+      queryClient.invalidateQueries({ queryKey: ['subtasks', variables.taskId] });
+      queryClient.invalidateQueries({ queryKey: ['tasks', variables.taskId] });
     },
   });
 }
@@ -68,8 +68,8 @@ export function useCompleteSubtask() {
     mutationFn: ({ id, taskId }: { id: string; taskId: string }) =>
       apiClient.post(`/subtasks/${id}/complete`, {}, SubtaskResponseSchema),
     onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['subtasks', variables.task_id] });
-      queryClient.invalidateQueries({ queryKey: ['tasks', variables.task_id] });
+      queryClient.invalidateQueries({ queryKey: ['subtasks', variables.taskId] });
+      queryClient.invalidateQueries({ queryKey: ['tasks', variables.taskId] });
     },
   });
 }

@@ -1,5 +1,15 @@
 import { http, HttpResponse, delay } from 'msw'
-import type { AIInteractionLog } from '@/lib/schemas/ai.schema'
+
+// Minimal type definition for AI interaction log (schema file doesn't exist yet)
+interface AIInteractionLog {
+  id: string
+  timestamp: string
+  actor: 'user' | 'ai'
+  task_id?: string
+  noteId?: string
+  requestType?: string
+  [key: string]: any
+}
 
 // Helper: Simulate network latency
 const simulateLatency = () => delay(Math.floor(Math.random() * (500 - 100 + 1)) + 100)
@@ -81,9 +91,6 @@ export const createAILogHandler = http.post('/api/ai/logs', async ({ request }) 
       actor: 'ai',
       ...(body as any),
     }
-
-    // Note: In production, this would use AIInteractionLogSchema.parse(newLog)
-    // Omitted here since AI features are disabled
 
     aiLogs.push(newLog)
 

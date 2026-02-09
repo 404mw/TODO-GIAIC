@@ -24,7 +24,7 @@ import {
 const FEATURES = [
   {
     title: 'Smart Task Management',
-    description:
+    message:
       'Organize tasks with priorities, due dates, and recurring schedules. Sub-tasks help break down complex projects.',
     iconBgColor: 'from-blue-500/20 to-blue-600/10',
     icon: (
@@ -45,7 +45,7 @@ const FEATURES = [
   },
   {
     title: 'Consistency Streaks',
-    description:
+    message:
       'Build lasting habits with streak tracking. Grace days forgive the occasional miss without breaking your momentum.',
     iconBgColor: 'from-orange-500/20 to-orange-600/10',
     icon: (
@@ -66,7 +66,7 @@ const FEATURES = [
   },
   {
     title: 'Focus Mode',
-    description:
+    message:
       'Eliminate distractions with dedicated focus sessions. Timer, notifications, and progress tracking included.',
     iconBgColor: 'from-purple-500/20 to-purple-600/10',
     icon: (
@@ -87,7 +87,7 @@ const FEATURES = [
   },
   {
     title: 'Smart Reminders',
-    description:
+    message:
       'Never miss a deadline with browser notifications. Customizable sounds and timing keep you informed without disruption.',
     iconBgColor: 'from-green-500/20 to-green-600/10',
     icon: (
@@ -108,7 +108,7 @@ const FEATURES = [
   },
   {
     title: 'Quick Notes',
-    description:
+    message:
       'Capture ideas instantly with quick notes. Convert them to tasks when you are ready to take action.',
     iconBgColor: 'from-yellow-500/20 to-yellow-600/10',
     icon: (
@@ -129,7 +129,7 @@ const FEATURES = [
   },
   {
     title: 'Achievements',
-    description:
+    message:
       'Celebrate milestones and track your progress. Earn achievements for completing high-priority tasks and maintaining streaks.',
     iconBgColor: 'from-red-500/20 to-red-600/10',
     icon: (
@@ -314,7 +314,7 @@ export default function LandingPage() {
                     key={feature.title}
                     icon={feature.icon}
                     title={feature.title}
-                    description={feature.description}
+                    message={feature.message}
                     iconBgColor={feature.iconBgColor}
                     index={index}
                   />

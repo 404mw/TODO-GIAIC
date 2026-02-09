@@ -29,7 +29,7 @@ export default function HiddenTasksPage() {
     try {
       await updateTask.mutateAsync({
         id: task.id,
-        input: { hidden: false },
+        hidden: false,
       })
       toast({
         title: 'Task restored',

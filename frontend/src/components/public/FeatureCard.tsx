@@ -16,7 +16,7 @@ import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
 interface FeatureCardProps {
   icon: React.ReactNode
   title: string
-  description: string
+  message: string
   iconBgColor?: string
   index?: number
 }
@@ -24,7 +24,7 @@ interface FeatureCardProps {
 export function FeatureCard({
   icon,
   title,
-  description,
+  message,
   iconBgColor = 'from-blue-500/20 to-purple-500/20',
   index = 0,
 }: FeatureCardProps) {
@@ -70,7 +70,7 @@ export function FeatureCard({
 
         {/* Description */}
         <p className="text-sm leading-relaxed text-gray-400">
-          {description}
+          {message}
         </p>
       </div>
 

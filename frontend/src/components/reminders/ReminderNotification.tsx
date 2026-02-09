@@ -76,7 +76,7 @@ export function ReminderNotification({
       {/* Content */}
       <div className="col-start-2 row-start-1">
         <Toast.Title className="text-sm font-semibold text-gray-100">
-          {reminder.title}
+          Task Reminder
         </Toast.Title>
         <Toast.Description className="mt-1 text-sm text-gray-300">
           {task.title}

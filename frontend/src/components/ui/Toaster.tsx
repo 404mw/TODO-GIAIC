@@ -1,6 +1,6 @@
 'use client'
 
-import { useToast } from '@/lib/hooks/useToast'
+import { useNotificationStore } from '@/lib/stores/notification.store'
 import {
   Toast,
   ToastClose,
@@ -17,19 +17,19 @@ import {
  * toast notifications throughout the application.
  */
 export function Toaster() {
-  const { toasts } = useToast()
+  const notifications = useNotificationStore((state) => state.notifications)
+  const removeNotification = useNotificationStore((state) => state.removeNotification)
 
   return (
     <ToastProvider>
-      {toasts.map(function ({ id, title, description, action, ...props }) {
+      {notifications.map(function (notification) {
         return (
-          <Toast key={id} {...props}>
+          <Toast key={notification.id} variant={notification.type}>
             <div className="grid gap-1">
-              {title && <ToastTitle>{title}</ToastTitle>}
-              {description && <ToastDescription>{description}</ToastDescription>}
+              {notification.title && <ToastTitle>{notification.title}</ToastTitle>}
+              {notification.message && <ToastDescription>{notification.message}</ToastDescription>}
             </div>
-            {action}
-            <ToastClose />
+            <ToastClose onClick={() => removeNotification(notification.id)} />
           </Toast>
         )
       })}

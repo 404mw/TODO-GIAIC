@@ -48,7 +48,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function fetchCurrentUser() {
     try {
       const response = await apiClient.get('/users/me', UserResponseSchema);
-      setUser(response.data);
+      // Map API response to User type
+      const mappedUser: User = {
+        id: response.data.id,
+        google_id: '', // Not returned by API, will be populated during OAuth
+        email: response.data.email,
+        name: response.data.full_name,
+        avatar_url: null, // Not returned by API
+        timezone: 'UTC', // Default timezone
+        tier: response.data.tier,
+        created_at: response.data.created_at,
+        updated_at: response.data.updated_at || response.data.created_at,
+      };
+      setUser(mappedUser);
       setError(null);
     } catch (err) {
       console.error('Failed to fetch current user:', err);

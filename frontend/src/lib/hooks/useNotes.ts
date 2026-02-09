@@ -39,11 +39,8 @@ export function useCreateNote() {
   return useMutation({
     mutationFn: (note: Partial<Note>) =>
       apiClient.post('/notes', note, NoteResponseSchema),
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notes'] });
-      if (data.data.task_id) {
-        queryClient.invalidateQueries({ queryKey: ['notes', 'task', data.data.task_id] });
-      }
     },
   });
 }
@@ -57,9 +54,6 @@ export function useUpdateNote() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['notes'] });
       queryClient.invalidateQueries({ queryKey: ['notes', data.data.id] });
-      if (data.data.task_id) {
-        queryClient.invalidateQueries({ queryKey: ['notes', 'task', data.data.task_id] });
-      }
     },
   });
 }
@@ -72,6 +66,19 @@ export function useDeleteNote() {
       apiClient.delete(`/notes/${noteId}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notes'] });
+    },
+  });
+}
+
+export function useArchiveNote() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id }: { id: string }) =>
+      apiClient.put(`/notes/${id}`, { archived: true }, NoteResponseSchema),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['notes'] });
+      queryClient.invalidateQueries({ queryKey: ['notes', data.data.id] });
     },
   });
 }

@@ -58,7 +58,13 @@
       "Bash(tree:*)",
       "Bash(npx tsc:*)",
       "Bash(npm run lint:*)",
-      "Bash(npx eslint:*)"
+      "Bash(npx eslint:*)",
+      "Bash(xargs sed:*)",
+      "Bash(cd:*)",
+      "Bash(for file in about/metadata.ts contact/metadata.ts pricing/metadata.ts)",
+      "Bash(do sed -i 's/message:/description:/g' \"$file\")",
+      "Bash(done)",
+      "Bash(git add:*)"
     ]
   }
 }

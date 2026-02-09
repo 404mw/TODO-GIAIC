@@ -28,8 +28,8 @@ export function NoteEditor({ note, onSuccess, onCancel }: NoteEditorProps) {
     if (!content.trim()) {
       toast({
         title: 'Error',
-        description: 'Note content cannot be empty',
-        variant: 'error',
+        message: 'Note content cannot be empty',
+        type: 'error',
       })
       return
     }
@@ -40,21 +40,21 @@ export function NoteEditor({ note, onSuccess, onCancel }: NoteEditorProps) {
       if (isEditing) {
         await updateNote.mutateAsync({
           id: note.id,
-          input: { content: content.trim() },
+          content: content.trim(),
         })
 
         toast({
           title: 'Note updated',
-          description: 'Your note has been saved',
-          variant: 'success',
+          message: 'Your note has been saved',
+          type: 'success',
         })
       } else {
         await createNote.mutateAsync({ content: content.trim() })
 
         toast({
           title: 'Note created',
-          description: 'Your new note has been added',
-          variant: 'success',
+          message: 'Your new note has been added',
+          type: 'success',
         })
 
         setContent('')
@@ -64,8 +64,8 @@ export function NoteEditor({ note, onSuccess, onCancel }: NoteEditorProps) {
     } catch (error) {
       toast({
         title: 'Error',
-        description: isEditing ? 'Failed to update note' : 'Failed to create note',
-        variant: 'error',
+        message: isEditing ? 'Failed to update note' : 'Failed to create note',
+        type: 'error',
       })
     } finally {
       setIsSubmitting(false)

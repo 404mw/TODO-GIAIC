@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import type { Task } from '@/lib/schemas/task.schema'
-import type { SubTask } from '@/lib/schemas/subtask.schema'
+import type { Subtask } from '@/lib/schemas/subtask.schema'
 import { useSubtasks } from '@/lib/hooks/useSubtasks'
 import { useToast } from '@/lib/hooks/useToast'
 import { useFocusModeStore } from '@/lib/stores/focus-mode.store'
@@ -36,11 +36,12 @@ export function TaskCard({ task, showProgress = false }: TaskCardProps) {
   const { activate: activateFocusMode } = useFocusModeStore()
   const { togglePending, hasPending } = usePendingCompletionsStore()
   const [isExpanded, setIsExpanded] = useState(false)
-  const { data: subtasks = [] } = useSubtasks(task.id)
+  const subtasksQuery = useSubtasks(task.id)
+  const subtasks = subtasksQuery?.data?.data || []
   const cardRef = useRef<HTMLDivElement>(null)
 
   const isPending = hasPending(task.id)
-  const incompleteSubtasks = subtasks.filter((st: SubTask) => !st.completed)
+  const incompleteSubtasks = subtasks.filter((st: Subtask) => !st.completed)
   const hasIncompleteSubtasks = incompleteSubtasks.length > 0
 
   // Handle click outside to collapse subtasks
@@ -76,13 +77,13 @@ export function TaskCard({ task, showProgress = false }: TaskCardProps) {
     e.stopPropagation()
 
     // Toggle pending - warning will be shown in the bottom bar when saving
-    togglePending(task.id, hasIncompleteSubtasks, incompleteSubtasks.length)
+    togglePending(task.id)
 
     if (!isPending) {
       toast({
         title: 'Task marked for completion',
-        description: 'Click "Save Changes" to complete marked tasks',
-        variant: 'success',
+        message: 'Click "Save Changes" to complete marked tasks',
+        type: 'success',
       })
     }
   }
@@ -113,16 +114,13 @@ export function TaskCard({ task, showProgress = false }: TaskCardProps) {
 
     toast({
       title: 'Focus Mode',
-      description: `Starting focus session for "${task.title}"`,
-      variant: 'success',
+      message: `Starting focus session for "${task.title}"`,
+      type: 'success',
     })
   }
 
-  // Calculate total duration from subtasks
-  const totalSubtaskDuration = subtasks.reduce(
-    (acc: number, st: SubTask) => acc + (st.estimatedDuration || 0),
-    0
-  )
+  // Calculate total duration from subtasks (not implemented in schema yet)
+  const totalSubtaskDuration = 0
 
   return (
     <div ref={cardRef} className="relative">
@@ -236,7 +234,7 @@ export function TaskCard({ task, showProgress = false }: TaskCardProps) {
               </h3>
 
               {/* Description */}
-              {task.description && (
+              {task.message && (
                 <p
                   className={[
                     'mt-1 text-sm line-clamp-2',
@@ -245,7 +243,7 @@ export function TaskCard({ task, showProgress = false }: TaskCardProps) {
                       : 'text-gray-600 dark:text-gray-400',
                   ].join(' ')}
                 >
-                  {task.description}
+                  {task.message}
                 </p>
               )}
 
@@ -285,13 +283,13 @@ export function TaskCard({ task, showProgress = false }: TaskCardProps) {
                         d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
                       />
                     </svg>
-                    {subtasks.filter((st: SubTask) => st.completed).length}/{subtasks.length}{' '}
+                    {subtasks.filter((st: Subtask) => st.completed).length}/{subtasks.length}{' '}
                     subtasks
                   </span>
                 )}
 
                 {/* Duration */}
-                {(task.estimatedDuration || totalSubtaskDuration > 0) && (
+                {(task.estimated_duration || totalSubtaskDuration > 0) && (
                   <span
                     className={
                       isPending
@@ -312,7 +310,7 @@ export function TaskCard({ task, showProgress = false }: TaskCardProps) {
                         d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
                       />
                     </svg>
-                    {totalSubtaskDuration > 0 ? totalSubtaskDuration : task.estimatedDuration} min
+                    {totalSubtaskDuration > 0 ? totalSubtaskDuration : task.estimated_duration} min
                   </span>
                 )}
 
@@ -336,8 +334,8 @@ export function TaskCard({ task, showProgress = false }: TaskCardProps) {
                   </span>
                 )}
 
-                {/* Recurring indicator */}
-                {task.recurrence?.enabled && (
+                {/* Recurring indicator - TODO: Add recurrence to Task schema */}
+                {/* {task.recurrence?.enabled && (
                   <span className="text-purple-600 dark:text-purple-400">
                     <svg
                       className="inline h-3.5 w-3.5 mr-1"
@@ -354,10 +352,10 @@ export function TaskCard({ task, showProgress = false }: TaskCardProps) {
                     </svg>
                     {task.recurrence.humanReadable || 'Recurring'}
                   </span>
-                )}
+                )} */}
 
-                {/* Recurring instance indicator */}
-                {task.isRecurringInstance && (
+                {/* Recurring instance indicator - TODO: Add isRecurringInstance to Task schema */}
+                {/* {task.isRecurringInstance && (
                   <span
                     className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-2 py-0.5 text-purple-700 dark:bg-purple-900 dark:text-purple-300"
                     title="This task was generated from a recurring task"
@@ -371,12 +369,12 @@ export function TaskCard({ task, showProgress = false }: TaskCardProps) {
                     </svg>
                     Instance
                   </span>
-                )}
+                )} */}
 
-                {/* Tags */}
-                {task.tags && task.tags.length > 0 && (
+                {/* Tags - TODO: Add tags to Task schema */}
+                {/* {task.tags && task.tags.length > 0 && (
                   <>
-                    {task.tags.slice(0, 3).map((tag) => (
+                    {task.tags.slice(0, 3).map((tag: string) => (
                       <span
                         key={tag}
                         className="rounded-full bg-gray-100 px-2 py-0.5 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
@@ -388,7 +386,7 @@ export function TaskCard({ task, showProgress = false }: TaskCardProps) {
                       <span className="text-gray-500">+{task.tags.length - 3}</span>
                     )}
                   </>
-                )}
+                )} */}
               </div>
             </div>
           </div>
@@ -448,9 +446,9 @@ export function TaskCard({ task, showProgress = false }: TaskCardProps) {
                 : 'text-gray-500 dark:text-gray-400',
             ].join(' ')}
           >
-            Subtasks ({subtasks.filter((st: SubTask) => st.completed).length}/{subtasks.length})
+            Subtasks ({subtasks.filter((st: Subtask) => st.completed).length}/{subtasks.length})
           </h4>
-          {subtasks.map((subtask: SubTask) => (
+          {subtasks.map((subtask: Subtask) => (
             <div key={subtask.id} className="flex items-center gap-2 py-1">
               <div
                 className={[
@@ -488,11 +486,6 @@ export function TaskCard({ task, showProgress = false }: TaskCardProps) {
               >
                 {subtask.title}
               </span>
-              {subtask.estimatedDuration && (
-                <span className="text-xs text-gray-400 dark:text-gray-500 ml-auto">
-                  {subtask.estimatedDuration} min
-                </span>
-              )}
             </div>
           ))}
         </div>

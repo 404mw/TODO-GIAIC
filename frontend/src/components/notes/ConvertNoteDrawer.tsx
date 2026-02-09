@@ -53,8 +53,8 @@ export function ConvertNoteDrawer({
     if (!title.trim()) {
       toast({
         title: 'Error',
-        description: 'Task title cannot be empty',
-        variant: 'error',
+        message: 'Task title cannot be empty',
+        type: 'error',
       })
       return
     }
@@ -65,7 +65,7 @@ export function ConvertNoteDrawer({
       // Create the task
       await createTask.mutateAsync({
         title: title.trim(),
-        description: description.trim() || undefined,
+        message: description.trim() || undefined,
         priority,
       })
 
@@ -76,8 +76,8 @@ export function ConvertNoteDrawer({
 
       toast({
         title: 'Note converted',
-        description: 'Your note has been converted to a task',
-        variant: 'success',
+        message: 'Your note has been converted to a task',
+        type: 'success',
       })
 
       onSuccess?.()
@@ -85,8 +85,8 @@ export function ConvertNoteDrawer({
     } catch (error) {
       toast({
         title: 'Error',
-        description: 'Failed to convert note to task',
-        variant: 'error',
+        message: 'Failed to convert note to task',
+        type: 'error',
       })
     } finally {
       setIsConverting(false)

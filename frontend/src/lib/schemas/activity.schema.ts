@@ -18,7 +18,7 @@ export const ActivityLogSchema = z.object({
   source: ActivitySourceSchema,
 
   // Additional context
-  extra_data: z.record(z.any()).default({}),
+  extra_data: z.record(z.string(), z.any()).default({}),
   request_id: z.string().uuid().nullable(),
 
   // Timestamp

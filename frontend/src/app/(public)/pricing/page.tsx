@@ -20,7 +20,7 @@ import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
 const PLANS = [
   {
     name: 'Free',
-    description: 'Perfect for getting started',
+    message: 'Perfect for getting started',
     price: '$0',
     period: 'forever',
     features: [
@@ -37,7 +37,7 @@ const PLANS = [
   },
   {
     name: 'Pro',
-    description: 'For power users',
+    message: 'For power users',
     price: '$9',
     period: 'per month',
     features: [
@@ -133,7 +133,7 @@ export default function PricingPage() {
                     </div>
                   )}
                   <h2 className="text-2xl font-bold text-white">{plan.name}</h2>
-                  <p className="mt-2 text-gray-400">{plan.description}</p>
+                  <p className="mt-2 text-gray-400">{plan.message}</p>
                   <div className="mt-6">
                     <span className="text-4xl font-bold text-white">
                       {plan.price}
