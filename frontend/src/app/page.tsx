@@ -197,8 +197,14 @@ export default function LandingPage() {
               </Link>
             </div>
 
-            {/* CTA Button */}
+            {/* CTA Buttons */}
             <div className="flex items-center gap-4">
+              <Link
+                href="/login"
+                className="text-sm font-medium text-gray-400 transition-colors hover:text-white"
+              >
+                Login
+              </Link>
               <Link
                 href="/dashboard"
                 className="rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 px-4 py-2 text-sm font-medium text-white transition-all hover:from-blue-600 hover:to-purple-700"

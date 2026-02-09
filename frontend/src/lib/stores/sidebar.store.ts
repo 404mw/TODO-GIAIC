@@ -8,10 +8,14 @@ interface SidebarState {
   setCollapsed: (collapsed: boolean) => void;
 }
 
+// Check if we're on mobile (< 1024px) on initial load
+const isMobile = typeof window !== 'undefined' && window.innerWidth < 1024;
+
 export const useSidebarStore = create<SidebarState>()(
   persist(
     (set, get) => ({
-      isCollapsed: false,
+      // Start collapsed on mobile, expanded on desktop (unless user has a saved preference)
+      isCollapsed: isMobile,
       get isOpen() {
         return !get().isCollapsed;
       },

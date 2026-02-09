@@ -2,11 +2,12 @@
 
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useSidebarStore } from '@/lib/stores/useSidebarStore'
 import { useNewTaskModalStore } from '@/lib/stores/new-task-modal.store'
 import { NotificationDropdown } from '@/components/layout/NotificationDropdown'
 import { navigationItems } from '@/lib/config/navigation'
+import { useCreditBalance } from '@/lib/hooks/useCredits'
 
 /**
  * Header/Top bar component
@@ -24,6 +25,8 @@ export function Header() {
   const [showNewDropdown, setShowNewDropdown] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const pathname = usePathname()
+  const router = useRouter()
+  const { data: balanceData, isLoading: creditsLoading } = useCreditBalance()
 
   // Find active navigation item for page title
   const activeNavItem = navigationItems.find((item) => {
@@ -52,8 +55,7 @@ export function Header() {
 
   const handleNewNote = () => {
     setShowNewDropdown(false)
-    // TODO: Open new note modal when implemented
-    console.log('New note clicked')
+    router.push('/dashboard/notes?create=true')
   }
 
   return (
@@ -116,25 +118,31 @@ export function Header() {
         {/* Right: Actions */}
         <div className="flex items-center gap-2">
           {/* Credits info button */}
-          <button
-            className="flex items-center gap-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-            aria-label="Credits info"
-          >
-            <svg
-              className="h-4 w-4 text-yellow-500"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
+          <Link href="/dashboard/credits">
+            <button
+              className="flex items-center gap-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              aria-label="Credits info"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M13 10V3L4 14h7v7l9-11h-7z"
-              />
-            </svg>
-            <span className="hidden sm:inline">Credits</span>
-          </button>
+              <svg
+                className="h-4 w-4 text-yellow-500"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 10V3L4 14h7v7l9-11h-7z"
+                />
+              </svg>
+              {creditsLoading ? (
+                <span className="hidden sm:inline">...</span>
+              ) : (
+                <span className="hidden sm:inline">{balanceData?.data?.total || 0}</span>
+              )}
+            </button>
+          </Link>
 
           {/* New Task/Note dropdown */}
           <div className="relative" ref={dropdownRef}>

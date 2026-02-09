@@ -7,6 +7,7 @@ import { useSidebarStore } from '@/lib/stores/useSidebarStore'
 import { useNewTaskModalStore } from '@/lib/stores/new-task-modal.store'
 import { usePendingCompletionsStore } from '@/lib/stores/usePendingCompletionsStore'
 import { NewTaskModal } from '@/components/tasks/NewTaskModal'
+import { useAchievementNotifications } from '@/lib/hooks/useAchievementNotifications'
 
 /**
  * Dashboard layout wrapper
@@ -27,6 +28,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { isOpen: isNewTaskModalOpen, editTask, close: closeNewTaskModal } =
     useNewTaskModalStore()
   const pendingCount = usePendingCompletionsStore((state) => state.getPendingCount())
+
+  // Listen for achievement unlocks and show notifications
+  useAchievementNotifications()
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">

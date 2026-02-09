@@ -1,16 +1,22 @@
 'use client'
 
+import { useState, useMemo } from 'react'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
-import { useAchievements } from '@/lib/hooks/useAchievements'
+import { useAchievements, useAchievementDefinitions } from '@/lib/hooks/useAchievements'
+import { AchievementDetailModal } from '@/components/achievements/AchievementDetailModal'
+import type { AchievementCategory } from '@/lib/schemas/common.schema'
+import type { AchievementDefinition } from '@/lib/schemas/achievement.schema'
+import { Search, Trophy, Lock, Star, Flame, Target, Eye, FileText } from 'lucide-react'
 
 /**
  * Achievements page (US5 - FR-029 to FR-033)
  *
  * Displays user productivity metrics and achievements:
- * - Consistency streak with grace day logic
- * - High-priority tasks completed (highPrioritySlays)
- * - Completion ratio
- * - Milestones unlocked
+ * - All achievements (locked and unlocked)
+ * - Filters by status and category
+ * - Search functionality
+ * - Achievement detail modal
+ * - User stats: streak, tasks completed, etc.
  */
 
 interface MetricCardProps {
@@ -67,14 +73,228 @@ function MetricCard({ title, value, subtitle, icon, color }: MetricCardProps) {
   )
 }
 
+interface AchievementCardProps {
+  achievement: AchievementDefinition
+  isUnlocked: boolean
+  userProgress?: number
+  onClick: () => void
+}
+
+function AchievementCard({ achievement, isUnlocked, userProgress = 0, onClick }: AchievementCardProps) {
+  const getCategoryIcon = (category: AchievementCategory) => {
+    switch (category) {
+      case 'tasks':
+        return <Target className="h-5 w-5" />
+      case 'streaks':
+        return <Flame className="h-5 w-5" />
+      case 'focus':
+        return <Eye className="h-5 w-5" />
+      case 'notes':
+        return <FileText className="h-5 w-5" />
+    }
+  }
+
+  const getCategoryColor = (category: AchievementCategory) => {
+    switch (category) {
+      case 'tasks':
+        return 'blue'
+      case 'streaks':
+        return 'orange'
+      case 'focus':
+        return 'purple'
+      case 'notes':
+        return 'green'
+    }
+  }
+
+  const categoryColor = getCategoryColor(achievement.category)
+  const progress = Math.min((userProgress / achievement.threshold) * 100, 100)
+
+  const colorClasses = {
+    blue: {
+      bg: 'bg-blue-100 dark:bg-blue-900/30',
+      text: 'text-blue-600 dark:text-blue-400',
+      border: 'border-blue-200 dark:border-blue-800',
+      progress: 'bg-blue-500',
+    },
+    orange: {
+      bg: 'bg-orange-100 dark:bg-orange-900/30',
+      text: 'text-orange-600 dark:text-orange-400',
+      border: 'border-orange-200 dark:border-orange-800',
+      progress: 'bg-orange-500',
+    },
+    purple: {
+      bg: 'bg-purple-100 dark:bg-purple-900/30',
+      text: 'text-purple-600 dark:text-purple-400',
+      border: 'border-purple-200 dark:border-purple-800',
+      progress: 'bg-purple-500',
+    },
+    green: {
+      bg: 'bg-green-100 dark:bg-green-900/30',
+      text: 'text-green-600 dark:text-green-400',
+      border: 'border-green-200 dark:border-green-800',
+      progress: 'bg-green-500',
+    },
+  }
+
+  const colors = colorClasses[categoryColor]
+
+  return (
+    <button
+      onClick={onClick}
+      className={`group relative w-full rounded-lg border ${
+        isUnlocked
+          ? `${colors.border} bg-white dark:bg-gray-900`
+          : 'border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50'
+      } p-6 text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-lg ${
+        !isUnlocked && 'opacity-60'
+      }`}
+    >
+      <div className="flex items-start gap-4">
+        {/* Icon */}
+        <div
+          className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-lg ${
+            isUnlocked ? colors.bg : 'bg-gray-200 dark:bg-gray-800'
+          } ${isUnlocked ? colors.text : 'text-gray-400 dark:text-gray-600'}`}
+        >
+          {isUnlocked ? (
+            <Trophy className="h-6 w-6" />
+          ) : (
+            <Lock className="h-6 w-6" />
+          )}
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="font-semibold text-gray-900 dark:text-gray-100">
+              {achievement.name}
+            </h3>
+            <div className={`flex items-center gap-1 text-xs ${colors.text}`}>
+              {getCategoryIcon(achievement.category)}
+              <span className="capitalize">{achievement.category}</span>
+            </div>
+          </div>
+
+          <p className="mt-1 text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
+            {achievement.message}
+          </p>
+
+          {/* Progress Bar for Locked Achievements */}
+          {!isUnlocked && userProgress > 0 && (
+            <div className="mt-3">
+              <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mb-1">
+                <span>
+                  {userProgress} / {achievement.threshold}
+                </span>
+                <span>{Math.round(progress)}%</span>
+              </div>
+              <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                <div
+                  className={`h-full ${colors.progress} transition-all duration-500`}
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Perk Badge */}
+          {achievement.perk_type && achievement.perk_value && (
+            <div className="mt-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-xs font-medium">
+              <Star className="h-3 w-3" />
+              <span>
+                +{achievement.perk_value}{' '}
+                {achievement.perk_type.replace('_', ' ')}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Unlocked Badge */}
+      {isUnlocked && (
+        <div className="absolute top-3 right-3">
+          <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 text-xs font-medium">
+            <Trophy className="h-3 w-3" />
+            <span>Unlocked</span>
+          </div>
+        </div>
+      )}
+    </button>
+  )
+}
+
+type FilterStatus = 'all' | 'unlocked' | 'locked'
+
 export default function AchievementsPage() {
-  const { data: achievementsResponse, isLoading, error } = useAchievements()
+  const { data: userStateResponse, isLoading: isLoadingUser, error: userError } = useAchievements()
+  const { data: definitionsResponse, isLoading: isLoadingDefs, error: defsError } = useAchievementDefinitions()
+
+  const [filterStatus, setFilterStatus] = useState<FilterStatus>('all')
+  const [filterCategory, setFilterCategory] = useState<AchievementCategory | 'all'>('all')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedAchievement, setSelectedAchievement] = useState<AchievementDefinition | null>(null)
+
+  const isLoading = isLoadingUser || isLoadingDefs
+  const error = userError || defsError
+
+  // Extract data
+  const userState = userStateResponse?.data
+  const definitions = definitionsResponse?.data || []
+  const unlockedIds = userState?.unlocked_achievements || []
+
+  // Calculate progress for each achievement
+  const getProgress = (achievement: AchievementDefinition): number => {
+    if (!userState) return 0
+
+    switch (achievement.category) {
+      case 'tasks':
+        return userState.lifetime_tasks_completed
+      case 'streaks':
+        return userState.longest_streak
+      case 'focus':
+        return userState.focus_completions
+      case 'notes':
+        return userState.notes_converted
+      default:
+        return 0
+    }
+  }
+
+  // Filter and search achievements
+  const filteredAchievements = useMemo(() => {
+    let filtered = definitions
+
+    // Filter by status
+    if (filterStatus === 'unlocked') {
+      filtered = filtered.filter((a) => unlockedIds.includes(a.id))
+    } else if (filterStatus === 'locked') {
+      filtered = filtered.filter((a) => !unlockedIds.includes(a.id))
+    }
+
+    // Filter by category
+    if (filterCategory !== 'all') {
+      filtered = filtered.filter((a) => a.category === filterCategory)
+    }
+
+    // Search
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase()
+      filtered = filtered.filter(
+        (a) =>
+          a.name.toLowerCase().includes(query) ||
+          a.message.toLowerCase().includes(query)
+      )
+    }
+
+    return filtered
+  }, [definitions, unlockedIds, filterStatus, filterCategory, searchQuery])
 
   if (isLoading) {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center py-12">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600" />
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-purple-600" />
         </div>
       </DashboardLayout>
     )
@@ -91,18 +311,13 @@ export default function AchievementsPage() {
     )
   }
 
-  // Unwrap API response
-  const achievements = achievementsResponse?.data
-
-  // Map to component data structure using actual schema properties
+  // Stats
+  const totalAchievements = definitions.length
+  const unlockedCount = unlockedIds.length
   const streak = {
-    currentStreak: achievements?.current_streak || 0,
-    longestStreak: achievements?.longest_streak || 0,
-    graceDayUsed: false, // TODO: Implement grace day logic
+    currentStreak: userState?.current_streak || 0,
+    longestStreak: userState?.longest_streak || 0,
   }
-  const highPrioritySlays = 0 // TODO: Calculate from task completion history
-  const completionRatio = 0 // TODO: Calculate from task statistics
-  const milestones = achievements?.unlocked_achievements || []
 
   return (
     <DashboardLayout>
@@ -113,39 +328,38 @@ export default function AchievementsPage() {
             Achievements
           </h1>
           <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-            Track your productivity and celebrate your wins
+            Track your productivity and unlock rewards
           </p>
         </div>
 
-        {/* Streak Section */}
-        <div className="rounded-xl border border-gray-200 bg-linear-to-br from-orange-50 to-yellow-50 p-6 dark:border-gray-700 dark:from-orange-900/20 dark:to-yellow-900/20">
-          <div className="flex items-center gap-4">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-orange-100 dark:bg-orange-900/50">
-              <svg
-                className="h-8 w-8 text-orange-500"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"
-                />
-              </svg>
-            </div>
+        {/* Stats Overview */}
+        <div className="rounded-xl border border-purple-200 dark:border-purple-900/50 bg-linear-to-br from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 p-6">
+          <div className="flex items-center justify-between">
             <div>
               <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                Consistency Streak
+                Your Progress
               </h2>
-              <p className="text-4xl font-bold text-orange-600 dark:text-orange-400">
-                {streak?.currentStreak || 0} days
+              <p className="text-4xl font-bold text-purple-600 dark:text-purple-400 mt-1">
+                {unlockedCount} / {totalAchievements}
               </p>
-              <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                Longest streak: {streak?.longestStreak || 0} days
-                {streak?.graceDayUsed && ' (grace day active)'}
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                achievements unlocked
               </p>
+            </div>
+            <div className="flex items-center justify-center h-24 w-24 rounded-full bg-purple-100 dark:bg-purple-900/50">
+              <Trophy className="h-12 w-12 text-purple-600 dark:text-purple-400" />
+            </div>
+          </div>
+
+          {/* Progress Bar */}
+          <div className="mt-4">
+            <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-linear-to-r from-purple-500 to-blue-500 transition-all duration-500"
+                style={{
+                  width: `${totalAchievements > 0 ? (unlockedCount / totalAchievements) * 100 : 0}%`,
+                }}
+              />
             </div>
           </div>
         </div>
@@ -153,108 +367,132 @@ export default function AchievementsPage() {
         {/* Metrics Grid */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <MetricCard
-            title="High Priority Slays"
-            value={highPrioritySlays}
-            subtitle="Urgent tasks conquered"
-            color="red"
-            icon={
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M13 10V3L4 14h7v7l9-11h-7z"
-                />
-              </svg>
-            }
+            title="Tasks Completed"
+            value={userState?.lifetime_tasks_completed || 0}
+            subtitle="All-time total"
+            color="blue"
+            icon={<Target className="h-6 w-6" />}
           />
 
           <MetricCard
-            title="Completion Ratio"
-            value={`${Math.round(completionRatio)}%`}
-            subtitle="Tasks completed on time"
-            color="green"
-            icon={
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-            }
+            title="Current Streak"
+            value={`${streak.currentStreak} days`}
+            subtitle={`Best: ${streak.longestStreak} days`}
+            color="orange"
+            icon={<Flame className="h-6 w-6" />}
           />
 
           <MetricCard
-            title="Milestones Unlocked"
-            value={milestones.length}
-            subtitle="Achievements earned"
+            title="Focus Sessions"
+            value={userState?.focus_completions || 0}
+            subtitle="Deep work completed"
             color="purple"
-            icon={
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"
-                />
-              </svg>
-            }
+            icon={<Eye className="h-6 w-6" />}
           />
         </div>
 
-        {/* Milestones List */}
-        {milestones.length > 0 && (
-          <div>
-            <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">
-              Earned Milestones
-            </h2>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {milestones.map((achievementId: string) => (
-                <div
-                  key={achievementId}
-                  className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900"
+        {/* Filters and Search */}
+        <div className="space-y-4">
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search achievements..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:focus:ring-purple-600 focus:border-transparent"
+            />
+          </div>
+
+          {/* Filter Tabs */}
+          <div className="flex flex-wrap gap-3">
+            {/* Status Filters */}
+            <div className="flex items-center gap-2">
+              {(['all', 'unlocked', 'locked'] as const).map((status) => (
+                <button
+                  key={status}
+                  onClick={() => setFilterStatus(status)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    filterStatus === status
+                      ? 'bg-purple-600 text-white'
+                      : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                  }`}
                 >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-yellow-100 dark:bg-yellow-900/30">
-                    <svg
-                      className="h-5 w-5 text-yellow-600 dark:text-yellow-400"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium text-gray-900 dark:text-gray-100">
-                      {achievementId}
-                    </p>
-                    <p className="truncate text-sm text-gray-500 dark:text-gray-400">
-                      Achievement unlocked
-                    </p>
-                  </div>
-                </div>
+                  {status.charAt(0).toUpperCase() + status.slice(1)}
+                </button>
+              ))}
+            </div>
+
+            <div className="h-8 w-px bg-gray-300 dark:bg-gray-700" />
+
+            {/* Category Filters */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {(['all', 'tasks', 'streaks', 'focus', 'notes'] as const).map((category) => (
+                <button
+                  key={category}
+                  onClick={() => setFilterCategory(category)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium capitalize transition-colors ${
+                    filterCategory === category
+                      ? 'bg-purple-600 text-white'
+                      : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  {category}
+                </button>
               ))}
             </div>
           </div>
-        )}
-
-        {/* Motivational message */}
-        <div className="rounded-lg border border-gray-200 bg-white p-6 text-center dark:border-gray-800 dark:bg-gray-900">
-          <p className="text-gray-600 dark:text-gray-400">
-            {highPrioritySlays >= 50
-              ? "You're a productivity powerhouse! Keep crushing it!"
-              : highPrioritySlays >= 10
-              ? "Great progress on high-priority tasks! Keep the momentum going."
-              : highPrioritySlays >= 1
-              ? "You've started slaying! Complete more high-priority tasks to level up."
-              : "Start completing high-priority tasks to unlock achievements!"}
-          </p>
         </div>
+
+        {/* Achievements Grid */}
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+              {filterStatus === 'all'
+                ? 'All Achievements'
+                : filterStatus === 'unlocked'
+                ? 'Unlocked Achievements'
+                : 'Locked Achievements'}
+            </h2>
+            <span className="text-sm text-gray-500 dark:text-gray-400">
+              {filteredAchievements.length} {filteredAchievements.length === 1 ? 'achievement' : 'achievements'}
+            </span>
+          </div>
+
+          {filteredAchievements.length === 0 ? (
+            <div className="text-center py-12 rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
+              <Trophy className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+              <p className="text-gray-600 dark:text-gray-400">
+                {searchQuery
+                  ? 'No achievements match your search'
+                  : 'No achievements found'}
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {filteredAchievements.map((achievement) => (
+                <AchievementCard
+                  key={achievement.id}
+                  achievement={achievement}
+                  isUnlocked={unlockedIds.includes(achievement.id)}
+                  userProgress={getProgress(achievement)}
+                  onClick={() => setSelectedAchievement(achievement)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Achievement Detail Modal */}
+        {selectedAchievement && (
+          <AchievementDetailModal
+            achievement={selectedAchievement}
+            isUnlocked={unlockedIds.includes(selectedAchievement.id)}
+            userProgress={getProgress(selectedAchievement)}
+            onClose={() => setSelectedAchievement(null)}
+          />
+        )}
       </div>
     </DashboardLayout>
   )

@@ -1,7 +1,10 @@
 'use client'
 
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/Popover'
+import { useAuth } from '@/lib/hooks/useAuth'
+import { useSubscription } from '@/lib/hooks/useSubscription'
 
 /**
  * ProfilePopover Component
@@ -9,30 +12,34 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/Popover
  * Features:
  * - User profile information display
  * - Quick links to settings
- * - Logout functionality (placeholder)
+ * - Logout functionality
  *
  * FR-037: User profile display
  * FR-038: Settings access
- *
- * Note: This is a placeholder component for Phase 3.
- * Full user authentication will be implemented in later phases.
  */
 
 interface ProfilePopoverProps {
-  userName?: string
-  userEmail?: string
   collapsed?: boolean
 }
 
 export function ProfilePopover({
-  userName = 'Demo User',
-  userEmail = 'demo@perpetua.app',
   collapsed = false,
 }: ProfilePopoverProps) {
-  const handleLogout = () => {
-    // Placeholder for logout functionality
-    // Will be implemented with authentication in later phases
-    console.log('Logout clicked')
+  const router = useRouter()
+  const { user, logout } = useAuth()
+  const { data: subscriptionData } = useSubscription()
+
+  const userName = user?.name || 'User'
+  const userTier = user?.tier || 'free'
+  const planDisplay = userTier === 'pro' ? '✨ Pro' : 'Free Plan'
+
+  const handleLogout = async () => {
+    try {
+      logout()
+      router.push('/login')
+    } catch (error) {
+      console.error('Logout failed:', error)
+    }
   }
 
   return (
@@ -52,7 +59,7 @@ export function ProfilePopover({
             <div className="flex flex-col items-start">
               <span className="font-medium">{userName}</span>
               <span className="text-xs text-gray-500 dark:text-gray-400">
-                {userEmail}
+                {planDisplay}
               </span>
             </div>
           )}
@@ -71,8 +78,8 @@ export function ProfilePopover({
                 <span className="font-medium text-gray-900 dark:text-gray-100">
                   {userName}
                 </span>
-                <span className="text-sm text-gray-500 dark:text-gray-400">
-                  {userEmail}
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  {planDisplay}
                 </span>
               </div>
             </div>
@@ -98,6 +105,26 @@ export function ProfilePopover({
                 />
               </svg>
               View Profile
+            </Link>
+
+            <Link
+              href="/dashboard/credits"
+              className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 transition-colors"
+            >
+              <svg
+                className="h-4 w-4 text-yellow-500"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 10V3L4 14h7v7l9-11h-7z"
+                />
+              </svg>
+              Credits
             </Link>
 
             <Link
@@ -127,7 +154,7 @@ export function ProfilePopover({
             </Link>
 
             <Link
-              href="/dashboard/help"
+              href="/contact"
               className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 transition-colors"
             >
               <svg

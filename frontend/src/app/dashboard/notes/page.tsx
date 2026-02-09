@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { useNotes } from '@/lib/hooks/useNotes'
 import type { Note } from '@/lib/schemas/note.schema'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
@@ -8,10 +9,18 @@ import { NoteList } from '@/components/notes/NoteList'
 import { NoteEditor } from '@/components/notes/NoteEditor'
 import { Button } from '@/components/ui/Button'
 
-export default function NotesPage() {
-  const [showArchived, setShowArchived] = useState(false)
+function NotesPageContent() {
+  const searchParams = useSearchParams()
   const [isCreating, setIsCreating] = useState(false)
   const [editingNote, setEditingNote] = useState<Note | null>(null)
+
+  // Handle ?create=true query parameter
+  useEffect(() => {
+    if (searchParams.get('create') === 'true') {
+      setIsCreating(true)
+      setEditingNote(null)
+    }
+  }, [searchParams])
 
   const {
     data: notesResponse,
@@ -19,9 +28,9 @@ export default function NotesPage() {
     error,
   } = useNotes()
 
-  // Unwrap API response and filter based on archived state
+  // Unwrap API response and filter for active notes only
   const allNotes = notesResponse?.data || []
-  const notes = allNotes.filter((note: Note) => note.archived === showArchived)
+  const notes = allNotes.filter((note: Note) => !note.archived)
 
   const handleEdit = (note: Note) => {
     setEditingNote(note)
@@ -51,20 +60,11 @@ export default function NotesPage() {
               Quick capture for thoughts, ideas, and reminders
             </p>
           </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowArchived(!showArchived)}
-            >
-              {showArchived ? 'Show Active' : 'Show Archived'}
+          {!isCreating && !editingNote && (
+            <Button onClick={() => setIsCreating(true)}>
+              New Note
             </Button>
-            {!isCreating && !editingNote && (
-              <Button onClick={() => setIsCreating(true)}>
-                New Note
-              </Button>
-            )}
-          </div>
+          )}
         </div>
 
         {/* Create/Edit form */}
@@ -90,5 +90,19 @@ export default function NotesPage() {
         />
       </div>
     </DashboardLayout>
+  )
+}
+
+export default function NotesPage() {
+  return (
+    <Suspense fallback={
+      <DashboardLayout>
+        <div className="flex items-center justify-center py-12">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600" />
+        </div>
+      </DashboardLayout>
+    }>
+      <NotesPageContent />
+    </Suspense>
   )
 }

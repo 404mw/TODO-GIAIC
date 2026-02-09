@@ -73,7 +73,7 @@ export default function HiddenTasksPage() {
         {/* Header */}
         <div className="flex items-center gap-4">
           <Link
-            href="/settings"
+            href="/dashboard/settings"
             className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
           >
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

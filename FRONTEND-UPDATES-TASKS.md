@@ -140,47 +140,47 @@ This document outlines all frontend updates, fixes, and new features to be imple
 ### Sidebar ([Sidebar.tsx](frontend/src/components/layout/Sidebar.tsx))
 
 **2.1 Fix Sidebar Collapse Functionality**
-- [ ] Test current sidebar toggle on desktop
-- [ ] If broken, debug `useSidebarStore` toggle function
-- [ ] Verify flap button (line 72-91) calls toggle correctly
-- [ ] Test collapsed/expanded states with different screen sizes
+- [X] Test current sidebar toggle on desktop
+- [X] If broken, debug `useSidebarStore` toggle function
+- [X] Verify flap button (line 72-91) calls toggle correctly
+- [X] Test collapsed/expanded states with different screen sizes
 
 **2.2 Fix Mobile Sidebar Behavior**
-- [ ] Ensure sidebar starts collapsed on mobile (< 1024px)
-- [ ] Fix overlay positioning: sidebar should slide over content, not push it
-- [ ] Verify z-index: sidebar (z-40) should be below overlay (z-50)
-- [ ] Test hamburger button in [Header.tsx](frontend/src/components/layout/Header.tsx)
-- [ ] Ensure clicking overlay closes sidebar on mobile
+- [X] Ensure sidebar starts collapsed on mobile (< 1024px)
+- [X] Fix overlay positioning: sidebar should slide over content, not push it
+- [X] Verify z-index: sidebar (z-40) should be below overlay (z-50)
+- [X] Test hamburger button in [Header.tsx](frontend/src/components/layout/Header.tsx)
+- [X] Ensure clicking overlay closes sidebar on mobile
 - [ ] Add swipe-to-close gesture (optional enhancement)
 
 **2.3 Add Hamburger Menu (if missing)**
-- [ ] Check [Header.tsx](frontend/src/components/layout/Header.tsx) lines 64-98
-- [ ] Verify hamburger icon displays on screens < 1024px
-- [ ] Ensure it toggles sidebar open/closed
-- [ ] Test icon changes between menu and X when open
+- [X] Check [Header.tsx](frontend/src/components/layout/Header.tsx) lines 64-98
+- [X] Verify hamburger icon displays on screens < 1024px
+- [X] Ensure it toggles sidebar open/closed
+- [X] Test icon changes between menu and X when open
 
 ---
 
 ### Settings Pages
 
 **2.4 Fix Hidden Tasks Back Button**
-- [ ] Open [hidden-tasks/page.tsx](frontend/src/app/dashboard/settings/hidden-tasks/page.tsx) line 76
-- [ ] Change href from `/settings` to `/dashboard/settings`
-- [ ] Test navigation: Hidden Tasks → Settings (should work)
-- [ ] Test breadcrumb trail if present
+- [X] Open [hidden-tasks/page.tsx](frontend/src/app/dashboard/settings/hidden-tasks/page.tsx) line 76
+- [X] Change href from `/settings` to `/dashboard/settings`
+- [X] Test navigation: Hidden Tasks → Settings (should work)
+- [X] Test breadcrumb trail if present
 
 **2.5 Disable Preferences Section**
-- [ ] Open [settings/page.tsx](frontend/src/app/dashboard/settings/page.tsx)
-- [ ] Find "Preferences" section (line 38-58)
-- [ ] Add `disabled` or `opacity-50 cursor-not-allowed` styling
-- [ ] Add tooltip: "Coming soon"
-- [ ] Prevent navigation when clicked (add `onClick={(e) => e.preventDefault()}`)
+- [X] Open [settings/page.tsx](frontend/src/app/dashboard/settings/page.tsx)
+- [X] Find "Preferences" section (line 38-58)
+- [X] Add `disabled` or `opacity-50 cursor-not-allowed` styling
+- [X] Add tooltip: "Coming soon"
+- [X] Prevent navigation when clicked (add `onClick={(e) => e.preventDefault()}`)
 
 **2.6 Fix Onboarding Replay**
-- [ ] Check "Replay Onboarding" link in settings (line 60-79)
-- [ ] Change href from `/dashboard/settings/onboarding` to a valid route
-- [ ] Option A: Create `/dashboard/settings/onboarding/page.tsx` that auto-starts tour
-- [ ] Option B: Add onClick handler to trigger onboarding:
+- [X] Check "Replay Onboarding" link in settings (line 60-79)
+- [X] Change href from `/dashboard/settings/onboarding` to a valid route
+- [X] Option A: Create `/dashboard/settings/onboarding/page.tsx` that auto-starts tour
+- [X] Option B: Add onClick handler to trigger onboarding:
   ```tsx
   import { resetOnboarding } from '@/components/onboarding/OnboardingTour'
   import { useOnboardingTour } from '@/components/onboarding/OnboardingTour'
@@ -191,16 +191,16 @@ This document outlines all frontend updates, fixes, and new features to be imple
     startTour()
   }}
   ```
-- [ ] Test onboarding replay from settings
+- [X] Test onboarding replay from settings
 
 ---
 
 ### Notes Page ([notes/page.tsx](frontend/src/app/dashboard/notes/page.tsx))
 
 **2.7 Move Archive to Settings**
-- [ ] Remove "Show Archived" button from main Notes page header (line 55-60)
-- [ ] Create new settings page: `frontend/src/app/dashboard/settings/archived-notes/page.tsx`
-- [ ] Add "Archived Notes" to settings sections in [settings/page.tsx](frontend/src/app/dashboard/settings/page.tsx):
+- [X] Remove "Show Archived" button from main Notes page header (line 55-60)
+- [X] Create new settings page: `frontend/src/app/dashboard/settings/archived-notes/page.tsx`
+- [X] Add "Archived Notes" to settings sections in [settings/page.tsx](frontend/src/app/dashboard/settings/page.tsx):
   ```tsx
   {
     title: 'Archived Notes',
@@ -209,17 +209,17 @@ This document outlines all frontend updates, fixes, and new features to be imple
     icon: <ArchiveIcon />
   }
   ```
-- [ ] Copy archived notes view logic to new settings page
-- [ ] Add back button linking to `/dashboard/settings`
-- [ ] Test archive/unarchive functionality from settings
+- [X] Copy archived notes view logic to new settings page
+- [X] Add back button linking to `/dashboard/settings`
+- [X] Test archive/unarchive functionality from settings
 
 ---
 
 ### Header ([Header.tsx](frontend/src/components/layout/Header.tsx))
 
 **2.8 Fix "+ New" Dropdown for Notes**
-- [ ] Open [Header.tsx](frontend/src/components/layout/Header.tsx) line 53-57
-- [ ] Replace `console.log('New note clicked')` with actual note creation:
+- [X] Open [Header.tsx](frontend/src/components/layout/Header.tsx) line 53-57
+- [X] Replace `console.log('New note clicked')` with actual note creation:
   ```tsx
   import { useRouter } from 'next/navigation'
   const router = useRouter()
@@ -229,7 +229,7 @@ This document outlines all frontend updates, fixes, and new features to be imple
     router.push('/dashboard/notes?create=true')
   }
   ```
-- [ ] Update [notes/page.tsx](frontend/src/app/dashboard/notes/page.tsx) to handle `?create=true` query:
+- [X] Update [notes/page.tsx](frontend/src/app/dashboard/notes/page.tsx) to handle `?create=true` query:
   ```tsx
   const searchParams = useSearchParams()
   useEffect(() => {
@@ -238,10 +238,10 @@ This document outlines all frontend updates, fixes, and new features to be imple
     }
   }, [searchParams])
   ```
-- [ ] Test: Click "+ New" → "New Note" should open note editor
+- [X] Test: Click "+ New" → "New Note" should open note editor
 
 **2.9 Make Credits Button Functional**
-- [ ] Update Credits button (line 118-137) to navigate to credits page:
+- [X] Update Credits button (line 118-137) to navigate to credits page:
   ```tsx
   <Link href="/dashboard/credits">
     <button className="flex items-center gap-1.5 ...">
@@ -249,15 +249,15 @@ This document outlines all frontend updates, fixes, and new features to be imple
     </button>
   </Link>
   ```
-- [ ] Note: Credits page will be created in Phase 3
+- [X] Note: Credits page will be created in Phase 3
 
 ---
 
 ### Profile Popover ([ProfilePopover.tsx](frontend/src/components/layout/ProfilePopover.tsx))
 
 **2.10 Update User Display**
-- [ ] Remove email display (line 54-56, 74-76)
-- [ ] Add subscription plan display:
+- [X] Remove email display (line 54-56, 74-76)
+- [X] Add subscription plan display:
   ```tsx
   import { useSubscription } from '@/lib/hooks/useSubscription'
 
@@ -268,10 +268,10 @@ This document outlines all frontend updates, fixes, and new features to be imple
     {plan === 'pro' ? '✨ Pro' : 'Free'}
   </span>
   ```
-- [ ] Style Pro badge with gradient or special color
+- [X] Style Pro badge with gradient or special color
 
 **2.11 Add Credits Button**
-- [ ] Add "Credits" menu item after Settings (line 127):
+- [X] Add "Credits" menu item after Settings (line 127):
   ```tsx
   <Link
     href="/dashboard/credits"
@@ -285,25 +285,25 @@ This document outlines all frontend updates, fixes, and new features to be imple
   ```
 
 **2.12 Make View Profile Functional**
-- [ ] Create profile page: `frontend/src/app/dashboard/profile/page.tsx`
-- [ ] Include user info form: name, email (read-only), avatar upload
-- [ ] Show subscription plan and status
-- [ ] Add "Upgrade to Pro" CTA if on free plan
-- [ ] Link from ProfilePopover already points to `/dashboard/profile` (line 84)
+- [X] Create profile page: `frontend/src/app/dashboard/profile/page.tsx`
+- [X] Include user info form: name, email (read-only), avatar upload
+- [X] Show subscription plan and status
+- [X] Add "Upgrade to Pro" CTA if on free plan
+- [X] Link from ProfilePopover already points to `/dashboard/profile` (line 84)
 
 **2.13 Make Help & Support Functional**
-- [ ] Update Help & Support link (line 129-147) to navigate to contact:
+- [X] Update Help & Support link (line 129-147) to navigate to contact:
   ```tsx
   href="/contact"
   ```
-- [ ] Alternatively, open contact page in new tab with external link icon
+- [X] Alternatively, open contact page in new tab with external link icon
 
 ---
 
 ## Phase 3: Credits System
 
 **3.1 Create Credits Schema**
-- [ ] Create `frontend/src/lib/schemas/credit-detail.schema.ts`:
+- [X] Create `frontend/src/lib/schemas/credit-detail.schema.ts`:
   ```tsx
   import { z } from 'zod'
 
@@ -330,7 +330,7 @@ This document outlines all frontend updates, fixes, and new features to be imple
   ```
 
 **3.2 Create Credits API Hook**
-- [ ] Update `frontend/src/lib/hooks/useCredits.ts`:
+- [X] Update `frontend/src/lib/hooks/useCredits.ts`:
   ```tsx
   import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
   import { apiClient } from '@/lib/api/client'
@@ -363,49 +363,49 @@ This document outlines all frontend updates, fixes, and new features to be imple
   ```
 
 **3.3 Create Credits Page**
-- [ ] Create `frontend/src/app/dashboard/credits/page.tsx`
-- [ ] Import hooks: `useCreditBalance`, `useCreditTransactions`
-- [ ] Display credits overview card:
-  - [ ] Total credits (large number)
-  - [ ] Breakdown: Subscription, Purchased, Bonus (smaller text)
-  - [ ] Visual progress bar or gauge
-- [ ] Display transaction history table:
-  - [ ] Columns: Date, Description, Source, Amount
-  - [ ] Sort by date (newest first)
-  - [ ] Pagination if > 20 transactions
-  - [ ] Color code: green for additions, red for deductions
-- [ ] Add "Purchase Credits" section:
-  - [ ] Credit packages: 10 credits ($1), 50 credits ($4), 100 credits ($7)
-  - [ ] Each package as a card with price and credit amount
-  - [ ] "Buy Now" button on each (opens checkout flow)
-- [ ] Show loading skeleton while fetching
-- [ ] Handle error states
+- [X] Create `frontend/src/app/dashboard/credits/page.tsx`
+- [X] Import hooks: `useCreditBalance`, `useCreditTransactions`
+- [X] Display credits overview card:
+  - [X] Total credits (large number)
+  - [X] Breakdown: Subscription, Purchased, Bonus (smaller text)
+  - [X] Visual progress bar or gauge
+- [X] Display transaction history table:
+  - [X] Columns: Date, Description, Source, Amount
+  - [X] Sort by date (newest first)
+  - [X] Pagination if > 20 transactions
+  - [X] Color code: green for additions, red for deductions
+- [X] Add "Purchase Credits" section:
+  - [X] Credit packages: 10 credits ($1), 50 credits ($4), 100 credits ($7)
+  - [X] Each package as a card with price and credit amount
+  - [X] "Buy Now" button on each (opens checkout flow)
+- [X] Show loading skeleton while fetching
+- [X] Handle error states
 
 **3.4 Update Credits Button in Header**
-- [ ] Verify link to `/dashboard/credits` works from Header
-- [ ] Show current credit count in button (fetch from API):
+- [X] Verify link to `/dashboard/credits` works from Header
+- [X] Show current credit count in button (fetch from API):
   ```tsx
   const { data: balance } = useCreditBalance()
   <span>{balance?.data?.total_credits || 0}</span>
   ```
-- [ ] Add loading state while fetching
+- [X] Add loading state while fetching
 
 ---
 
 ## Phase 4: Payment Integration (Checkout.com)
 
 **4.1 Research Backend Checkout.com Implementation**
-- [ ] Locate backend payment routes (likely `/api/v1/payments/*`)
-- [ ] Identify endpoints:
-  - [ ] Create payment session
-  - [ ] Handle payment callback/webhook
-  - [ ] Purchase credits endpoint
-  - [ ] Subscribe to Pro endpoint
-- [ ] Document required request/response formats
-- [ ] Check for environment variables needed (API keys, webhook URLs)
+- [X] Locate backend payment routes (likely `/api/v1/payments/*`)
+- [X] Identify endpoints:
+  - [X] Create payment session
+  - [X] Handle payment callback/webhook
+  - [X] Purchase credits endpoint
+  - [X] Subscribe to Pro endpoint
+- [X] Document required request/response formats
+- [X] Check for environment variables needed (API keys, webhook URLs)
 
 **4.2 Create Payment Service**
-- [ ] Create `frontend/src/lib/services/payment.service.ts`:
+- [X] Create `frontend/src/lib/services/payment.service.ts`:
   ```tsx
   import { apiClient } from '@/lib/api/client'
 
@@ -451,7 +451,7 @@ This document outlines all frontend updates, fixes, and new features to be imple
   ```
 
 **4.3 Implement Credit Purchase Flow**
-- [ ] Update Credits page purchase buttons:
+- [X] Update Credits page purchase buttons:
   ```tsx
   import { paymentService } from '@/lib/services/payment.service'
 
@@ -472,23 +472,23 @@ This document outlines all frontend updates, fixes, and new features to be imple
     }
   }
   ```
-- [ ] Add loading states to purchase buttons
-- [ ] Show confirmation dialog before redirect
-- [ ] Handle payment success callback (return URL)
+- [X] Add loading states to purchase buttons
+- [X] Show confirmation dialog before redirect
+- [X] Handle payment success callback (return URL)
 
 **4.4 Create Payment Success/Cancel Pages**
-- [ ] Create `frontend/src/app/dashboard/credits/payment-success/page.tsx`:
-  - [ ] Show success message
-  - [ ] Display purchased credits
-  - [ ] Button: "View Credits" → `/dashboard/credits`
-  - [ ] Confetti or celebration animation
-- [ ] Create `frontend/src/app/dashboard/credits/payment-cancel/page.tsx`:
-  - [ ] Show cancellation message
-  - [ ] Button: "Try Again" → `/dashboard/credits`
-  - [ ] Button: "Contact Support" → `/contact`
+- [X] Create `frontend/src/app/dashboard/credits/payment-success/page.tsx`:
+  - [X] Show success message
+  - [X] Display purchased credits
+  - [X] Button: "View Credits" → `/dashboard/credits`
+  - [X] Confetti or celebration animation
+- [X] Create `frontend/src/app/dashboard/credits/payment-cancel/page.tsx`:
+  - [X] Show cancellation message
+  - [X] Button: "Try Again" → `/dashboard/credits`
+  - [X] Button: "Contact Support" → `/contact`
 
 **4.5 Implement Pro Subscription Flow**
-- [ ] Update Pricing page CTA buttons:
+- [X] Update Pricing page CTA buttons:
   ```tsx
   import { paymentService } from '@/lib/services/payment.service'
   import { useAuth } from '@/lib/hooks/useAuth'
@@ -510,32 +510,32 @@ This document outlines all frontend updates, fixes, and new features to be imple
     }
   }
   ```
-- [ ] Show "Upgrade to Pro" button only for free users
-- [ ] Show "Current Plan" badge for Pro users
-- [ ] Test complete flow: Click upgrade → Redirect → (Mock payment) → Success page
+- [X] Show "Upgrade to Pro" button only for free users
+- [X] Show "Current Plan" badge for Pro users
+- [X] Test complete flow: Click upgrade → Redirect → (Mock payment) → Success page
 
 **4.6 Create Subscription Success Page**
-- [ ] Create `frontend/src/app/dashboard/subscription/success/page.tsx`:
-  - [ ] Welcome to Pro message
-  - [ ] List of unlocked features
-  - [ ] Button: "Go to Dashboard" → `/dashboard`
-  - [ ] Celebration animation
+- [X] Create `frontend/src/app/dashboard/subscription/success/page.tsx`:
+  - [X] Welcome to Pro message
+  - [X] List of unlocked features
+  - [X] Button: "Go to Dashboard" → `/dashboard`
+  - [X] Celebration animation
 
 ---
 
 ## Phase 5: Google OAuth Integration
 
 **5.1 Research Backend OAuth Implementation**
-- [ ] Locate backend OAuth routes (likely `/api/v1/auth/google/*`)
-- [ ] Identify endpoints:
-  - [ ] Initiate OAuth flow (redirect to Google)
-  - [ ] OAuth callback handler
-  - [ ] Token exchange endpoint
-- [ ] Document required environment variables (Client ID, Client Secret, Redirect URI)
-- [ ] Check session/token management strategy
+- [X] Locate backend OAuth routes (likely `/api/v1/auth/google/*`)
+- [X] Identify endpoints:
+  - [X] Initiate OAuth flow (redirect to Google)
+  - [X] OAuth callback handler
+  - [X] Token exchange endpoint
+- [X] Document required environment variables (Client ID, Client Secret, Redirect URI)
+- [X] Check session/token management strategy
 
 **5.2 Create OAuth Service**
-- [ ] Create `frontend/src/lib/services/oauth.service.ts`:
+- [X] Create `frontend/src/lib/services/oauth.service.ts`:
   ```tsx
   export const oauthService = {
     initiateGoogleLogin(redirectTo?: string) {
@@ -554,24 +554,24 @@ This document outlines all frontend updates, fixes, and new features to be imple
   ```
 
 **5.3 Create Login Page**
-- [ ] Create `frontend/src/app/login/page.tsx`:
-  - [ ] Show Perpetua logo and tagline
-  - [ ] "Sign in with Google" button (prominent, branded)
-  - [ ] Optional: Email/password form (if also implemented)
-  - [ ] Link to Privacy Policy and Terms
-  - [ ] Loading state while redirecting
-- [ ] Style to match dark theme of public pages
-- [ ] Make responsive
+- [X] Create `frontend/src/app/login/page.tsx`:
+  - [X] Show Perpetua logo and tagline
+  - [X] "Sign in with Google" button (prominent, branded)
+  - [X] Optional: Email/password form (if also implemented)
+  - [X] Link to Privacy Policy and Terms
+  - [X] Loading state while redirecting
+- [X] Style to match dark theme of public pages
+- [X] Make responsive
 
 **5.4 Update Public Navigation**
-- [ ] Add "Login" button to public page header:
-  - [ ] Update [page.tsx](frontend/src/app/page.tsx) navigation (line 159-211)
-  - [ ] Add "Login" link next to "Get Started"
-  - [ ] Link to `/login`
-- [ ] Update Footer with login link (optional)
+- [X] Add "Login" button to public page header:
+  - [X] Update [page.tsx](frontend/src/app/page.tsx) navigation (line 159-211)
+  - [X] Add "Login" link next to "Get Started"
+  - [X] Link to `/login`
+- [X] Update Footer with login link (optional)
 
 **5.5 Implement OAuth Callback Handler**
-- [ ] Create `frontend/src/app/auth/callback/page.tsx`:
+- [X] Create `frontend/src/app/auth/callback/page.tsx`:
   ```tsx
   'use client'
   import { useEffect } from 'react'
@@ -596,19 +596,19 @@ This document outlines all frontend updates, fixes, and new features to be imple
     return <div>Completing sign in...</div>
   }
   ```
-- [ ] Show loading spinner
-- [ ] Handle error states (invalid code, expired session)
+- [X] Show loading spinner
+- [X] Handle error states (invalid code, expired session)
 
 **5.6 Update Auth Context**
-- [ ] Update `frontend/src/lib/contexts/AuthContext.tsx`:
-  - [ ] Add `loginWithGoogle` function
-  - [ ] Handle OAuth session cookies
-  - [ ] Update user fetch logic to work with OAuth tokens
-  - [ ] Add logout function (clear session)
-- [ ] Update `useAuth` hook to expose OAuth functions
+- [X] Update `frontend/src/lib/contexts/AuthContext.tsx`:
+  - [X] Add `loginWithGoogle` function
+  - [X] Handle OAuth session cookies
+  - [X] Update user fetch logic to work with OAuth tokens
+  - [X] Add logout function (clear session)
+- [X] Update `useAuth` hook to expose OAuth functions
 
 **5.7 Protect Dashboard Routes**
-- [ ] Add auth check to dashboard layout:
+- [X] Add auth check to dashboard layout:
   ```tsx
   // frontend/src/app/dashboard/layout.tsx
   import { useAuth } from '@/lib/hooks/useAuth'
@@ -623,11 +623,11 @@ This document outlines all frontend updates, fixes, and new features to be imple
     }
   }, [user, isLoading])
   ```
-- [ ] Show loading state while checking auth
-- [ ] Test: Access dashboard without login → Redirect to login
+- [X] Show loading state while checking auth
+- [X] Test: Access dashboard without login → Redirect to login
 
 **5.8 Add Logout Functionality**
-- [ ] Update [ProfilePopover.tsx](frontend/src/components/layout/ProfilePopover.tsx) logout (line 32-36):
+- [X] Update [ProfilePopover.tsx](frontend/src/components/layout/ProfilePopover.tsx) logout (line 32-36):
   ```tsx
   import { useAuth } from '@/lib/hooks/useAuth'
 
@@ -642,16 +642,16 @@ This document outlines all frontend updates, fixes, and new features to be imple
     }
   }
   ```
-- [ ] Clear all client-side state on logout
-- [ ] Test full flow: Login → Use app → Logout → Redirect to login
+- [X] Clear all client-side state on logout
+- [X] Test full flow: Login → Use app → Logout → Redirect to login
 
 ---
 
 ## Phase 6: Achievements System
 
 **6.1 Fetch Achievements from Backend**
-- [ ] Locate backend achievements endpoint (likely `/api/v1/achievements`)
-- [ ] Document achievement data structure:
+- [X] Locate backend achievements endpoint (likely `/api/v1/achievements`)
+- [X] Document achievement data structure:
   ```tsx
   interface Achievement {
     id: string
@@ -667,7 +667,7 @@ This document outlines all frontend updates, fixes, and new features to be imple
   ```
 
 **6.2 Update Achievement Hook**
-- [ ] Update `frontend/src/lib/hooks/useAchievements.ts`:
+- [X] Update `frontend/src/lib/hooks/useAchievements.ts`:
   ```tsx
   import { useQuery } from '@tanstack/react-query'
   import { apiClient } from '@/lib/api/client'
@@ -688,32 +688,32 @@ This document outlines all frontend updates, fixes, and new features to be imple
   ```
 
 **6.3 Update Achievements Page**
-- [ ] Open [achievements/page.tsx](frontend/src/app/dashboard/achievements/page.tsx)
-- [ ] Replace mock data with `useAchievements()` hook
-- [ ] Display all achievements (locked and unlocked):
-  - [ ] Unlocked: Full color, show unlock date
-  - [ ] Locked: Grayscale/low opacity, show progress bar if applicable
-  - [ ] Group by category (optional)
-- [ ] Add filters:
-  - [ ] "All", "Unlocked", "Locked"
-  - [ ] Category filter (Tasks, Streaks, Focus, etc.)
-- [ ] Add search functionality
-- [ ] Show achievement stats at top:
-  - [ ] "X of Y achievements unlocked"
-  - [ ] Progress bar
+- [X] Open [achievements/page.tsx](frontend/src/app/dashboard/achievements/page.tsx)
+- [X] Replace mock data with `useAchievements()` hook
+- [X] Display all achievements (locked and unlocked):
+  - [X] Unlocked: Full color, show unlock date
+  - [X] Locked: Grayscale/low opacity, show progress bar if applicable
+  - [X] Group by category (optional)
+- [X] Add filters:
+  - [X] "All", "Unlocked", "Locked"
+  - [X] Category filter (Tasks, Streaks, Focus, etc.)
+- [X] Add search functionality
+- [X] Show achievement stats at top:
+  - [X] "X of Y achievements unlocked"
+  - [X] Progress bar
 
 **6.4 Create Achievement Detail Modal**
-- [ ] Create `frontend/src/components/achievements/AchievementDetail.tsx`:
-  - [ ] Show large achievement icon
-  - [ ] Name and description
-  - [ ] Unlock date (if unlocked)
-  - [ ] Progress towards next achievement (if locked)
-  - [ ] Tips on how to unlock
-  - [ ] Share button (optional)
-- [ ] Open modal when achievement is clicked
+- [X] Create `frontend/src/components/achievements/AchievementDetail.tsx`:
+  - [X] Show large achievement icon
+  - [X] Name and description
+  - [X] Unlock date (if unlocked)
+  - [X] Progress towards next achievement (if locked)
+  - [X] Tips on how to unlock
+  - [X] Share button (optional)
+- [X] Open modal when achievement is clicked
 
 **6.5 Add Achievement Notifications**
-- [ ] Create achievement unlock notification:
+- [X] Create achievement unlock notification:
   ```tsx
   // When new achievement is unlocked (via WebSocket or polling)
   toast({
@@ -723,13 +723,13 @@ This document outlines all frontend updates, fixes, and new features to be imple
     duration: 5000,
   })
   ```
-- [ ] Consider confetti animation on unlock
-- [ ] Add to notifications dropdown
+- [X] Consider confetti animation on unlock
+- [X] Add to notifications dropdown
 
 **6.6 Add Achievement Badges to Profile**
-- [ ] Update profile page to show recent achievements
-- [ ] Display top 3-5 achievements as badges
-- [ ] Add "View All" button linking to `/dashboard/achievements`
+- [X] Update profile page to show recent achievements
+- [X] Display top 3-5 achievements as badges
+- [X] Add "View All" button linking to `/dashboard/achievements`
 
 ---
 
@@ -824,15 +824,15 @@ npm install zod  # For schemas (already installed)
 ## Completion Tracking
 
 **Phase 1**: [X] 10/10 tasks complete
-**Phase 2**: [ ] 0/13 tasks complete
-**Phase 3**: [ ] 0/4 tasks complete
-**Phase 4**: [ ] 0/6 tasks complete
-**Phase 5**: [ ] 0/8 tasks complete
-**Phase 6**: [ ] 0/6 tasks complete
+**Phase 2**: [X] 13/13 tasks complete
+**Phase 3**: [X] 4/4 tasks complete
+**Phase 4**: [X] 6/6 tasks complete
+**Phase 5**: [X] 8/8 tasks complete
+**Phase 6**: [X] 6/6 tasks complete
 
-**Overall Progress**: 10/47 tasks complete (21%)
+**Overall Progress**: 47/47 tasks complete (100%)
 
 ---
 
 **Last Updated**: 2026-02-09
-**Status**: Ready for implementation
+**Status**: Phase 6 Complete - ALL PHASES COMPLETE! 🎉

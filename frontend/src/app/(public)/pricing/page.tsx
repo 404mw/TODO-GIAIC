@@ -13,9 +13,13 @@
 
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
+import { useCreateCheckoutSession } from '@/lib/hooks/useSubscription'
+import { Loader2 } from 'lucide-react'
 
 const PLANS = [
   {
@@ -130,6 +134,21 @@ const FAQS = [
 
 export default function PricingPage() {
   const shouldReduceMotion = useReducedMotion()
+  const router = useRouter()
+  const createCheckoutSession = useCreateCheckoutSession()
+  const [upgrading, setUpgrading] = useState(false)
+
+  const handleUpgrade = async () => {
+    try {
+      setUpgrading(true)
+      // The mutation automatically redirects to checkout URL on success
+      await createCheckoutSession.mutateAsync()
+    } catch (error) {
+      console.error('Failed to create checkout session:', error)
+      alert('Failed to start upgrade process. Please try again or contact support.')
+      setUpgrading(false)
+    }
+  }
 
   return (
     <div className="min-h-screen">
@@ -209,17 +228,36 @@ export default function PricingPage() {
                       </li>
                     ))}
                   </ul>
-                  <Link
-                    href={plan.ctaLink}
-                    className={[
-                      'mt-8 block w-full rounded-lg px-4 py-3 text-center text-sm font-medium transition-all',
-                      plan.highlighted
-                        ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:from-blue-600 hover:to-purple-700'
-                        : 'border border-white/20 text-white hover:bg-white/10',
-                    ].join(' ')}
-                  >
-                    {plan.cta}
-                  </Link>
+                  {plan.name === 'Pro' ? (
+                    <button
+                      onClick={handleUpgrade}
+                      disabled={upgrading}
+                      className={[
+                        'mt-8 flex w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-center text-sm font-medium transition-all',
+                        'bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:from-blue-600 hover:to-purple-700',
+                        'disabled:opacity-50 disabled:cursor-not-allowed',
+                      ].join(' ')}
+                    >
+                      {upgrading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Processing...
+                        </>
+                      ) : (
+                        plan.cta
+                      )}
+                    </button>
+                  ) : (
+                    <Link
+                      href={plan.ctaLink}
+                      className={[
+                        'mt-8 block w-full rounded-lg px-4 py-3 text-center text-sm font-medium transition-all',
+                        'border border-white/20 text-white hover:bg-white/10',
+                      ].join(' ')}
+                    >
+                      {plan.cta}
+                    </Link>
+                  )}
                 </div>
               </motion.div>
             ))}

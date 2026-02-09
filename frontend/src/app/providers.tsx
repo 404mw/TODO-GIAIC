@@ -5,6 +5,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { useState, useEffect, createContext, useContext } from 'react'
 import { CommandPalette } from '@/components/ui/CommandPalette'
 import { OnboardingTour } from '@/components/onboarding/OnboardingTour'
+import { AuthProvider } from '@/lib/contexts/AuthContext'
 
 /**
  * MSW Ready context - allows components to know when MSW is initialized
@@ -88,12 +89,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <MSWReadyContext.Provider value={mswReady}>
       <QueryClientProvider client={queryClient}>
-        {children}
-        <CommandPalette />
-        <OnboardingTour autoStart />
-        {process.env.NODE_ENV === 'development' && (
-          <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-right" />
-        )}
+        <AuthProvider>
+          {children}
+          <CommandPalette />
+          <OnboardingTour autoStart />
+          {process.env.NODE_ENV === 'development' && (
+            <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-right" />
+          )}
+        </AuthProvider>
       </QueryClientProvider>
     </MSWReadyContext.Provider>
   )

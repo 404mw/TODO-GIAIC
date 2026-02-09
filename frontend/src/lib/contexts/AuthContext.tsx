@@ -4,6 +4,7 @@ import { createContext, useState, useEffect, ReactNode } from 'react';
 import { apiClient } from '@/lib/api/client';
 import { AuthTokenSchema, LoginRequestSchema, type LoginRequest } from '@/lib/schemas/auth.schema';
 import type { User } from '@/lib/schemas/user.schema';
+import { oauthService } from '@/lib/services/oauth.service';
 import { z } from 'zod';
 
 const UserResponseSchema = z.object({
@@ -21,7 +22,9 @@ const UserResponseSchema = z.object({
 interface AuthContextType {
   user: User | null;
   login: (credentials: LoginRequest) => Promise<void>;
+  loginWithGoogle: (redirectTo?: string) => void;
   logout: () => void;
+  refetch: () => Promise<void>;
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
@@ -99,10 +102,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  function loginWithGoogle(redirectTo?: string) {
+    try {
+      setError(null);
+      oauthService.initiateGoogleLogin(redirectTo);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to initiate Google login';
+      setError(errorMessage);
+    }
+  }
+
   function logout() {
     localStorage.removeItem('auth_token');
     setUser(null);
     setError(null);
+  }
+
+  async function refetch() {
+    await fetchCurrentUser();
   }
 
   function clearError() {
@@ -114,7 +131,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         login,
+        loginWithGoogle,
         logout,
+        refetch,
         isAuthenticated: !!user,
         isLoading,
         error,
