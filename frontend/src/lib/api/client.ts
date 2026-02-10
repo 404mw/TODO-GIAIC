@@ -19,6 +19,19 @@ function getAuthToken(): string | null {
   return localStorage.getItem('auth_token');
 }
 
+function generateIdempotencyKey(): string {
+  // Generate UUID v4 for idempotency key (FR-059)
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // Fallback for older browsers
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 async function handleResponse<T>(
   response: Response,
   schema?: z.ZodType<T>
@@ -72,6 +85,7 @@ export const apiClient = {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Idempotency-Key': generateIdempotencyKey(),
         ...(getAuthToken() && { Authorization: `Bearer ${getAuthToken()}` }),
       },
       body: JSON.stringify(body),
@@ -96,6 +110,7 @@ export const apiClient = {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
+        'Idempotency-Key': generateIdempotencyKey(),
         ...(getAuthToken() && { Authorization: `Bearer ${getAuthToken()}` }),
       },
       body: JSON.stringify(body),

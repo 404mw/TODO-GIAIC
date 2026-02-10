@@ -32,16 +32,35 @@ export default function TaskDetailPage({
   }
 
   if (error || !task) {
+    // Log error for debugging
+    if (error) {
+      console.error('[TaskDetail] Failed to load task:', {
+        taskId: id,
+        error,
+        message: error instanceof Error ? error.message : 'Unknown error',
+      })
+    }
+
     return (
       <DashboardLayout>
         <div className="flex min-h-[60vh] items-center justify-center">
-          <div className="text-center">
+          <div className="text-center max-w-lg mx-auto px-4">
             <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
               Task not found
             </h2>
             <p className="mt-2 text-gray-600 dark:text-gray-400">
               The task you're looking for doesn't exist or has been deleted.
             </p>
+            {process.env.NODE_ENV === 'development' && error && (
+              <details className="mt-4 text-left">
+                <summary className="cursor-pointer text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">
+                  Error Details (dev only)
+                </summary>
+                <pre className="mt-2 p-4 bg-gray-100 dark:bg-gray-800 rounded text-xs overflow-auto max-h-64 text-red-600 dark:text-red-400">
+                  {JSON.stringify(error, null, 2)}
+                </pre>
+              </details>
+            )}
           </div>
         </div>
       </DashboardLayout>

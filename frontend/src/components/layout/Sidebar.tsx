@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, PanInfo } from 'framer-motion'
 import { useSidebarStore } from '@/lib/stores/useSidebarStore'
 import { useFocusStore } from '@/lib/stores/useFocusStore'
 import { useCommandPaletteStore } from '@/lib/stores/useCommandPaletteStore'
@@ -34,10 +34,36 @@ import { navigationItems } from '@/lib/config/navigation'
  */
 
 export function Sidebar() {
-  const { isOpen, toggle } = useSidebarStore()
+  const { isOpen, isMobile, toggle, close, setMobile } = useSidebarStore()
   const { isActive: isFocusModeActive } = useFocusStore()
   const { open: openCommandPalette } = useCommandPaletteStore()
   const [isLogoHovered, setIsLogoHovered] = useState(false)
+
+  // Handle window resize to detect mobile/desktop
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth < 1024
+      setMobile(mobile)
+    }
+
+    // Set initial state
+    handleResize()
+
+    // Listen for resize
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [setMobile])
+
+  // Handle swipe to close on mobile
+  const handleDragEnd = (_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    // Only on mobile and when sidebar is open
+    if (isMobile && isOpen) {
+      // If dragged left more than 50px or velocity is negative, close
+      if (info.offset.x < -50 || info.velocity.x < -500) {
+        close()
+      }
+    }
+  }
 
   // FR-039: Hide sidebar when Focus Mode is active
   if (isFocusModeActive) {
@@ -52,9 +78,23 @@ export function Sidebar() {
         aria-label="Main navigation sidebar"
         data-onboarding="sidebar"
         initial={false}
-        animate={{
-          width: isOpen ? 256 : 72,
-        }}
+        animate={
+          isMobile
+            ? {
+                // Mobile: slide in/out
+                x: isOpen ? 0 : -256,
+                width: 256,
+              }
+            : {
+                // Desktop: collapse/expand width
+                x: 0,
+                width: isOpen ? 256 : 72,
+              }
+        }
+        drag={isMobile && isOpen ? 'x' : false}
+        dragConstraints={{ left: -256, right: 0 }}
+        dragElastic={0.1}
+        onDragEnd={handleDragEnd}
         transition={{
           type: 'spring',
           stiffness: 300,
@@ -68,10 +108,10 @@ export function Sidebar() {
           .filter(Boolean)
           .join(' ')}
       >
-        {/* Sidebar flap button - always visible on right edge */}
+        {/* Sidebar flap button - desktop only (mobile uses header hamburger) */}
         <button
           onClick={toggle}
-          className="absolute -right-3 top-1/2 -translate-y-1/2 z-60 flex h-6 w-6 items-center justify-center rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-md text-gray-500 hover:text-blue-600 hover:border-blue-300 dark:hover:text-blue-400 dark:hover:border-blue-600 transition-colors"
+          className="absolute -right-3 top-1/2 -translate-y-1/2 z-60 hidden lg:flex h-6 w-6 items-center justify-center rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-md text-gray-500 hover:text-blue-600 hover:border-blue-300 dark:hover:text-blue-400 dark:hover:border-blue-600 transition-colors"
           aria-label={isOpen ? 'Collapse sidebar' : 'Expand sidebar'}
         >
           <svg

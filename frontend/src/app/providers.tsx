@@ -34,7 +34,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
             // Default query options
             staleTime: 1000 * 60 * 5, // 5 minutes
             gcTime: 1000 * 60 * 10, // 10 minutes (formerly cacheTime)
-            refetchOnWindowFocus: true,
+            refetchOnWindowFocus: false, // Disable aggressive refetch on tab/window switch
             refetchOnReconnect: true,
             retry: 1,
           },
