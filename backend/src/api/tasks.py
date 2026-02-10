@@ -282,11 +282,17 @@ async def create_task(
     return DataResponse(data=response)
 
 
+@router.put(
+    "/{task_id}",
+    response_model=DataResponse[TaskResponse],
+    summary="Update task",
+    description="Update task with PUT/PATCH semantics and optimistic locking (FR-058, FR-014).",
+)
 @router.patch(
     "/{task_id}",
     response_model=DataResponse[TaskResponse],
     summary="Update task",
-    description="Update task with PATCH semantics and optimistic locking (FR-058, FR-014).",
+    description="Update task with PUT/PATCH semantics and optimistic locking (FR-058, FR-014).",
 )
 async def update_task(
     task_id: UUID,
