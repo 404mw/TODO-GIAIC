@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
+import sqlalchemy as sa
 from sqlmodel import Field, Relationship, SQLModel
 
 from src.models.base import BaseModel, VersionedModel
@@ -35,11 +36,13 @@ class TaskInstanceBase(SQLModel):
     )
     priority: TaskPriority = Field(
         default=TaskPriority.MEDIUM,
+        sa_type=sa.Enum("low", "medium", "high", name="task_priority", create_type=False),
         nullable=False,
         description="Task priority level",
     )
     due_date: datetime | None = Field(
         default=None,
+        sa_type=sa.DateTime(timezone=True),
         description="Task deadline (UTC)",
     )
     estimated_duration: int | None = Field(
@@ -91,10 +94,12 @@ class TaskInstance(TaskInstanceBase, VersionedModel, table=True):
     )
     completed_at: datetime | None = Field(
         default=None,
+        sa_type=sa.DateTime(timezone=True),
         description="Completion timestamp (UTC)",
     )
     completed_by: CompletedBy | None = Field(
         default=None,
+        sa_type=sa.Enum("manual", "auto", "force", name="completed_by", create_type=False),
         description="How task was completed (manual/auto/force)",
     )
 
@@ -165,6 +170,7 @@ class TaskTemplate(BaseModel, table=True):
     )
     priority: TaskPriority = Field(
         default=TaskPriority.MEDIUM,
+        sa_type=sa.Enum("low", "medium", "high", name="task_priority", create_type=False),
         nullable=False,
         description="Default priority",
     )
@@ -182,6 +188,7 @@ class TaskTemplate(BaseModel, table=True):
     )
     next_due: datetime | None = Field(
         default=None,
+        sa_type=sa.DateTime(timezone=True),
         description="Next instance due date (UTC)",
     )
     active: bool = Field(

@@ -7,6 +7,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
+import sqlalchemy as sa
 from sqlmodel import Field, Relationship, SQLModel
 
 from src.models.base import BaseModel
@@ -21,6 +22,7 @@ class ReminderBase(SQLModel):
     """Base fields for Reminder model."""
 
     type: ReminderType = Field(
+        sa_type=sa.Enum("before", "after", "absolute", name="reminder_type", create_type=False),
         nullable=False,
         description="Reminder timing type (before/after/absolute)",
     )
@@ -30,6 +32,7 @@ class ReminderBase(SQLModel):
     )
     method: NotificationMethod = Field(
         default=NotificationMethod.IN_APP,
+        sa_type=sa.Enum("push", "in_app", name="notification_method", create_type=False),
         nullable=False,
         description="Notification delivery method",
     )
@@ -66,6 +69,7 @@ class Reminder(ReminderBase, BaseModel, table=True):
 
     # Scheduled time (calculated from task due_date and offset)
     scheduled_at: datetime = Field(
+        sa_type=sa.DateTime(timezone=True),
         nullable=False,
         index=True,
         description="Calculated notification time (UTC)",
@@ -79,6 +83,7 @@ class Reminder(ReminderBase, BaseModel, table=True):
     )
     fired_at: datetime | None = Field(
         default=None,
+        sa_type=sa.DateTime(timezone=True),
         description="When notification was sent (UTC)",
     )
 
