@@ -16,7 +16,7 @@ import { useAuth } from '@/lib/hooks/useAuth'
 function LoginPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { user, isLoading: authLoading } = useAuth()
+  const { user, isLoading: authLoading, refetch } = useAuth()
 
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -42,6 +42,9 @@ function LoginPageContent() {
 
       // Send ID token to backend
       await oauthService.authenticateWithGoogle(credentialResponse.credential)
+
+      // Refetch user data to update AuthContext
+      await refetch()
 
       // Redirect to dashboard or specified redirect path
       router.push(redirectTo)
