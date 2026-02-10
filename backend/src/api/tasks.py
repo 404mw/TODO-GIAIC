@@ -106,6 +106,7 @@ async def list_tasks(
         task_responses.append(
             TaskResponse(
                 id=task.id,
+                user_id=task.user_id,
                 title=task.title,
                 description=task.description or "",
                 priority=task.priority,
@@ -191,6 +192,7 @@ async def get_task(
 
     response = TaskDetailResponse(
         id=task.id,
+        user_id=task.user_id,
         title=task.title,
         description=task.description or "",
         priority=task.priority,
@@ -257,6 +259,7 @@ async def create_task(
 
     response = TaskResponse(
         id=task.id,
+        user_id=task.user_id,
         title=task.title,
         description=task.description or "",
         priority=task.priority,
@@ -332,6 +335,7 @@ async def update_task(
 
     response = TaskResponse(
         id=task.id,
+        user_id=task.user_id,
         title=task.title,
         description=task.description or "",
         priority=task.priority,
@@ -446,6 +450,7 @@ async def force_complete_task(
 
     task_detail = TaskDetailResponse(
         id=task.id,
+        user_id=task.user_id,
         title=task.title,
         description=task.description or "",
         priority=task.priority,

@@ -44,7 +44,10 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("operation_ref", sa.String(255), nullable=True),
+        sa.Column("consumed", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("expires_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("expired", sa.Boolean(), nullable=False, server_default="false"),
+        sa.Column("source_id", sa.UUID(), nullable=True),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -92,6 +95,12 @@ def upgrade() -> None:
         sa.Column("grace_period_end", sa.DateTime(timezone=True), nullable=True),
         sa.Column(
             "failed_payment_count", sa.Integer(), nullable=False, server_default="0"
+        ),
+        sa.Column("retry_count", sa.Integer(), nullable=False, server_default="0"),
+        sa.Column("last_retry_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("last_payment_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column(
+            "grace_warning_sent", sa.Boolean(), nullable=False, server_default="false"
         ),
         sa.Column("cancelled_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column(
