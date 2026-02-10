@@ -3,10 +3,11 @@
 T044: RefreshToken model per authentication.md
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
+from sqlalchemy import DateTime
 from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
@@ -51,6 +52,7 @@ class RefreshToken(SQLModel, table=True):
 
     # Expiration
     expires_at: datetime = Field(
+        sa_type=DateTime(timezone=True),
         nullable=False,
         index=True,
         description="Token expiration time (UTC)",
@@ -58,13 +60,15 @@ class RefreshToken(SQLModel, table=True):
 
     # Revocation (revoked_at IS NULL = not revoked)
     revoked_at: datetime | None = Field(
+        sa_type=DateTime(timezone=True),
         default=None,
         description="When token was revoked (UTC)",
     )
 
     # Timestamps
     created_at: datetime = Field(
-        default_factory=datetime.utcnow,
+        default_factory=lambda: datetime.now(UTC),
+        sa_type=DateTime(timezone=True),
         nullable=False,
         description="Token creation time (UTC)",
     )
@@ -83,4 +87,4 @@ class RefreshToken(SQLModel, table=True):
         """Check if token is valid (not expired and not revoked)."""
         if self.revoked_at is not None:
             return False
-        return datetime.utcnow() < self.expires_at
+        return datetime.now(UTC) < self.expires_at
