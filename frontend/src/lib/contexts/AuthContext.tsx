@@ -9,13 +9,13 @@ import { z } from 'zod';
 
 const UserResponseSchema = z.object({
   data: z.object({
-    id: z.string().uuid(),
+    id: z.string(),
+    google_id: z.string(),
     email: z.string().email(),
-    full_name: z.string(),
-    is_active: z.boolean(),
+    name: z.string(),
+    avatar_url: z.string().nullable(),
+    timezone: z.string(),
     tier: z.enum(['free', 'pro']).default('free'),
-    created_at: z.string(),
-    updated_at: z.string().optional(),
   }),
 });
 
@@ -54,14 +54,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Map API response to User type
       const mappedUser: User = {
         id: response.data.id,
-        google_id: '', // Not returned by API, will be populated during OAuth
+        google_id: response.data.google_id,
         email: response.data.email,
-        name: response.data.full_name,
-        avatar_url: null, // Not returned by API
-        timezone: 'UTC', // Default timezone
+        name: response.data.name,
+        avatar_url: response.data.avatar_url,
+        timezone: response.data.timezone,
         tier: response.data.tier,
-        created_at: response.data.created_at,
-        updated_at: response.data.updated_at || response.data.created_at,
+        created_at: new Date().toISOString(), // Not returned by /users/me
+        updated_at: new Date().toISOString(), // Not returned by /users/me
       };
       setUser(mappedUser);
       setError(null);
