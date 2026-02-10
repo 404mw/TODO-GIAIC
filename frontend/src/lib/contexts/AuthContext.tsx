@@ -7,16 +7,15 @@ import type { User } from '@/lib/schemas/user.schema';
 import { oauthService } from '@/lib/services/oauth.service';
 import { z } from 'zod';
 
+// apiClient automatically unwraps "data" field, so schema should match the unwrapped structure
 const UserResponseSchema = z.object({
-  data: z.object({
-    id: z.string(),
-    google_id: z.string(),
-    email: z.string().email(),
-    name: z.string(),
-    avatar_url: z.string().nullable(),
-    timezone: z.string(),
-    tier: z.enum(['free', 'pro']).default('free'),
-  }),
+  id: z.string(),
+  google_id: z.string(),
+  email: z.string().email(),
+  name: z.string(),
+  avatar_url: z.string().nullable(),
+  timezone: z.string(),
+  tier: z.enum(['free', 'pro']).default('free'),
 });
 
 interface AuthContextType {
@@ -51,15 +50,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function fetchCurrentUser() {
     try {
       const response = await apiClient.get('/users/me', UserResponseSchema);
-      // Map API response to User type
+      // apiClient automatically unwraps the "data" field, so response is the user object directly
       const mappedUser: User = {
-        id: response.data.id,
-        google_id: response.data.google_id,
-        email: response.data.email,
-        name: response.data.name,
-        avatar_url: response.data.avatar_url,
-        timezone: response.data.timezone,
-        tier: response.data.tier,
+        id: response.id,
+        google_id: response.google_id,
+        email: response.email,
+        name: response.name,
+        avatar_url: response.avatar_url,
+        timezone: response.timezone,
+        tier: response.tier,
         created_at: new Date().toISOString(), // Not returned by /users/me
         updated_at: new Date().toISOString(), // Not returned by /users/me
       };
