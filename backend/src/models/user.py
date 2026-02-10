@@ -6,6 +6,7 @@ T030: User model per data-model.md Entity 1
 from typing import TYPE_CHECKING, Optional
 
 from pydantic import EmailStr
+from sqlalchemy import Column, Enum as SAEnum
 from sqlmodel import Field, Relationship, SQLModel
 
 from src.models.base import BaseModel
@@ -56,6 +57,7 @@ class UserBase(SQLModel):
     tier: UserTier = Field(
         default=UserTier.FREE,
         nullable=False,
+        sa_column=Column(SAEnum(UserTier, name="user_tier"), nullable=False),
         description="Subscription tier",
     )
 
