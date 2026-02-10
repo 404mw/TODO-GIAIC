@@ -1,0 +1,58 @@
+# Dockerfile.worker - Background job worker container
+# T206: Create Dockerfile.worker for Railway deployment
+
+FROM python:3.11-slim AS base
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# =============================================================================
+# BUILDER STAGE - Install dependencies
+# =============================================================================
+
+FROM base AS builder
+
+# Copy requirements first for caching
+COPY pyproject.toml ./
+
+# Install Python dependencies
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir .
+
+# =============================================================================
+# PRODUCTION STAGE - Final image
+# =============================================================================
+
+FROM base AS production
+
+# Copy installed packages from builder
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+# Copy application code
+COPY src/ ./src/
+COPY worker/ ./worker/
+COPY alembic/ ./alembic/
+COPY alembic.ini ./
+
+# Set environment variables
+ENV PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+
+# Create non-root user for security
+RUN useradd -m -u 1000 worker && chown -R worker:worker /app
+USER worker
+
+# Health check - verify worker is running
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python -c "import asyncio; asyncio.get_event_loop()" || exit 1
+
+# Run the worker
+CMD ["python", "-m", "worker.main"]
