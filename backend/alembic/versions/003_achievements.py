@@ -77,6 +77,12 @@ def upgrade() -> None:
         sa.Column("notes_converted", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("unlocked_achievements", sa.JSON(), nullable=False, server_default="[]"),
         sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("CURRENT_TIMESTAMP"),
+        ),
+        sa.Column(
             "updated_at",
             sa.DateTime(timezone=True),
             nullable=False,
