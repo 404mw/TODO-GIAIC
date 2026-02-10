@@ -4,11 +4,14 @@ Loads configuration from environment variables and .env file.
 All settings are validated at startup.
 """
 
+import logging
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field, SecretStr, field_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
@@ -65,6 +68,47 @@ class Settings(BaseSettings):
         le=30,
         description="Refresh token expiry in days",
     )
+
+    @model_validator(mode="after")
+    def ensure_jwt_keys(self) -> "Settings":
+        """Ensure JWT keys are available by auto-generating if not provided.
+
+        Priority:
+        1. File paths (jwt_private_key_path, jwt_public_key_path)
+        2. Inline values (jwt_private_key, jwt_public_key)
+        3. Auto-generate and save to keys/ directory
+
+        Returns:
+            Settings: Self with JWT keys ensured
+        """
+        # Check if keys are already provided via file paths
+        if self.jwt_private_key_path and self.jwt_public_key_path:
+            return self
+
+        # Check if keys are provided inline
+        private_key_value = self.jwt_private_key.get_secret_value()
+        public_key_value = self.jwt_public_key
+
+        if private_key_value and public_key_value:
+            return self
+
+        # Auto-generate keys if not provided
+        logger.warning(
+            "JWT keys not found in environment. Auto-generating RSA key pair. "
+            "For production, provide JWT_PRIVATE_KEY and JWT_PUBLIC_KEY environment variables."
+        )
+
+        from src.lib.jwt_keys import get_or_generate_keys
+
+        private_key, public_key = get_or_generate_keys()
+
+        # Update the settings with generated keys
+        self.jwt_private_key = SecretStr(private_key)
+        self.jwt_public_key = public_key
+
+        logger.info("✅ JWT keys generated and cached in keys/ directory")
+
+        return self
 
     def get_jwt_private_key(self) -> str:
         """Get JWT private key from file or inline value."""
@@ -257,10 +301,30 @@ class Settings(BaseSettings):
 
     @field_validator("cors_origins", mode="before")
     @classmethod
-    def parse_cors_origins(cls, v: str | list[str]) -> list[str]:
-        """Parse CORS origins from comma-separated string or list."""
+    def parse_cors_origins(cls, v: str | list[str] | None) -> list[str]:
+        """Parse CORS origins from comma-separated string or list.
+
+        Handles:
+        - JSON array: ["https://example.com"]
+        - Comma-separated string: "https://example.com,http://localhost:3000"
+        - Empty string or None: returns default value
+        """
+        if v is None or v == "":
+            return ["http://localhost:3000", "http://localhost:5173"]
+
         if isinstance(v, str):
+            # Try to parse as JSON first (handles ["url1", "url2"])
+            import json
+            try:
+                parsed = json.loads(v)
+                if isinstance(parsed, list):
+                    return parsed
+            except json.JSONDecodeError:
+                pass
+
+            # Fall back to comma-separated parsing
             return [origin.strip() for origin in v.split(",") if origin.strip()]
+
         return v
 
     @property
