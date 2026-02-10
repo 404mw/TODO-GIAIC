@@ -56,7 +56,8 @@ class UserBase(SQLModel):
     )
     tier: UserTier = Field(
         default=UserTier.FREE,
-        sa_column=Column(SAEnum(UserTier, name="user_tier"), nullable=False),
+        sa_type=SAEnum("free", "pro", name="user_tier"),
+        nullable=False,
         description="Subscription tier",
     )
 
