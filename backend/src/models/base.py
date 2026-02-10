@@ -9,6 +9,7 @@ All database models should inherit from BaseModel to get:
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
+from sqlalchemy import Column, DateTime
 from sqlmodel import Field, SQLModel
 
 
@@ -22,13 +23,16 @@ class TimestampMixin(SQLModel):
 
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC),
-        nullable=False,
+        sa_column=Column(DateTime(timezone=True), nullable=False),
         description="Record creation timestamp (UTC)",
     )
     updated_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC),
-        sa_column_kwargs={"onupdate": lambda: datetime.now(UTC)},
-        nullable=False,
+        sa_column=Column(
+            DateTime(timezone=True),
+            nullable=False,
+            onupdate=lambda: datetime.now(UTC),
+        ),
         description="Last update timestamp (UTC)",
     )
 
