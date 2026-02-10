@@ -13,8 +13,17 @@ import { z } from 'zod'
  */
 const TokenResponseSchema = z.object({
   access_token: z.string(),
-  refresh_token: z.string().optional(),
+  refresh_token: z.string(),
   token_type: z.string().default('Bearer'),
+  expires_in: z.number(),
+  user: z.object({
+    id: z.string().uuid(),
+    email: z.string().email(),
+    name: z.string(),
+    avatar_url: z.string().nullable(),
+    tier: z.enum(['free', 'pro']),
+    created_at: z.string(),
+  }).optional(),
 })
 
 /**
@@ -40,7 +49,7 @@ export const oauthService = {
    * @param idToken - Google ID token from Google Sign-In SDK
    * @returns Promise with access token
    */
-  async authenticateWithGoogle(idToken: string): Promise<{ access_token: string; refresh_token?: string }> {
+  async authenticateWithGoogle(idToken: string): Promise<{ access_token: string; refresh_token: string }> {
     try {
       const response = await apiClient.post(
         '/auth/google/callback',
@@ -48,10 +57,25 @@ export const oauthService = {
         TokenResponseSchema
       )
 
+      console.log('✅ Auth response received:', {
+        hasAccessToken: !!response.access_token,
+        hasRefreshToken: !!response.refresh_token,
+        hasUser: !!response.user,
+      })
+
       // Store tokens in localStorage
-      localStorage.setItem('auth_token', response.access_token)
+      if (response.access_token) {
+        localStorage.setItem('auth_token', response.access_token)
+        console.log('✅ Stored auth_token in localStorage')
+      } else {
+        console.error('❌ No access_token in response!')
+      }
+
       if (response.refresh_token) {
         localStorage.setItem('refresh_token', response.refresh_token)
+        console.log('✅ Stored refresh_token in localStorage')
+      } else {
+        console.error('❌ No refresh_token in response!')
       }
 
       return {
