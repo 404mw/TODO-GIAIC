@@ -44,6 +44,14 @@ export function TaskCard({ task, showProgress = false }: TaskCardProps) {
   const incompleteSubtasks = subtasks.filter((st: Subtask) => !st.completed)
   const hasIncompleteSubtasks = incompleteSubtasks.length > 0
 
+  // Use schema fields for subtask counts when available (avoids extra API call in list view)
+  // Fall back to fetched subtasks for expanded view
+  const hasSubtaskCounts = typeof task.subtask_count === 'number'
+  const subtaskCount = hasSubtaskCounts ? task.subtask_count! : subtasks.length
+  const subtaskCompletedCount = hasSubtaskCounts
+    ? task.subtask_completed_count!
+    : subtasks.filter((st: Subtask) => st.completed).length
+
   // Handle click outside to collapse subtasks
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -248,14 +256,15 @@ export function TaskCard({ task, showProgress = false }: TaskCardProps) {
                   {task.priority || 'low'}
                 </span>
 
-                {/* Subtasks progress */}
-                {subtasks.length > 0 && (
+                {/* Subtasks progress - uses schema fields (subtask_count, subtask_completed_count) when available */}
+                {subtaskCount > 0 && (
                   <span
                     className={
                       isPending
                         ? 'text-green-700 dark:text-green-300'
                         : 'text-gray-600 dark:text-gray-400'
                     }
+                    title={`${subtaskCompletedCount} of ${subtaskCount} subtasks completed`}
                   >
                     <svg
                       className="inline h-3.5 w-3.5 mr-1"
@@ -270,8 +279,7 @@ export function TaskCard({ task, showProgress = false }: TaskCardProps) {
                         d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
                       />
                     </svg>
-                    {subtasks.filter((st: Subtask) => st.completed).length}/{subtasks.length}{' '}
-                    subtasks
+                    {subtaskCompletedCount}/{subtaskCount} subtasks
                   </span>
                 )}
 
@@ -378,8 +386,8 @@ export function TaskCard({ task, showProgress = false }: TaskCardProps) {
             </div>
           </div>
 
-          {/* Expand/Collapse button at bottom */}
-          {subtasks.length > 0 && (
+          {/* Expand/Collapse button at bottom - only show if we have subtasks to display */}
+          {subtaskCount > 0 && (
             <button
               onClick={handleToggleExpand}
               className={[
@@ -394,8 +402,8 @@ export function TaskCard({ task, showProgress = false }: TaskCardProps) {
               aria-label={isExpanded ? 'Collapse subtasks' : 'Expand subtasks'}
             >
               <span>
-                {isExpanded ? 'Hide' : 'Show'} {subtasks.length} subtask
-                {subtasks.length > 1 ? 's' : ''}
+                {isExpanded ? 'Hide' : 'Show'} {subtaskCount} subtask
+                {subtaskCount > 1 ? 's' : ''}
               </span>
               <svg
                 className={`h-4 w-4 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
