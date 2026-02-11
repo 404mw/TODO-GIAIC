@@ -3,8 +3,8 @@ import { persist } from 'zustand/middleware';
 
 interface SidebarState {
   isCollapsed: boolean;
-  isOpen: boolean;
   isMobile: boolean;
+  isOpen: boolean;
   toggle: () => void;
   setCollapsed: (collapsed: boolean) => void;
   setMobile: (mobile: boolean) => void;
@@ -16,31 +16,33 @@ const isMobile = typeof window !== 'undefined' && window.innerWidth < 1024;
 
 export const useSidebarStore = create<SidebarState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       // Start collapsed on mobile, use persisted state on desktop
       isCollapsed: isMobile,
       isMobile: isMobile,
-      get isOpen() {
-        // On mobile, always start closed unless explicitly toggled
-        const state = get();
-        return !state.isCollapsed;
-      },
-      toggle: () => set((state) => ({ isCollapsed: !state.isCollapsed })),
-      setCollapsed: (collapsed) => set({ isCollapsed: collapsed }),
+      isOpen: !isMobile, // Computed from isCollapsed
+      toggle: () => set((state) => ({
+        isCollapsed: !state.isCollapsed,
+        isOpen: !state.isOpen,
+      })),
+      setCollapsed: (collapsed) => set({
+        isCollapsed: collapsed,
+        isOpen: !collapsed,
+      }),
       setMobile: (mobile) => {
         // When switching to mobile, auto-close sidebar
         if (mobile) {
-          set({ isMobile: mobile, isCollapsed: true });
+          set({ isMobile: mobile, isCollapsed: true, isOpen: false });
         } else {
-          set({ isMobile: mobile });
+          set((state) => ({ isMobile: mobile, isOpen: !state.isCollapsed }));
         }
       },
-      close: () => set({ isCollapsed: true }),
+      close: () => set({ isCollapsed: true, isOpen: false }),
     }),
     {
       name: 'sidebar-storage',
-      // Only persist desktop preference, not mobile state
-      partialize: (state) => ({ isCollapsed: state.isMobile ? true : state.isCollapsed }),
+      // Only persist isCollapsed, always recompute isMobile and isOpen on load
+      partialize: (state) => ({ isCollapsed: state.isCollapsed }),
     }
   )
 );

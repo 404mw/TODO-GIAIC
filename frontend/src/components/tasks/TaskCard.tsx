@@ -76,16 +76,8 @@ export function TaskCard({ task, showProgress = false }: TaskCardProps) {
     e.preventDefault()
     e.stopPropagation()
 
-    // Toggle pending - warning will be shown in the bottom bar when saving
+    // Toggle pending - visual feedback via green background is sufficient
     togglePending(task.id)
-
-    if (!isPending) {
-      toast({
-        title: 'Task marked for completion',
-        message: 'Click "Save Changes" to complete marked tasks',
-        type: 'success',
-      })
-    }
   }
 
   const handleToggleExpand = (e: React.MouseEvent) => {
@@ -111,12 +103,7 @@ export function TaskCard({ task, showProgress = false }: TaskCardProps) {
 
     activateFocusMode(task.id)
     router.push('/dashboard/focus')
-
-    toast({
-      title: 'Focus Mode',
-      message: `Starting focus session for "${task.title}"`,
-      type: 'success',
-    })
+    // Navigation to focus page provides sufficient feedback
   }
 
   // Calculate total duration from subtasks (not implemented in schema yet)

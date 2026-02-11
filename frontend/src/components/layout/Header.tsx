@@ -102,7 +102,7 @@ export function Header() {
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600">
               <span className="text-lg font-bold text-white">P</span>
             </div>
-            <span className="text-xl font-bold text-gray-900 dark:text-gray-100">
+            <span className="hidden sm:inline text-xl font-bold text-gray-900 dark:text-gray-100">
               Perpetua
             </span>
           </Link>

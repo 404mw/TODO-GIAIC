@@ -46,26 +46,22 @@ async function handleResponse<T>(
 
   const data = await response.json();
 
-  // Handle multiple backend response formats:
-  // - DataResponse[T]: {"data": ...}
-  // - PaginatedResponse[T]: {"data": [...], "pagination": {...}}
-  // - TaskCompletionResponse: {"task": {...}}
-  // - Direct object: {...}
-  let payload = data;
-
-  if (data.data !== undefined) {
-    // If pagination exists, keep full structure for pagination metadata
-    if (data.pagination !== undefined) {
-      payload = data; // Keep {data: [...], pagination: {...}}
-    } else {
-      payload = data.data; // Extract just the data
-    }
-  } else if (data.task !== undefined) {
-    payload = data; // Keep {task: {...}} structure
+  // When schema is provided, return full response for validation
+  // Schemas define the expected structure (e.g., {data: T} or {task: T})
+  if (schema) {
+    return schema.parse(data);
   }
-  // Otherwise return as-is (direct object response)
 
-  return schema ? schema.parse(payload) : payload;
+  // Legacy unwrapping for calls without schema (backward compatibility)
+  // - DataResponse[T]: {"data": ...} → extract data
+  // - PaginatedResponse[T]: {"data": [...], "pagination": {...}} → keep full structure
+  // - TaskCompletionResponse: {"task": {...}} → keep full structure
+  // - Direct object: {...} → return as-is
+  if (data.data !== undefined && data.pagination === undefined) {
+    return data.data; // Unwrap simple DataResponse
+  }
+
+  return data; // Return full structure for pagination, tasks, or direct responses
 }
 
 export const apiClient = {
