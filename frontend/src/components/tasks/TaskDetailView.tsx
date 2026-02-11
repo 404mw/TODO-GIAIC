@@ -249,9 +249,9 @@ export function TaskDetailView({ task }: TaskDetailViewProps) {
                   {task.title}
                 </h1>
 
-                {task.message && (
+                {task.description && (
                   <p className="mt-3 text-gray-600 dark:text-gray-400 whitespace-pre-wrap">
-                    {task.message}
+                    {task.description}
                   </p>
                 )}
 

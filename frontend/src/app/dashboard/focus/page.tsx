@@ -260,9 +260,9 @@ export default function FocusModePage() {
             <h1 className="mt-4 text-3xl font-bold text-gray-900 dark:text-gray-100">
               {selectedTask.title}
             </h1>
-            {selectedTask.message && (
+            {selectedTask.description && (
               <p className="mt-2 text-gray-600 dark:text-gray-400">
-                {selectedTask.message}
+                {selectedTask.description}
               </p>
             )}
           </div>

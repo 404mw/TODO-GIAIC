@@ -1,31 +1,18 @@
 'use client';
 
 import { createContext, useState, useEffect, ReactNode } from 'react';
-import { apiClient } from '@/lib/api/client';
-import { AuthTokenSchema, LoginRequestSchema, type LoginRequest } from '@/lib/schemas/auth.schema';
 import type { User } from '@/lib/schemas/user.schema';
+import { authService } from '@/lib/services/auth.service';
+import { usersService } from '@/lib/services/users.service';
 import { oauthService } from '@/lib/services/oauth.service';
-import { z } from 'zod';
-
-// Backend returns {"data": user}, schema validates full response
-const UserResponseSchema = z.object({
-  data: z.object({
-    id: z.string(),
-    google_id: z.string(),
-    email: z.string().email(),
-    name: z.string(),
-    avatar_url: z.string().nullable(),
-    timezone: z.string(),
-    tier: z.enum(['free', 'pro']).default('free'),
-  }),
-});
+import { ApiError } from '@/lib/api/client';
 
 interface AuthContextType {
   user: User | null;
-  login: (credentials: LoginRequest) => Promise<void>;
   loginWithGoogle: (redirectTo?: string) => void;
-  logout: () => void;
+  logout: () => Promise<void>;
   refetch: () => Promise<void>;
+  refreshTokenIfNeeded: () => Promise<void>;
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
@@ -51,61 +38,71 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function fetchCurrentUser() {
     try {
-      const response = await apiClient.get('/users/me', UserResponseSchema);
-      // Response contains {data: user}, extract the user object
-      const mappedUser: User = {
-        id: response.data.id,
-        google_id: response.data.google_id,
-        email: response.data.email,
-        name: response.data.name,
-        avatar_url: response.data.avatar_url,
-        timezone: response.data.timezone,
-        tier: response.data.tier,
-        created_at: new Date().toISOString(), // Not returned by /users/me
-        updated_at: new Date().toISOString(), // Not returned by /users/me
-      };
-      setUser(mappedUser);
+      // Use new users service with proper response unwrapping
+      const response = await usersService.getCurrentUser();
+      setUser(response.data);
       setError(null);
     } catch (err) {
       console.error('Failed to fetch current user:', err);
+
+      // Handle token expiration
+      if (err instanceof ApiError && err.code === 'TOKEN_EXPIRED') {
+        // Try to refresh token
+        const refreshToken = localStorage.getItem('refresh_token');
+        if (refreshToken) {
+          try {
+            await refreshTokens(refreshToken);
+            // Retry fetching user after refresh
+            const response = await usersService.getCurrentUser();
+            setUser(response.data);
+            setError(null);
+            return;
+          } catch (refreshErr) {
+            console.error('Token refresh failed:', refreshErr);
+          }
+        }
+      }
+
+      // Clear tokens and user on error
       localStorage.removeItem('auth_token');
+      localStorage.removeItem('refresh_token');
       setUser(null);
       // Don't set error here - this is silent background refresh
     }
   }
 
-  async function login(credentials: LoginRequest) {
+  async function refreshTokens(refreshToken: string) {
     try {
-      setIsLoading(true);
-      setError(null);
+      const response = await authService.refreshTokens(refreshToken);
 
-      // Validate credentials
-      const validatedCredentials = LoginRequestSchema.parse(credentials);
+      // Store new tokens (refresh token rotation)
+      // Note: Auth responses are NOT wrapped with DataResponse
+      localStorage.setItem('auth_token', response.access_token);
+      localStorage.setItem('refresh_token', response.refresh_token);
 
-      // Get auth token
-      const tokenResponse = await apiClient.post(
-        '/auth/login',
-        validatedCredentials,
-        AuthTokenSchema
-      );
-
-      // Store token
-      localStorage.setItem('auth_token', tokenResponse.access_token);
-
-      // Fetch user details
-      await fetchCurrentUser();
+      console.log('✅ Tokens refreshed successfully');
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Login failed';
-      setError(errorMessage);
-      throw err; // Re-throw so UI can handle
-    } finally {
-      setIsLoading(false);
+      console.error('Failed to refresh tokens:', err);
+      // Clear tokens on refresh failure
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('refresh_token');
+      setUser(null);
+      throw err;
+    }
+  }
+
+  async function refreshTokenIfNeeded() {
+    const refreshToken = localStorage.getItem('refresh_token');
+    if (refreshToken) {
+      await refreshTokens(refreshToken);
     }
   }
 
   function loginWithGoogle(redirectTo?: string) {
     try {
       setError(null);
+      // TODO: Migrate to Google Sign-In SDK + ID token flow
+      // For now, keep using legacy OAuth authorization code flow
       oauthService.initiateGoogleLogin(redirectTo);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to initiate Google login';
@@ -113,8 +110,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  function logout() {
+  async function logout() {
+    const refreshToken = localStorage.getItem('refresh_token');
+
+    // Call backend logout if we have a refresh token
+    if (refreshToken) {
+      try {
+        await authService.logout(refreshToken);
+      } catch (err) {
+        console.error('Logout API call failed:', err);
+        // Continue with local cleanup even if API call fails
+      }
+    }
+
+    // Clear local storage and state
     localStorage.removeItem('auth_token');
+    localStorage.removeItem('refresh_token');
     setUser(null);
     setError(null);
   }
@@ -131,10 +142,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider
       value={{
         user,
-        login,
         loginWithGoogle,
         logout,
         refetch,
+        refreshTokenIfNeeded,
         isAuthenticated: !!user,
         isLoading,
         error,

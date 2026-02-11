@@ -73,7 +73,7 @@ export function NewTaskModal({ open, onOpenChange, editTask }: NewTaskModalProps
   useEffect(() => {
     if (editTask) {
       setTitle(editTask.title)
-      setDescription(editTask.message || '')
+      setDescription(editTask.description || '')
       setPriority(editTask.priority)
       // setTags(editTask.tags || []) // TODO: Add tags to Task schema
       setEstimatedDuration(editTask.estimated_duration?.toString() || '')
@@ -137,8 +137,9 @@ export function NewTaskModal({ open, onOpenChange, editTask }: NewTaskModalProps
       if (isEditMode && editTask) {
         // Update existing task
         const updateData: UpdateTaskRequest = {
+          version: editTask.version,
           title: title.trim(),
-          message: description.trim() || undefined,
+          description: description.trim() || undefined,
           priority,
           // tags, // TODO: Add tags to Task schema
           due_date: dueDate ? new Date(dueDate).toISOString() : null,
@@ -162,7 +163,7 @@ export function NewTaskModal({ open, onOpenChange, editTask }: NewTaskModalProps
         // Create new task
         const createData: CreateTaskRequest = {
           title: title.trim(),
-          message: description.trim() || undefined,
+          description: description.trim() || undefined,
           priority,
           // tags, // TODO: Add tags to Task schema
           due_date: dueDate ? new Date(dueDate).toISOString() : null,

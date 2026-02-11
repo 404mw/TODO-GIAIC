@@ -30,6 +30,18 @@ function OAuthCallbackContent() {
           return
         }
 
+        // TODO: Migrate to Google Sign-In SDK + ID token flow
+        // Current implementation uses legacy OAuth authorization code flow.
+        // According to API.md, the backend expects:
+        // POST /api/v1/auth/google/callback with { id_token: string }
+        //
+        // Migration steps:
+        // 1. Integrate Google Sign-In SDK on frontend
+        // 2. Get ID token from Google Sign-In
+        // 3. Call authService.googleCallback(idToken) instead of handleCallback(code, state)
+        // 4. Remove oauthService.initiateGoogleLogin() flow
+        // See: https://developers.google.com/identity/gsi/web/guides/overview
+
         // Get callback parameters
         const code = searchParams?.get('code')
         const state = searchParams?.get('state')
@@ -40,7 +52,7 @@ function OAuthCallbackContent() {
           return
         }
 
-        // Exchange code for token
+        // Exchange code for token (legacy flow)
         await oauthService.handleCallback(code, state)
 
         // Clear OAuth params from URL

@@ -65,7 +65,7 @@ export function ConvertNoteDrawer({
       // Create the task
       await createTask.mutateAsync({
         title: title.trim(),
-        message: description.trim() || undefined,
+        description: description.trim() || undefined,
         priority,
       })
 

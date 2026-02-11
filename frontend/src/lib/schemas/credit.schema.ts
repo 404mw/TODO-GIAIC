@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { CreditTypeSchema, CreditOperationSchema } from './common.schema';
+import { DataResponseSchema, PaginatedResponseSchema } from './response.schema';
 
 /**
  * AI Credit Ledger schema matching backend AICreditLedger model.
@@ -33,6 +34,7 @@ export const AICreditLedgerSchema = z.object({
 
 /**
  * Credit Balance summary schema
+ * API.md: GET /api/v1/credits/balance
  */
 export const CreditBalanceSchema = z.object({
   kickstart: z.number().int().min(0).default(0),
@@ -40,6 +42,21 @@ export const CreditBalanceSchema = z.object({
   subscription: z.number().int().min(0).default(0),
   purchased: z.number().int().min(0).default(0),
   total: z.number().int().min(0).default(0),
+});
+
+/**
+ * Credit Transaction schema for history endpoint
+ * API.md: GET /api/v1/credits/history
+ */
+export const CreditTransactionSchema = z.object({
+  id: z.string().uuid(),
+  user_id: z.string().uuid(),
+  type: z.enum(['grant', 'deduct']),
+  category: z.enum(['daily', 'subscription', 'purchase', 'ai', 'kickstart']),
+  amount: z.number().int(),
+  balance_after: z.number().int().min(0),
+  description: z.string(),
+  created_at: z.string().datetime(),
 });
 
 /**
@@ -52,7 +69,22 @@ export const CreditCostSchema = z.object({
   voice_per_minute: z.number().int().default(5),
 });
 
+/**
+ * Credit Balance response schema
+ * API.md: GET /api/v1/credits/balance returns {"data": {...}}
+ */
+export const CreditBalanceResponseSchema = DataResponseSchema(CreditBalanceSchema);
+
+/**
+ * Credit History response schema
+ * API.md: GET /api/v1/credits/history returns paginated transactions
+ */
+export const CreditHistoryResponseSchema = PaginatedResponseSchema(CreditTransactionSchema);
+
 // Type exports
 export type AICreditLedger = z.infer<typeof AICreditLedgerSchema>;
 export type CreditBalance = z.infer<typeof CreditBalanceSchema>;
+export type CreditTransaction = z.infer<typeof CreditTransactionSchema>;
 export type CreditCost = z.infer<typeof CreditCostSchema>;
+export type CreditBalanceResponse = z.infer<typeof CreditBalanceResponseSchema>;
+export type CreditHistoryResponse = z.infer<typeof CreditHistoryResponseSchema>;

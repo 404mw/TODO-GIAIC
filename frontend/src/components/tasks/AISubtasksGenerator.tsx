@@ -1,39 +1,30 @@
 /**
- * AISubtasksGenerator Component (T148-T150)
- * Phase 12 - AI Sub-tasks UI
+ * AISubtasksGenerator Component
+ * Phase 4 - Component Migration
  *
- * Provides UI for AI-powered sub-task generation.
- * Currently disabled until backend AI integration is complete.
- *
+ * Provides UI for AI-powered sub-task generation using aiService.
  * Features:
- * - Button to trigger AI sub-task generation (disabled state)
+ * - Real AI subtask generation via backend API
+ * - Credit cost display and balance checking
  * - Loading state with animation
  * - Preview of generated sub-tasks before adding
- * - Error handling for AI failures
+ * - Comprehensive error handling (credits, tier, service availability)
  */
 
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { Subtask } from '@/lib/schemas/subtask.schema'
 import { Button } from '@/components/ui/Button'
+import { aiService } from '@/lib/services/ai.service'
+import { ApiError } from '@/lib/api/client'
 
 interface AISubtasksGeneratorProps {
   taskId: string
   taskTitle: string
   taskDescription?: string
-  onSubtasksGenerated?: (subtasks: Omit<Subtask, 'id' | 'createdAt' | 'updatedAt'>[]) => void
+  onSubtasksGenerated?: (subtasks: Omit<Subtask, 'id' | 'created_at' | 'updated_at'>[]) => void
 }
-
-// Mock AI-generated subtasks for demo purposes
-const MOCK_SUBTASKS = [
-  'Break down the main objective',
-  'Research required resources',
-  'Set up the environment',
-  'Implement core functionality',
-  'Test and validate',
-  'Document the process',
-]
 
 export function AISubtasksGenerator({
   taskId,
@@ -42,53 +33,92 @@ export function AISubtasksGenerator({
   onSubtasksGenerated,
 }: AISubtasksGeneratorProps) {
   const [isGenerating, setIsGenerating] = useState(false)
-  const [previewSubtasks, setPreviewSubtasks] = useState<string[]>([])
+  const [previewSubtasks, setPreviewSubtasks] = useState<{ title: string }[]>([])
   const [showPreview, setShowPreview] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [errorType, setErrorType] = useState<'warning' | 'error' | 'info'>('error')
+  const [creditsUsed, setCreditsUsed] = useState<number | null>(null)
+  const [creditsRemaining, setCreditsRemaining] = useState<number | null>(null)
 
-  // AI is currently disabled - will be enabled with backend integration
-  const aiEnabled = false
+  // Clear error after 5 seconds
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => setError(null), 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [error])
 
   const handleGenerateClick = async () => {
-    if (!aiEnabled) {
-      // Show disabled message
-      setError('AI sub-task generation is coming soon! This feature is currently under development.')
-      return
-    }
-
     setIsGenerating(true)
     setError(null)
+    setErrorType('error')
 
     try {
-      // This would call the AI API when enabled
-      // const response = await fetch('/api/ai/generate-subtasks', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ taskId, taskTitle, taskDescription }),
-      // })
-      // const { subtasks } = await response.json()
+      // Call AI service to generate subtasks
+      const response = await aiService.generateSubtasks(taskId)
 
-      // For now, use mock data after a delay
-      await new Promise((resolve) => setTimeout(resolve, 1500))
+      // Extract response data
+      const { suggested_subtasks, credits_used, credits_remaining } = response.data
 
-      // Filter mock subtasks based on task title length as a simple demo
-      const count = Math.min(Math.max(3, Math.floor(taskTitle.length / 10)), 6)
-      const generated = MOCK_SUBTASKS.slice(0, count)
+      // Check if we got any subtasks
+      if (!suggested_subtasks || suggested_subtasks.length === 0) {
+        setError('AI did not generate any subtasks. Try providing more details in the task description.')
+        setErrorType('warning')
+        return
+      }
 
-      setPreviewSubtasks(generated)
+      // Update state with generated subtasks and credit info
+      setPreviewSubtasks(suggested_subtasks)
+      setCreditsUsed(credits_used)
+      setCreditsRemaining(credits_remaining)
       setShowPreview(true)
+
+      // Show success message
+      setError(`Generated ${suggested_subtasks.length} subtasks (${credits_used} credit used, ${credits_remaining} remaining)`)
+      setErrorType('info')
     } catch (err) {
-      setError('Failed to generate sub-tasks. Please try again.')
+      console.error('AI subtask generation error:', err)
+
+      if (err instanceof ApiError) {
+        switch (err.code) {
+          case 'INSUFFICIENT_CREDITS':
+            setError('Insufficient credits. Purchase more credits or upgrade to Pro for more daily credits.')
+            setErrorType('warning')
+            break
+          case 'TIER_REQUIRED':
+            setError('AI subtask generation requires a Pro subscription. Upgrade to unlock this feature.')
+            setErrorType('warning')
+            break
+          case 'AI_SERVICE_UNAVAILABLE':
+            setError('AI service is temporarily unavailable. Please try again in a few moments.')
+            setErrorType('error')
+            break
+          case 'RATE_LIMIT_EXCEEDED':
+            setError('Rate limit exceeded. Please wait a moment before trying again.')
+            setErrorType('warning')
+            break
+          case 'TASK_NOT_FOUND':
+            setError('Task not found. Please refresh and try again.')
+            setErrorType('error')
+            break
+          default:
+            setError(`Failed to generate subtasks: ${err.message}`)
+            setErrorType('error')
+        }
+      } else {
+        setError('Failed to generate subtasks. Please try again.')
+        setErrorType('error')
+      }
     } finally {
       setIsGenerating(false)
     }
   }
 
   const handleAddSubtasks = () => {
-    if (onSubtasksGenerated) {
+    if (onSubtasksGenerated && previewSubtasks.length > 0) {
       const now = new Date().toISOString()
-      const subtasks = previewSubtasks.map((title, index) => ({
-        title,
+      const subtasks = previewSubtasks.map((subtask, index) => ({
+        title: subtask.title,
         completed: false,
         completed_at: null,
         task_id: taskId,
@@ -111,6 +141,34 @@ export function AISubtasksGenerator({
     setShowPreview(false)
     setPreviewSubtasks([])
   }
+
+  const getErrorColors = () => {
+    switch (errorType) {
+      case 'warning':
+        return {
+          bg: 'bg-yellow-50 dark:bg-yellow-900/20',
+          border: 'border-yellow-200 dark:border-yellow-800',
+          text: 'text-yellow-700 dark:text-yellow-300',
+          icon: 'text-yellow-600 dark:text-yellow-400',
+        }
+      case 'info':
+        return {
+          bg: 'bg-blue-50 dark:bg-blue-900/20',
+          border: 'border-blue-200 dark:border-blue-800',
+          text: 'text-blue-700 dark:text-blue-300',
+          icon: 'text-blue-600 dark:text-blue-400',
+        }
+      default:
+        return {
+          bg: 'bg-red-50 dark:bg-red-900/20',
+          border: 'border-red-200 dark:border-red-800',
+          text: 'text-red-700 dark:text-red-300',
+          icon: 'text-red-600 dark:text-red-400',
+        }
+    }
+  }
+
+  const errorColors = getErrorColors()
 
   return (
     <div className="space-y-4">
@@ -157,54 +215,58 @@ export function AISubtasksGenerator({
                     d="M13 10V3L4 14h7v7l9-11h-7z"
                   />
                 </svg>
-                AI Generate Sub-tasks
-                {!aiEnabled && (
-                  <span className="ml-1 rounded-full bg-yellow-100 px-2 py-0.5 text-xs text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
-                    Coming Soon
-                  </span>
-                )}
+                AI Generate Subtasks
+                <span className="ml-1 rounded-full bg-purple-100 px-2 py-0.5 text-xs text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
+                  1 credit
+                </span>
               </>
             )}
           </Button>
 
-          {/* Disabled message */}
-          {!aiEnabled && (
-            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-              AI-powered sub-task generation will automatically break down complex tasks into manageable steps.
-            </p>
-          )}
+          <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+            AI will analyze your task and suggest actionable subtasks to help you break it down.
+          </p>
         </div>
       )}
 
-      {/* Error Message */}
+      {/* Error/Info Message */}
       {error && (
-        <div className="rounded-md bg-yellow-50 p-3 dark:bg-yellow-900/20">
+        <div className={`rounded-md ${errorColors.bg} ${errorColors.border} border p-3`}>
           <div className="flex gap-2">
             <svg
-              className="h-5 w-5 flex-shrink-0 text-yellow-600 dark:text-yellow-400"
+              className={`h-5 w-5 flex-shrink-0 ${errorColors.icon}`}
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-              />
+              {errorType === 'info' ? (
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              ) : (
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                />
+              )}
             </svg>
-            <p className="text-sm text-yellow-700 dark:text-yellow-300">{error}</p>
+            <p className={`text-sm ${errorColors.text}`}>{error}</p>
           </div>
           <button
             onClick={() => setError(null)}
-            className="mt-2 text-xs text-yellow-600 underline hover:no-underline dark:text-yellow-400"
+            className={`mt-2 text-xs ${errorColors.text} underline hover:no-underline`}
           >
             Dismiss
           </button>
         </div>
       )}
 
-      {/* Preview of Generated Sub-tasks */}
+      {/* Preview of Generated Subtasks */}
       {showPreview && previewSubtasks.length > 0 && (
         <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
           <h4 className="mb-3 flex items-center gap-2 text-sm font-medium text-blue-900 dark:text-blue-100">
@@ -221,7 +283,12 @@ export function AISubtasksGenerator({
                 d="M13 10V3L4 14h7v7l9-11h-7z"
               />
             </svg>
-            AI-Generated Sub-tasks Preview
+            AI-Generated Subtasks Preview
+            {creditsUsed && (
+              <span className="ml-auto rounded-full bg-purple-100 px-2 py-0.5 text-xs text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
+                {creditsUsed} credit used
+              </span>
+            )}
           </h4>
 
           <ul className="space-y-2">
@@ -230,11 +297,11 @@ export function AISubtasksGenerator({
                 key={index}
                 className="flex items-center justify-between gap-2 rounded-md bg-white p-2 text-sm dark:bg-gray-800"
               >
-                <span className="text-gray-700 dark:text-gray-300">{subtask}</span>
+                <span className="text-gray-700 dark:text-gray-300">{subtask.title}</span>
                 <button
                   onClick={() => handleRemovePreview(index)}
                   className="text-gray-400 hover:text-red-500 dark:hover:text-red-400"
-                  aria-label={`Remove "${subtask}"`}
+                  aria-label={`Remove "${subtask.title}"`}
                 >
                   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -244,9 +311,15 @@ export function AISubtasksGenerator({
             ))}
           </ul>
 
+          {creditsRemaining !== null && (
+            <p className="mt-3 text-xs text-blue-600 dark:text-blue-400">
+              {creditsRemaining} credits remaining
+            </p>
+          )}
+
           <div className="mt-4 flex gap-2">
             <Button size="sm" onClick={handleAddSubtasks}>
-              Add {previewSubtasks.length} Sub-tasks
+              Add {previewSubtasks.length} Subtask{previewSubtasks.length !== 1 ? 's' : ''}
             </Button>
             <Button variant="outline" size="sm" onClick={handleCancelPreview}>
               Cancel
