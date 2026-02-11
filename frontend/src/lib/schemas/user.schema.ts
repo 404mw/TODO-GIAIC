@@ -19,9 +19,9 @@ export const UserSchema = z.object({
   timezone: z.string().default('UTC'),
   tier: UserTierSchema.default('free'),
 
-  // Timestamps
-  created_at: z.string().datetime(),
-  updated_at: z.string().datetime(),
+  // Timestamps (optional - backend may not return these in all responses)
+  created_at: z.string().datetime().optional(),
+  updated_at: z.string().datetime().optional(),
 });
 
 /**
