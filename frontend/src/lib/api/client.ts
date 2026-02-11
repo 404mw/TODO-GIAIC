@@ -2,12 +2,17 @@ import { z } from 'zod';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 
+/**
+ * API Error class matching API.md error response specification
+ * Includes HTTP status, error code, message, optional details, and request_id
+ */
 export class ApiError extends Error {
   constructor(
     public status: number,
     public code: string,
     message: string,
-    public details?: unknown
+    public details?: unknown,
+    public request_id?: string
   ) {
     super(message);
     this.name = 'ApiError';
@@ -32,6 +37,19 @@ function generateIdempotencyKey(): string {
   });
 }
 
+/**
+ * Handles API responses and errors according to API.md specification
+ *
+ * Response handling:
+ * - With schema: validates and returns full response structure
+ * - Without schema (legacy): unwraps DataResponse[T] {"data": T} → T
+ * - Pagination and special responses kept intact
+ *
+ * Error handling:
+ * - Supports both formats: {"error": {...}} and {"code": ..., "message": ...}
+ * - Extracts request_id for debugging
+ * - Throws ApiError with all relevant details
+ */
 async function handleResponse<T>(
   response: Response,
   schema?: z.ZodType<T>
@@ -41,7 +59,9 @@ async function handleResponse<T>(
     // Handle both error formats: {"error": {...}} and {"code": ..., "message": ...}
     const errorMessage = errorData.message || errorData.error?.message || 'Request failed';
     const errorCode = errorData.code || errorData.error?.code || 'UNKNOWN_ERROR';
-    throw new ApiError(response.status, errorCode, errorMessage, errorData);
+    const errorDetails = errorData.details || errorData.error?.details;
+    const requestId = errorData.request_id || errorData.error?.request_id;
+    throw new ApiError(response.status, errorCode, errorMessage, errorDetails, requestId);
   }
 
   const data = await response.json();
@@ -94,6 +114,7 @@ export const apiClient = {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
+        'Idempotency-Key': generateIdempotencyKey(),
         ...(getAuthToken() && { Authorization: `Bearer ${getAuthToken()}` }),
       },
       body: JSON.stringify(body),
@@ -119,6 +140,7 @@ export const apiClient = {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
+        'Idempotency-Key': generateIdempotencyKey(),
         ...(getAuthToken() && { Authorization: `Bearer ${getAuthToken()}` }),
       },
     });
