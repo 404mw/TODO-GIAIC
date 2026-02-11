@@ -113,6 +113,8 @@ class UserRead(UserBase):
     """Schema for reading user data in API responses."""
 
     id: str  # UUID as string for JSON serialization
+    created_at: str  # ISO 8601 datetime string
+    updated_at: str  # ISO 8601 datetime string
 
     class Config:
         from_attributes = True

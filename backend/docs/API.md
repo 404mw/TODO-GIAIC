@@ -585,7 +585,9 @@ GET /api/v1/users/me
     "name": "John Doe",
     "avatar_url": "https://example.com/avatar.jpg",
     "timezone": "America/New_York",
-    "tier": "free"
+    "tier": "free",
+    "created_at": "2024-01-15T10:30:00Z",
+    "updated_at": "2024-01-15T10:30:00Z"
   }
 }
 ```
@@ -625,7 +627,9 @@ PATCH /api/v1/users/me
     "name": "Jane Doe",
     "avatar_url": "https://example.com/avatar.jpg",
     "timezone": "America/Los_Angeles",
-    "tier": "free"
+    "tier": "free",
+    "created_at": "2024-01-15T10:30:00Z",
+    "updated_at": "2024-01-15T14:20:00Z"
   }
 }
 ```
