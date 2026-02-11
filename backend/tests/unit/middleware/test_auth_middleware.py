@@ -68,3 +68,21 @@ class TestAuthMiddleware:
         """_unauthorized_response should default to UNAUTHORIZED code."""
         response = self.middleware._unauthorized_response("Not authenticated")
         assert response.status_code == 401
+
+    @pytest.mark.asyncio
+    async def test_options_request_skips_auth(self):
+        """OPTIONS requests should always bypass authentication (CORS preflight)."""
+        from unittest.mock import AsyncMock, MagicMock
+
+        # Create a mock request with OPTIONS method
+        request = MagicMock()
+        request.method = "OPTIONS"
+        request.url.path = "/api/v1/tasks"  # Protected path
+        request.headers = {}  # No auth header
+
+        # Mock call_next to verify it's called
+        call_next = AsyncMock(return_value=MagicMock())
+
+        # Middleware should skip auth and call next
+        await self.middleware.dispatch(request, call_next)
+        call_next.assert_called_once_with(request)
