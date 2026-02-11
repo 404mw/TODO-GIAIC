@@ -240,9 +240,38 @@
 
 ---
 
-## Phase 5: Testing & Polish
+## Phase 5: Testing & Polish (Partial) ⏸️
 
 **Goal:** Ensure production-ready frontend with comprehensive validation
+
+**Status:** PARTIALLY COMPLETED - Commit `afd08f4`
+- ✅ UI enhancements and deferred Phase 4 features completed
+- ⏸️ Manual testing deferred (requires running servers)
+- ⏸️ Integration testing deferred (requires backend + database)
+
+### 5.0 Completed Enhancements (Deferred from Phase 4)
+
+#### New Components
+- [X] Create `CreditBalance.tsx` - Reusable credit display with 3 modes (compact/default/detailed)
+  - Auto-refresh capability
+  - Low credit warnings with tier-specific messaging
+  - Pro tier indicator (subscription > 0)
+  - Error handling with fallback UI
+- [X] Create `ApiErrorDisplay.tsx` - Comprehensive error display component
+  - Color-coded severity levels (error/warning/info)
+  - User-friendly messages for all API.md error codes
+  - Action buttons (retry/upgrade/refetch) contextual to error type
+  - Auto-dismiss capability
+  - Development mode with request_id and details
+
+#### Component Updates
+- [X] Update `TaskCard.tsx` - Optimize subtask display
+  - Use `task.subtask_count` and `task.subtask_completed_count` from schema
+  - Avoid unnecessary API calls in list view
+  - Fall back to fetched subtasks for expanded detail view
+- [X] Update `auth/callback/page.tsx` - Document OAuth migration
+  - Add comprehensive TODO for Google Sign-In SDK migration
+  - Document current authorization code flow limitations
 
 ### 5.1 Request/Response Validation
 - [ ] Test all API calls return expected schema format
