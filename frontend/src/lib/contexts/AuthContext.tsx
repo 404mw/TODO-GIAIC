@@ -4,12 +4,10 @@ import { createContext, useState, useEffect, ReactNode } from 'react';
 import type { User } from '@/lib/schemas/user.schema';
 import { authService } from '@/lib/services/auth.service';
 import { usersService } from '@/lib/services/users.service';
-import { oauthService } from '@/lib/services/oauth.service';
 import { ApiError } from '@/lib/api/client';
 
 interface AuthContextType {
   user: User | null;
-  loginWithGoogle: (redirectTo?: string) => void;
   logout: () => Promise<void>;
   refetch: () => Promise<void>;
   refreshTokenIfNeeded: () => Promise<void>;
@@ -98,18 +96,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  function loginWithGoogle(redirectTo?: string) {
-    try {
-      setError(null);
-      // TODO: Migrate to Google Sign-In SDK + ID token flow
-      // For now, keep using legacy OAuth authorization code flow
-      oauthService.initiateGoogleLogin(redirectTo);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to initiate Google login';
-      setError(errorMessage);
-    }
-  }
-
   async function logout() {
     const refreshToken = localStorage.getItem('refresh_token');
 
@@ -142,7 +128,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider
       value={{
         user,
-        loginWithGoogle,
         logout,
         refetch,
         refreshTokenIfNeeded,
