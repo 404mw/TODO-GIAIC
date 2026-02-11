@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { UserTierSchema } from './common.schema';
+import { DataResponseSchema } from './response.schema';
 
 /**
  * User schema matching backend User model.
@@ -40,7 +41,21 @@ export const UpdateUserRequestSchema = z.object({
   timezone: z.string().optional(),
 });
 
+/**
+ * User response schema for GET /api/v1/users/me
+ * API.md format: {"data": {...}}
+ */
+export const UserResponseSchema = DataResponseSchema(UserSchema);
+
+/**
+ * User update response schema for PATCH /api/v1/users/me
+ * API.md format: {"data": {...}}
+ */
+export const UserUpdateResponseSchema = DataResponseSchema(UserSchema);
+
 // Type exports
 export type User = z.infer<typeof UserSchema>;
 export type UserPublic = z.infer<typeof UserPublicSchema>;
 export type UpdateUserRequest = z.infer<typeof UpdateUserRequestSchema>;
+export type UserResponse = z.infer<typeof UserResponseSchema>;
+export type UserUpdateResponse = z.infer<typeof UserUpdateResponseSchema>;

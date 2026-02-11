@@ -37,7 +37,7 @@ export function TaskForm({ task, onSuccess, onCancel }: TaskFormProps) {
 
   // Form state
   const [title, setTitle] = useState(task?.title || '')
-  const [description, setDescription] = useState(task?.message || '')
+  const [description, setDescription] = useState(task?.description || '')
   const [priority, setPriority] = useState<'low' | 'medium' | 'high'>(task?.priority || 'medium')
   const [tags, setTags] = useState<string[]>((task as any)?.tags || [])
   const [tagInput, setTagInput] = useState('')
@@ -63,8 +63,9 @@ export function TaskForm({ task, onSuccess, onCancel }: TaskFormProps) {
     try {
       if (isEditing) {
         const updateData: UpdateTaskRequest = {
+          version: task.version,
           title: title.trim(),
-          message: description.trim(),
+          description: description.trim(),
           priority,
           // tags, // TODO: Add tags to Task schema
           due_date: dueDate ? new Date(dueDate).toISOString() : null,
@@ -84,7 +85,7 @@ export function TaskForm({ task, onSuccess, onCancel }: TaskFormProps) {
       } else {
         const createData: CreateTaskRequest = {
           title: title.trim(),
-          message: description.trim(),
+          description: description.trim(),
           priority,
           // tags, // TODO: Add tags to Task schema
           due_date: dueDate ? new Date(dueDate).toISOString() : null,

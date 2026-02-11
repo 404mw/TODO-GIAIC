@@ -221,7 +221,7 @@ export function TaskCard({ task, showProgress = false }: TaskCardProps) {
               </h3>
 
               {/* Description */}
-              {task.message && (
+              {task.description && (
                 <p
                   className={[
                     'mt-1 text-sm line-clamp-2',
@@ -230,7 +230,7 @@ export function TaskCard({ task, showProgress = false }: TaskCardProps) {
                       : 'text-gray-600 dark:text-gray-400',
                   ].join(' ')}
                 >
-                  {task.message}
+                  {task.description}
                 </p>
               )}
 

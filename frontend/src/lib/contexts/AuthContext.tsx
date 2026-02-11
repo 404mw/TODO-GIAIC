@@ -2,7 +2,7 @@
 
 import { createContext, useState, useEffect, ReactNode } from 'react';
 import { apiClient } from '@/lib/api/client';
-import { AuthTokenSchema, LoginRequestSchema, type LoginRequest } from '@/lib/schemas/auth.schema';
+// Google OAuth schemas imported when needed for callback page
 import type { User } from '@/lib/schemas/user.schema';
 import { oauthService } from '@/lib/services/oauth.service';
 import { z } from 'zod';
@@ -22,7 +22,6 @@ const UserResponseSchema = z.object({
 
 interface AuthContextType {
   user: User | null;
-  login: (credentials: LoginRequest) => Promise<void>;
   loginWithGoogle: (redirectTo?: string) => void;
   logout: () => void;
   refetch: () => Promise<void>;
@@ -74,35 +73,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  async function login(credentials: LoginRequest) {
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      // Validate credentials
-      const validatedCredentials = LoginRequestSchema.parse(credentials);
-
-      // Get auth token
-      const tokenResponse = await apiClient.post(
-        '/auth/login',
-        validatedCredentials,
-        AuthTokenSchema
-      );
-
-      // Store token
-      localStorage.setItem('auth_token', tokenResponse.access_token);
-
-      // Fetch user details
-      await fetchCurrentUser();
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Login failed';
-      setError(errorMessage);
-      throw err; // Re-throw so UI can handle
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
   function loginWithGoogle(redirectTo?: string) {
     try {
       setError(null);
@@ -131,7 +101,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider
       value={{
         user,
-        login,
         loginWithGoogle,
         logout,
         refetch,
