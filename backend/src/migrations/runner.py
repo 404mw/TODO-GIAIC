@@ -250,12 +250,53 @@ async def apply_migration_004_add_consumed_column(session: AsyncSession) -> None
     logger.info("✓ Migration applied: 004_add_consumed_column")
 
 
+async def apply_migration_005_add_credit_ledger_columns(session: AsyncSession) -> None:
+    """Add remaining columns to ai_credit_ledger: expired, expires_at, source_id."""
+    logger.info("Applying migration: 005_add_credit_ledger_columns")
+
+    # Add expired column
+    await session.execute(
+        text("""
+            ALTER TABLE ai_credit_ledger
+            ADD COLUMN IF NOT EXISTS expired BOOLEAN NOT NULL DEFAULT false
+        """)
+    )
+
+    # Add expires_at column (for daily credit expiration)
+    await session.execute(
+        text("""
+            ALTER TABLE ai_credit_ledger
+            ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ
+        """)
+    )
+
+    # Add index on expires_at
+    await session.execute(
+        text("""
+            CREATE INDEX IF NOT EXISTS ix_ai_credit_ledger_expires_at
+            ON ai_credit_ledger (expires_at)
+        """)
+    )
+
+    # Add source_id column (for expiration record tracking)
+    await session.execute(
+        text("""
+            ALTER TABLE ai_credit_ledger
+            ADD COLUMN IF NOT EXISTS source_id UUID
+        """)
+    )
+
+    await session.commit()
+    logger.info("✓ Migration applied: 005_add_credit_ledger_columns")
+
+
 # List of all migrations in order
 MIGRATIONS = [
     ("001_user_achievement_states_created_at", apply_migration_001_user_achievement_states_created_at),
     ("002_fix_credit_enum_case", apply_migration_002_fix_credit_enum_case),
     ("003_add_subscription_columns", apply_migration_003_add_subscription_columns),
     ("004_add_consumed_column", apply_migration_004_add_consumed_column),
+    ("005_add_credit_ledger_columns", apply_migration_005_add_credit_ledger_columns),
 ]
 
 
