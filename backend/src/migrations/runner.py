@@ -76,12 +76,12 @@ async def apply_migration_002_fix_credit_enum_case(session: AsyncSession) -> Non
     """Fix enum case mismatch for creditoperation and credittype."""
     logger.info("Applying migration: 002_fix_credit_enum_case")
 
-    # Convert columns to text
+    # Convert columns to text (need explicit cast from enum)
     await session.execute(
-        text("ALTER TABLE ai_credit_ledger ALTER COLUMN operation TYPE TEXT")
+        text("ALTER TABLE ai_credit_ledger ALTER COLUMN operation TYPE TEXT USING operation::text")
     )
     await session.execute(
-        text("ALTER TABLE ai_credit_ledger ALTER COLUMN credit_type TYPE TEXT")
+        text("ALTER TABLE ai_credit_ledger ALTER COLUMN credit_type TYPE TEXT USING credit_type::text")
     )
 
     # Drop old enum types
