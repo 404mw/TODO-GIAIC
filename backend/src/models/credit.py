@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import Column, Enum as SQLAEnum
+from sqlalchemy import Column, Enum as SQLAEnum, TIMESTAMP
 from sqlmodel import Field, Relationship, SQLModel
 
 from src.models.base import BaseModel
@@ -85,8 +85,12 @@ class AICreditLedger(BaseModel, table=True):
 
     # Expiration (for daily credits)
     expires_at: datetime | None = Field(
+        sa_column=Column(
+            TIMESTAMP(timezone=True),
+            index=True,
+            nullable=True,
+        ),
         default=None,
-        index=True,
         description="Expiration time (UTC) for daily credits",
     )
     expired: bool = Field(
