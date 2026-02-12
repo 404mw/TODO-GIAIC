@@ -1,5 +1,117 @@
 import { http, HttpResponse, delay } from 'msw'
-import type { UserAchievementState } from '@/lib/schemas/achievement.schema'
+import type { UserAchievementState, AchievementDefinition } from '@/lib/schemas/achievement.schema'
+
+// Achievement definitions (all possible achievements)
+const achievementDefinitions: AchievementDefinition[] = [
+  {
+    id: 'tasks_5',
+    name: 'First Steps',
+    message: 'Complete your first 5 tasks',
+    category: 'tasks',
+    threshold: 5,
+    perk_type: 'max_tasks',
+    perk_value: 10,
+  },
+  {
+    id: 'tasks_10',
+    name: 'Getting Started',
+    message: 'Complete 10 tasks',
+    category: 'tasks',
+    threshold: 10,
+    perk_type: 'max_tasks',
+    perk_value: 25,
+  },
+  {
+    id: 'tasks_25',
+    name: 'Task Master',
+    message: 'Complete 25 tasks',
+    category: 'tasks',
+    threshold: 25,
+    perk_type: null,
+    perk_value: null,
+  },
+  {
+    id: 'tasks_50',
+    name: 'Half Century',
+    message: 'Complete 50 tasks',
+    category: 'tasks',
+    threshold: 50,
+    perk_type: 'max_tasks',
+    perk_value: 50,
+  },
+  {
+    id: 'tasks_100',
+    name: 'Century Club',
+    message: 'Complete 100 tasks',
+    category: 'tasks',
+    threshold: 100,
+    perk_type: 'daily_credits',
+    perk_value: 25,
+  },
+  {
+    id: 'streak_3',
+    name: 'On Fire',
+    message: 'Maintain a 3-day streak',
+    category: 'streaks',
+    threshold: 3,
+    perk_type: null,
+    perk_value: null,
+  },
+  {
+    id: 'streak_7',
+    name: 'Week Warrior',
+    message: 'Maintain a 7-day streak',
+    category: 'streaks',
+    threshold: 7,
+    perk_type: 'max_notes',
+    perk_value: 10,
+  },
+  {
+    id: 'streak_14',
+    name: 'Fortnight Focus',
+    message: 'Maintain a 14-day streak',
+    category: 'streaks',
+    threshold: 14,
+    perk_type: 'max_notes',
+    perk_value: 25,
+  },
+  {
+    id: 'streak_30',
+    name: 'Monthly Momentum',
+    message: 'Maintain a 30-day streak',
+    category: 'streaks',
+    threshold: 30,
+    perk_type: 'daily_credits',
+    perk_value: 50,
+  },
+  {
+    id: 'focus_5',
+    name: 'Focus Novice',
+    message: 'Complete 5 focus sessions',
+    category: 'focus',
+    threshold: 5,
+    perk_type: null,
+    perk_value: null,
+  },
+  {
+    id: 'focus_10',
+    name: 'Focus Apprentice',
+    message: 'Complete 10 focus sessions',
+    category: 'focus',
+    threshold: 10,
+    perk_type: 'daily_credits',
+    perk_value: 10,
+  },
+  {
+    id: 'notes_5',
+    name: 'Note Taker',
+    message: 'Convert 5 notes to tasks',
+    category: 'notes',
+    threshold: 5,
+    perk_type: null,
+    perk_value: null,
+  },
+]
 
 // In-memory storage for user achievement state
 let achievementState: UserAchievementState = {
@@ -19,8 +131,14 @@ let achievementState: UserAchievementState = {
 // Helper: Simulate network latency
 const simulateLatency = () => delay(Math.floor(Math.random() * (500 - 100 + 1)) + 100)
 
-// GET /api/achievements - Get user achievements
-export const getAchievementsHandler = http.get('/api/achievements', async () => {
+// GET /api/v1/achievements - Get all achievement definitions
+export const getAchievementDefinitionsHandler = http.get('/api/v1/achievements', async () => {
+  await simulateLatency()
+  return HttpResponse.json({ data: achievementDefinitions }, { status: 200 })
+})
+
+// GET /api/v1/achievements/me - Get user's achievement state
+export const getUserAchievementsHandler = http.get('/api/v1/achievements/me', async () => {
   await simulateLatency()
   return HttpResponse.json({ data: achievementState }, { status: 200 })
 })
@@ -52,6 +170,7 @@ export const taskCompletedHandler = http.post(
 
 // Export all achievement handlers
 export const achievementsHandlers = [
-  getAchievementsHandler,
+  getAchievementDefinitionsHandler,
+  getUserAchievementsHandler,
   taskCompletedHandler,
 ]
