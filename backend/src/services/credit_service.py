@@ -529,6 +529,43 @@ class CreditService:
         balance = await self.get_balance(user_id)
         return balance.total >= required
 
+    async def get_history(
+        self,
+        user_id: UUID,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[list[AICreditLedger], int]:
+        """Get credit transaction history for a user.
+
+        Args:
+            user_id: User ID to get history for
+            limit: Maximum number of entries to return
+            offset: Number of entries to skip
+
+        Returns:
+            Tuple of (ledger entries, total count)
+        """
+        # Get total count
+        count_query = select(func.count()).select_from(AICreditLedger).where(
+            AICreditLedger.user_id == user_id
+        )
+        count_result = await self._session.execute(count_query)
+        total = count_result.scalar() or 0
+
+        # Get paginated history ordered by created_at descending
+        query = (
+            select(AICreditLedger)
+            .where(AICreditLedger.user_id == user_id)
+            .order_by(AICreditLedger.created_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+
+        result = await self._session.execute(query)
+        entries = result.scalars().all()
+
+        return list(entries), int(total)
+
 
 # =============================================================================
 # FACTORY FUNCTION

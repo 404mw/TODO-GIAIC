@@ -106,6 +106,7 @@ async def list_tasks(
         task_responses.append(
             TaskResponse(
                 id=task.id,
+                user_id=task.user_id,
                 title=task.title,
                 description=task.description or "",
                 priority=task.priority,
@@ -191,6 +192,7 @@ async def get_task(
 
     response = TaskDetailResponse(
         id=task.id,
+        user_id=task.user_id,
         title=task.title,
         description=task.description or "",
         priority=task.priority,
@@ -257,6 +259,7 @@ async def create_task(
 
     response = TaskResponse(
         id=task.id,
+        user_id=task.user_id,
         title=task.title,
         description=task.description or "",
         priority=task.priority,
@@ -279,11 +282,17 @@ async def create_task(
     return DataResponse(data=response)
 
 
+@router.put(
+    "/{task_id}",
+    response_model=DataResponse[TaskResponse],
+    summary="Update task",
+    description="Update task with PUT/PATCH semantics and optimistic locking (FR-058, FR-014).",
+)
 @router.patch(
     "/{task_id}",
     response_model=DataResponse[TaskResponse],
     summary="Update task",
-    description="Update task with PATCH semantics and optimistic locking (FR-058, FR-014).",
+    description="Update task with PUT/PATCH semantics and optimistic locking (FR-058, FR-014).",
 )
 async def update_task(
     task_id: UUID,
@@ -332,6 +341,7 @@ async def update_task(
 
     response = TaskResponse(
         id=task.id,
+        user_id=task.user_id,
         title=task.title,
         description=task.description or "",
         priority=task.priority,
@@ -446,6 +456,7 @@ async def force_complete_task(
 
     task_detail = TaskDetailResponse(
         id=task.id,
+        user_id=task.user_id,
         title=task.title,
         description=task.description or "",
         priority=task.priority,

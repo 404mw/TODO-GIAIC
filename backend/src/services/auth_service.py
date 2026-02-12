@@ -205,7 +205,7 @@ class AuthService:
             if token_record is None:
                 raise InvalidRefreshTokenError("Refresh token not found")
 
-            if token_record.revoked:
+            if token_record.revoked_at is not None:
                 raise InvalidRefreshTokenError("Refresh token has been revoked")
 
             # Normalize to aware datetime for comparison (DB may store naive)
@@ -224,11 +224,7 @@ class AuthService:
             if user is None:
                 raise InvalidRefreshTokenError("User not found for refresh token")
 
-            # Update last_used_at
-            token_record.last_used_at = datetime.now(UTC)
-
             # Revoke the old token (rotation)
-            token_record.revoked = True
             token_record.revoked_at = datetime.now(UTC)
             self.session.add(token_record)
 
@@ -267,7 +263,6 @@ class AuthService:
         if token_record is None:
             return False
 
-        token_record.revoked = True
         token_record.revoked_at = datetime.now(UTC)
         self.session.add(token_record)
         await self.session.flush()
@@ -286,7 +281,7 @@ class AuthService:
         result = await self.session.execute(
             select(RefreshToken).where(
                 RefreshToken.user_id == user_id,
-                RefreshToken.revoked == False,
+                RefreshToken.revoked_at.is_(None),
             )
         )
         tokens = result.scalars().all()
@@ -294,7 +289,6 @@ class AuthService:
         count = 0
         now = datetime.now(UTC)
         for token in tokens:
-            token.revoked = True
             token.revoked_at = now
             self.session.add(token)
             count += 1

@@ -93,6 +93,8 @@ async def get_current_user_profile(
             avatar_url=current_user.avatar_url,
             timezone=current_user.timezone,
             tier=current_user.tier,
+            created_at=current_user.created_at.isoformat().replace("+00:00", "Z"),
+            updated_at=current_user.updated_at.isoformat().replace("+00:00", "Z"),
         )
     )
 
@@ -158,6 +160,8 @@ async def update_current_user_profile(
                 avatar_url=updated_user.avatar_url,
                 timezone=updated_user.timezone,
                 tier=updated_user.tier,
+                created_at=updated_user.created_at.isoformat().replace("+00:00", "Z"),
+                updated_at=updated_user.updated_at.isoformat().replace("+00:00", "Z"),
             )
         )
 

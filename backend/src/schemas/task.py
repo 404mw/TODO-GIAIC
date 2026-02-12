@@ -123,6 +123,7 @@ class TaskResponse(BaseModel):
     """
 
     id: UUID = Field(description="Task ID")
+    user_id: UUID = Field(description="Task owner ID")
     title: str = Field(description="Task name")
     description: str = Field(description="Task description")
     priority: TaskPriority = Field(description="Task priority")
@@ -180,6 +181,7 @@ class TaskDetailResponse(BaseModel):
     """
 
     id: UUID = Field(description="Task ID")
+    user_id: UUID = Field(description="Task owner ID")
     title: str = Field(description="Task name")
     description: str = Field(description="Task description")
     priority: TaskPriority = Field(description="Task priority")

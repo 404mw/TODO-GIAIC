@@ -78,6 +78,14 @@ from src.api.ai import router as ai_router
 api_v1_router.include_router(ai_router)
 
 # =============================================================================
+# CREDITS ROUTES (100 req/min per user)
+# =============================================================================
+
+from src.api.credits import router as credits_router
+
+api_v1_router.include_router(credits_router)
+
+# =============================================================================
 # ACHIEVEMENTS ROUTES (100 req/min per user)
 # =============================================================================
 

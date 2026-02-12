@@ -7,6 +7,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
+import sqlalchemy as sa
 from sqlmodel import Field, Relationship, SQLModel
 
 from src.models.base import BaseModel
@@ -58,6 +59,7 @@ class Subtask(SubtaskBase, BaseModel, table=True):
     )
     completed_at: datetime | None = Field(
         default=None,
+        sa_type=sa.DateTime(timezone=True),
         description="Completion timestamp (UTC)",
     )
 
@@ -71,6 +73,7 @@ class Subtask(SubtaskBase, BaseModel, table=True):
     # Source tracking (FR-021)
     source: SubtaskSource = Field(
         default=SubtaskSource.USER,
+        sa_type=sa.Enum("user", "ai", name="subtask_source", create_type=False),
         nullable=False,
         description="Creation source (user or ai)",
     )

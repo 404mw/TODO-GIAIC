@@ -3,10 +3,11 @@
 T044: RefreshToken model per authentication.md
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
+from sqlalchemy import DateTime
 from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
@@ -51,42 +52,32 @@ class RefreshToken(SQLModel, table=True):
 
     # Expiration
     expires_at: datetime = Field(
+        sa_type=DateTime(timezone=True),
         nullable=False,
         index=True,
         description="Token expiration time (UTC)",
     )
 
-    # Revocation
-    revoked: bool = Field(
-        default=False,
-        nullable=False,
-        description="Whether token has been revoked",
-    )
+    # Revocation (revoked_at IS NULL = not revoked)
     revoked_at: datetime | None = Field(
+        sa_type=DateTime(timezone=True),
         default=None,
         description="When token was revoked (UTC)",
     )
 
-    # Device/session tracking
-    device_info: str | None = Field(
-        default=None,
-        description="User agent or device identifier",
-    )
-    ip_address: str | None = Field(
-        default=None,
-        description="Client IP address",
-    )
-
     # Timestamps
     created_at: datetime = Field(
-        default_factory=datetime.utcnow,
+        default_factory=lambda: datetime.now(UTC),
+        sa_type=DateTime(timezone=True),
         nullable=False,
         description="Token creation time (UTC)",
     )
-    last_used_at: datetime | None = Field(
-        default=None,
-        description="Last time token was used (UTC)",
-    )
+
+    # NOTE: The following fields are in the design docs but not yet in the database migration
+    # TODO: Create migration to add these fields:
+    # - device_info: str | None (User agent or device identifier)
+    # - ip_address: str | None (Client IP address)
+    # - last_used_at: datetime | None (Last time token was used)
 
     # Relationships
     user: "User" = Relationship(back_populates="refresh_tokens")
@@ -94,6 +85,6 @@ class RefreshToken(SQLModel, table=True):
     @property
     def is_valid(self) -> bool:
         """Check if token is valid (not expired and not revoked)."""
-        if self.revoked:
+        if self.revoked_at is not None:
             return False
-        return datetime.utcnow() < self.expires_at
+        return datetime.now(UTC) < self.expires_at

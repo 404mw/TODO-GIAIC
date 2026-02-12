@@ -7,6 +7,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
+from sqlalchemy import Column, Enum as SQLAEnum
 from sqlmodel import Field, Relationship, SQLModel
 
 from src.models.base import BaseModel
@@ -47,7 +48,10 @@ class AICreditLedger(BaseModel, table=True):
 
     # Credit details
     credit_type: CreditType = Field(
-        nullable=False,
+        sa_column=Column(
+            SQLAEnum(CreditType, values_callable=lambda x: [e.value for e in x]),
+            nullable=False,
+        ),
         description="Credit source type",
     )
     amount: int = Field(
@@ -60,7 +64,10 @@ class AICreditLedger(BaseModel, table=True):
         description="Running balance after this transaction",
     )
     operation: CreditOperation = Field(
-        nullable=False,
+        sa_column=Column(
+            SQLAEnum(CreditOperation, values_callable=lambda x: [e.value for e in x]),
+            nullable=False,
+        ),
         description="Transaction type",
     )
     operation_ref: str | None = Field(

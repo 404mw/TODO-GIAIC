@@ -56,7 +56,8 @@ class UserBase(SQLModel):
     )
     tier: UserTier = Field(
         default=UserTier.FREE,
-        sa_column=Column(SAEnum(UserTier, name="user_tier"), nullable=False),
+        sa_type=SAEnum("free", "pro", name="user_tier"),
+        nullable=False,
         description="Subscription tier",
     )
 
@@ -112,6 +113,8 @@ class UserRead(UserBase):
     """Schema for reading user data in API responses."""
 
     id: str  # UUID as string for JSON serialization
+    created_at: str  # ISO 8601 datetime string
+    updated_at: str  # ISO 8601 datetime string
 
     class Config:
         from_attributes = True
