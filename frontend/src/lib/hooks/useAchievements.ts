@@ -16,7 +16,7 @@ const UserAchievementStateResponseSchema = z.object({
 export function useAchievements() {
   return useQuery({
     queryKey: ['achievements', 'user', 'me'],
-    queryFn: () => apiClient.get('/users/me/achievements', UserAchievementStateResponseSchema),
+    queryFn: () => apiClient.get('/achievements/me', UserAchievementStateResponseSchema),
   });
 }
 
@@ -24,6 +24,8 @@ export function useAchievementDefinitions() {
   return useQuery({
     queryKey: ['achievements', 'definitions'],
     queryFn: () => apiClient.get('/achievements', AchievementListResponseSchema),
+    staleTime: 1000 * 60 * 60, // 1 hour - achievement definitions rarely change
+    gcTime: 1000 * 60 * 60 * 24, // 24 hours cache
   });
 }
 

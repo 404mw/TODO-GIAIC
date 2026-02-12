@@ -27,6 +27,7 @@ export function useCreditBalance() {
   return useQuery({
     queryKey: ['credits', 'balance'],
     queryFn: () => apiClient.get('/credits/balance', CreditBalanceResponseSchema),
+    staleTime: 1000 * 60 * 2, // 2 minutes - balance updates occasionally
   });
 }
 
