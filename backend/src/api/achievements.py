@@ -69,6 +69,42 @@ async def get_achievements(
 
 
 @router.get(
+    "/me",
+    response_model=AchievementResponse,
+    summary="Get current user's achievements",
+    description="""
+    Alias for GET /achievements - retrieves the authenticated user's achievement data.
+
+    Returns same data as the root achievements endpoint.
+    Per API.md documentation.
+    """,
+)
+async def get_my_achievements(
+    current_user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> AchievementResponse:
+    """Get current user's achievements (alias endpoint).
+
+    Returns:
+        AchievementResponse with stats, unlocked, progress, effective_limits
+    """
+    service = get_achievement_service(session, settings)
+
+    response = await service.get_achievement_response(
+        user_id=current_user.id,
+        tier=current_user.tier,
+    )
+
+    logger.debug(
+        f"Retrieved achievements via /me for user {current_user.id}: "
+        f"{len(response.unlocked)} unlocked, streak={response.stats.current_streak}"
+    )
+
+    return response
+
+
+@router.get(
     "/stats",
     response_model=UserStatsResponse,
     summary="Get user stats",
