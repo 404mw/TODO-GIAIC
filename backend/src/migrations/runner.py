@@ -218,11 +218,44 @@ async def apply_migration_003_add_subscription_columns(session: AsyncSession) ->
     logger.info("✓ Migration applied: 003_add_subscription_columns")
 
 
+async def apply_migration_004_add_consumed_column(session: AsyncSession) -> None:
+    """Add consumed column to ai_credit_ledger for tracking partial consumption."""
+    logger.info("Applying migration: 004_add_consumed_column")
+
+    # Add consumed column with default 0
+    await session.execute(
+        text("""
+            ALTER TABLE ai_credit_ledger
+            ADD COLUMN IF NOT EXISTS consumed INTEGER NOT NULL DEFAULT 0
+        """)
+    )
+
+    # Add check constraint
+    await session.execute(
+        text("""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM pg_constraint
+                    WHERE conname = 'ai_credit_ledger_consumed_check'
+                ) THEN
+                    ALTER TABLE ai_credit_ledger
+                    ADD CONSTRAINT ai_credit_ledger_consumed_check CHECK (consumed >= 0);
+                END IF;
+            END $$;
+        """)
+    )
+
+    await session.commit()
+    logger.info("✓ Migration applied: 004_add_consumed_column")
+
+
 # List of all migrations in order
 MIGRATIONS = [
     ("001_user_achievement_states_created_at", apply_migration_001_user_achievement_states_created_at),
     ("002_fix_credit_enum_case", apply_migration_002_fix_credit_enum_case),
     ("003_add_subscription_columns", apply_migration_003_add_subscription_columns),
+    ("004_add_consumed_column", apply_migration_004_add_consumed_column),
 ]
 
 
