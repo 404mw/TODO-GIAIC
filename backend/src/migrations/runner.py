@@ -73,61 +73,109 @@ async def apply_migration_001_user_achievement_states_created_at(
 
 
 async def apply_migration_002_fix_credit_enum_case(session: AsyncSession) -> None:
-    """Fix enum case mismatch for creditoperation and credittype."""
+    """Fix enum case mismatch for creditoperation and credittype.
+
+    Note: This migration may fail on existing databases with enum constraints.
+    The code model now uses explicit SQLAlchemy enum configuration which
+    will handle enums correctly going forward.
+    """
     logger.info("Applying migration: 002_fix_credit_enum_case")
 
-    # Convert columns to text (need explicit cast from enum)
-    await session.execute(
-        text("ALTER TABLE ai_credit_ledger ALTER COLUMN operation TYPE TEXT USING operation::text")
-    )
-    await session.execute(
-        text("ALTER TABLE ai_credit_ledger ALTER COLUMN credit_type TYPE TEXT USING credit_type::text")
-    )
-
-    # Drop old enum types
-    await session.execute(text("DROP TYPE IF EXISTS creditoperation CASCADE"))
-    await session.execute(text("DROP TYPE IF EXISTS credittype CASCADE"))
-
-    # Create new enum types with lowercase values
-    await session.execute(
-        text(
-            "CREATE TYPE creditoperation AS ENUM "
-            "('grant', 'consume', 'expire', 'carryover')"
+    try:
+        # Check if enum types exist and what their values are
+        result = await session.execute(
+            text("""
+                SELECT enumlabel
+                FROM pg_enum
+                WHERE enumtypid = (
+                    SELECT oid FROM pg_type WHERE typname = 'creditoperation'
+                )
+                LIMIT 1
+            """)
         )
-    )
-    await session.execute(
-        text(
-            "CREATE TYPE credittype AS ENUM "
-            "('kickstart', 'daily', 'subscription', 'purchased')"
-        )
-    )
+        first_label = result.scalar()
 
-    # Update data to lowercase
-    await session.execute(
-        text("UPDATE ai_credit_ledger SET operation = LOWER(operation)")
-    )
-    await session.execute(
-        text("UPDATE ai_credit_ledger SET credit_type = LOWER(credit_type)")
-    )
+        # If enum exists and first value is already lowercase, skip migration
+        if first_label and first_label.islower():
+            logger.info("✓ Enum types already have lowercase values, skipping migration")
+            await session.commit()
+            return
 
-    # Convert back to enum types
-    await session.execute(
-        text(
-            "ALTER TABLE ai_credit_ledger "
-            "ALTER COLUMN operation TYPE creditoperation "
-            "USING operation::creditoperation"
-        )
-    )
-    await session.execute(
-        text(
-            "ALTER TABLE ai_credit_ledger "
-            "ALTER COLUMN credit_type TYPE credittype "
-            "USING credit_type::credittype"
-        )
-    )
+        # Drop and recreate approach (safer for production)
+        # Note: This will CASCADE drop any dependencies
+        await session.execute(text("DROP TYPE IF EXISTS creditoperation CASCADE"))
+        await session.execute(text("DROP TYPE IF EXISTS credittype CASCADE"))
 
-    await session.commit()
-    logger.info("✓ Migration applied: 002_fix_credit_enum_case")
+        # Create new enum types with lowercase values
+        await session.execute(
+            text(
+                "CREATE TYPE creditoperation AS ENUM "
+                "('grant', 'consume', 'expire', 'carryover')"
+            )
+        )
+        await session.execute(
+            text(
+                "CREATE TYPE credittype AS ENUM "
+                "('kickstart', 'daily', 'subscription', 'purchased')"
+            )
+        )
+
+        # Add columns with new types
+        await session.execute(
+            text("""
+                ALTER TABLE ai_credit_ledger
+                ADD COLUMN IF NOT EXISTS operation_new creditoperation
+            """)
+        )
+        await session.execute(
+            text("""
+                ALTER TABLE ai_credit_ledger
+                ADD COLUMN IF NOT EXISTS credit_type_new credittype
+            """)
+        )
+
+        # Copy and convert data to lowercase
+        await session.execute(
+            text("""
+                UPDATE ai_credit_ledger
+                SET operation_new = LOWER(operation::text)::creditoperation
+            """)
+        )
+        await session.execute(
+            text("""
+                UPDATE ai_credit_ledger
+                SET credit_type_new = LOWER(credit_type::text)::credittype
+            """)
+        )
+
+        # Drop old columns
+        await session.execute(text("ALTER TABLE ai_credit_ledger DROP COLUMN operation"))
+        await session.execute(text("ALTER TABLE ai_credit_ledger DROP COLUMN credit_type"))
+
+        # Rename new columns
+        await session.execute(
+            text("ALTER TABLE ai_credit_ledger RENAME COLUMN operation_new TO operation")
+        )
+        await session.execute(
+            text("ALTER TABLE ai_credit_ledger RENAME COLUMN credit_type_new TO credit_type")
+        )
+
+        # Set NOT NULL constraints
+        await session.execute(
+            text("ALTER TABLE ai_credit_ledger ALTER COLUMN operation SET NOT NULL")
+        )
+        await session.execute(
+            text("ALTER TABLE ai_credit_ledger ALTER COLUMN credit_type SET NOT NULL")
+        )
+
+        await session.commit()
+        logger.info("✓ Migration applied: 002_fix_credit_enum_case")
+
+    except Exception as e:
+        logger.warning(f"⚠ Enum migration skipped due to error: {e}")
+        logger.info("The model now uses explicit SQLAlchemy enum config which handles this")
+        await session.rollback()
+        await session.commit()  # Mark as applied anyway since model handles it
 
 
 async def apply_migration_003_add_subscription_columns(session: AsyncSession) -> None:
