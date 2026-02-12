@@ -35,6 +35,7 @@ from src.middleware.metrics import MetricsMiddleware
 from src.middleware.rate_limit import setup_rate_limiting
 from src.middleware.request_id import RequestIDMiddleware
 from src.middleware.security import SecurityHeadersMiddleware
+from src.migrations import run_migrations
 
 logger = logging.getLogger(__name__)
 
@@ -120,6 +121,20 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         logger.info("Database engine attached to app state")
     except Exception as e:
         logger.error(f"Failed to initialize database: {e}")
+        raise
+
+    # Run database migrations
+    try:
+        from sqlalchemy.ext.asyncio import AsyncSession
+        from sqlalchemy.orm import sessionmaker
+
+        async_session_maker = sessionmaker(
+            engine, class_=AsyncSession, expire_on_commit=False
+        )
+        async with async_session_maker() as session:
+            await run_migrations(session)
+    except Exception as e:
+        logger.error(f"Failed to run database migrations: {e}")
         raise
 
     # Store settings in app state for middleware access
