@@ -180,9 +180,8 @@ export default function TermsPage() {
               </p>
               <h3 className="mt-6 text-lg font-semibold text-white">Pro Tier</h3>
               <p>
-                The Pro tier is billed monthly at $9/month and includes unlimited
-                tasks, AI subtask generation, recurring tasks, analytics, custom
-                themes, and priority support.
+                The Pro tier is billed monthly at $9/month and includes upto 200
+                tasks, AI subtask generation, recurring tasks, analytics, and priority support.
               </p>
               <h3 className="mt-6 text-lg font-semibold text-white">
                 Payment Terms

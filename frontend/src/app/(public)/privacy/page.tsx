@@ -208,7 +208,7 @@ export default function PrivacyPage() {
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-white">Storage Location</h3>
               <p>
-                Your data is stored on secure servers in [SERVER LOCATION]. We use
+                Your data is stored on secure servers in Frankfurt. We use
                 industry-standard encryption for data in transit (TLS/SSL) and at
                 rest (AES-256).
               </p>
@@ -380,7 +380,8 @@ export default function PrivacyPage() {
                 </li>
               </ul>
               <p className="mt-4">
-                To exercise these rights, contact us at privacy@perpetuaflow.com.
+                To exercise these rights, contact us at 
+                perpetua@404mw.com.
                 We will respond within 30 days.
               </p>
             </div>
@@ -401,7 +402,7 @@ export default function PrivacyPage() {
                 If we discover that we have collected information from a child
                 under 13, we will delete it immediately. If you believe we have
                 collected information from a child, please contact us at
-                privacy@perpetuaflow.com.
+                pereptua@404mw.com.
               </p>
             </div>
           </section>
@@ -420,12 +421,12 @@ export default function PrivacyPage() {
               <p>
                 Repository:{' '}
                 <a
-                  href="https://github.com/yourusername/perpetua-flow"
+                  href="https://github.com/404mw/TODO-GIAIC"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-blue-400 hover:underline"
                 >
-                  github.com/yourusername/perpetua-flow
+                  404mw/Perpetua
                 </a>
               </p>
               <p>
@@ -497,7 +498,7 @@ export default function PrivacyPage() {
                 </li>
               </ul>
               <p className="mt-4">
-                To exercise these rights, contact us at privacy@perpetuaflow.com
+                To exercise these rights, contact us at perpetua@404mw.com
                 or use our{' '}
                 <Link href="/contact" className="text-blue-400 hover:underline">
                   contact form
@@ -540,8 +541,8 @@ export default function PrivacyPage() {
               </p>
               <div className="rounded-lg border border-white/10 bg-white/5 p-4">
                 <p className="font-medium text-white">Perpetua Flow</p>
-                <p>Email: privacy@perpetuaflow.com</p>
-                <p>Support: support@perpetuaflow.com</p>
+                <p>Email: pereptua@404mw.com</p>
+                <p>Support: pereptua@404mw.com</p>
                 <p>
                   Contact Form:{' '}
                   <Link

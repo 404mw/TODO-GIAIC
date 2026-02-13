@@ -10,12 +10,21 @@
  * FR-067: Footer with social links
  */
 
-import Link from 'next/link'
+import Link from "next/link";
 
 const SOCIAL_LINKS = [
   {
-    name: 'GitHub',
-    href: 'https://github.com/perpetua',
+    name: "MW",
+    href: "https://404mw.com",
+    icon: (
+      <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+        <path d="M1 6v12h2v-7.5l2.5 4.5 2.5-4.5V18h2V6H7.5L5 10.5 2.5 6H1zm11.5 0l1.5 12h2.2l.8-5.5.8 5.5H20l1.5-12H19.4l-.9 7.5-.8-7.5h-1.4l-.8 7.5-.9-7.5h-2.1z" />
+      </svg>
+    ),
+  },
+  {
+    name: "GitHub",
+    href: "https://github.com/404mw",
     icon: (
       <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
         <path
@@ -27,41 +36,51 @@ const SOCIAL_LINKS = [
     ),
   },
   {
-    name: 'Twitter',
-    href: 'https://twitter.com/perpetua',
+    name: "Twitter",
+    href: "https://x.com/404mw_",
     icon: (
-      <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
-        <path d="M8.29 20.251c7.547 0 11.675-6.253 11.675-11.675 0-.178 0-.355-.012-.53A8.348 8.348 0 0022 5.92a8.19 8.19 0 01-2.357.646 4.118 4.118 0 001.804-2.27 8.224 8.224 0 01-2.605.996 4.107 4.107 0 00-6.993 3.743 11.65 11.65 0 01-8.457-4.287 4.106 4.106 0 001.27 5.477A4.072 4.072 0 012.8 9.713v.052a4.105 4.105 0 003.292 4.022 4.095 4.095 0 01-1.853.07 4.108 4.108 0 003.834 2.85A8.233 8.233 0 012 18.407a11.616 11.616 0 006.29 1.84" />
+      <svg
+        className="h-5 w-5"
+        fill="currentColor"
+        viewBox="0 0 24 24"
+        style={{ transform: "scale(0.85)" }}
+      >
+        <path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932 6.064-6.932zm-1.292 19.494h2.039L6.486 3.24H4.298l13.311 17.407z" />
       </svg>
     ),
   },
   {
-    name: 'LinkedIn',
-    href: 'https://linkedin.com/company/perpetua',
+    name: "LinkedIn",
+    href: "https://www.linkedin.com/in/404mw",
     icon: (
-      <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+      <svg
+        className="h-5 w-5"
+        fill="currentColor"
+        viewBox="0 0 24 24"
+        style={{ transform: "scale(0.85)" }}
+      >
         <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" />
       </svg>
     ),
   },
-]
+];
 
 const LEGAL_LINKS = [
-  { name: 'Privacy Policy', href: '/privacy' },
-  { name: 'Terms of Service', href: '/terms' },
+  { name: "Privacy Policy", href: "/privacy" },
+  { name: "Terms of Service", href: "/terms" },
   {
-    name: 'Open Source',
-    href: 'https://github.com/yourusername/perpetua-flow',
-    external: true
+    name: "Open Source",
+    href: "https://github.com/404mw/TODO-GIAIC/tree/002-perpetua-frontend",
+    external: true,
   },
-]
+];
 
 const NAV_LINKS = [
-  { name: 'Home', href: '/' },
-  { name: 'Pricing', href: '/pricing' },
-  { name: 'About', href: '/about' },
-  { name: 'Contact', href: '/contact' },
-]
+  { name: "Home", href: "/" },
+  { name: "Pricing", href: "/pricing" },
+  { name: "About", href: "/about" },
+  { name: "Contact", href: "/contact" },
+];
 
 export function Footer() {
   return (
@@ -74,14 +93,15 @@ export function Footer() {
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-purple-600">
                 <span className="text-lg font-bold text-white">P</span>
               </div>
-              <span className="text-xl font-bold text-white">
-                Perpetua
-              </span>
+              <span className="text-xl font-bold text-white">Perpetua</span>
             </Link>
             <p className="mt-4 max-w-md text-sm text-gray-400">
               Build lasting productivity habits with smart task management,
               focus sessions, and achievement tracking. Stay productive every
               single day.
+              <span className="block font-bold text-xl mt-2">
+                Meet the Creator.
+              </span>
             </p>
 
             {/* Social Links */}
@@ -172,5 +192,5 @@ export function Footer() {
         </div>
       </div>
     </footer>
-  )
+  );
 }

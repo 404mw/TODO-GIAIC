@@ -83,7 +83,7 @@ const FAQS = [
   {
     question: 'How do AI credits work?',
     answer:
-      'AI credits power intelligent features like sub-task generation, chat, note-to-task conversion, and voice transcription. Free users get 5 kickstart credits. Pro users receive 100 monthly credits (carry over up to 50) plus 10 daily credits. Credit costs: Chat (1), Subtasks (1), Conversion (1), Voice (5/min). You can also purchase additional credits if needed.',
+      'AI credits power intelligent features like auto sub-task generation, chat, note-to-task conversion, and voice transcription. Free users get 5 kickstart credits. Pro users receive 100 monthly credits (carry over up to 50) plus 10 daily credits. Credit costs: Chat (1), Subtasks (1), Conversion (1), Voice (5/min). You can also purchase additional credits if needed.',
   },
   {
     question: 'What are Achievements and Perks?',
@@ -103,7 +103,7 @@ const FAQS = [
   {
     question: 'How does the AI sub-task generation work?',
     answer:
-      'Our AI analyzes your task description and automatically suggests relevant sub-tasks to help break down complex projects. Each generation costs 1 AI credit. You can review and customize the suggestions before adding them. Pro users can generate subtasks for all their tasks.',
+      'Our AI analyzes your task description and automatically suggests relevant sub-tasks to help break down complex projects. Each generation costs 1 AI credit. You can review and customize the suggestions before adding them.',
   },
   {
     question: 'What is voice transcription?',

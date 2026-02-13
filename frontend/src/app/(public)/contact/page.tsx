@@ -379,15 +379,15 @@ export default function ContactPage() {
                   </p>
                   <div className="mt-3 flex gap-3">
                     <a
-                      href="https://twitter.com/perpetua"
+                      href="https://x.com/404mw_"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-gray-400 transition-colors hover:text-white"
                     >
-                      Twitter
+                      X
                     </a>
                     <a
-                      href="https://github.com/perpetua"
+                      href="https://github.com/404mw"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-gray-400 transition-colors hover:text-white"
