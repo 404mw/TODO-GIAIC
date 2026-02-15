@@ -305,18 +305,34 @@ async def apply_migration_006_add_updated_at_column(session: AsyncSession) -> No
         "subtasks",
         "notes",
         "users",
-        "tasks",
+        "task_instances",
     ]
 
-    # Add updated_at column to each table
+    # Add updated_at column to each table (only if table exists)
     for table_name in tables:
-        await session.execute(
-            text(f"""
-                ALTER TABLE {table_name}
-                ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-            """)
+        # Check if table exists first
+        result = await session.execute(
+            text("""
+                SELECT EXISTS (
+                    SELECT FROM information_schema.tables
+                    WHERE table_schema = 'public'
+                    AND table_name = :table_name
+                )
+            """),
+            {"table_name": table_name}
         )
-        logger.info(f"  ✓ Added updated_at to {table_name}")
+        table_exists = result.scalar()
+
+        if table_exists:
+            await session.execute(
+                text(f"""
+                    ALTER TABLE {table_name}
+                    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                """)
+            )
+            logger.info(f"  ✓ Added updated_at to {table_name}")
+        else:
+            logger.info(f"  ⊘ Skipped {table_name} (table does not exist)")
 
     await session.commit()
     logger.info("✓ Migration applied: 006_add_updated_at_column")
