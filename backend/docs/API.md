@@ -1293,7 +1293,8 @@ limit: int = 50  # Max 100
   "pagination": {
     "offset": 0,
     "limit": 50,
-    "total": 142
+    "total": 142,
+    "has_more": true
   }
 }
 ```
@@ -1330,8 +1331,10 @@ limit: int = 50  # Max 100
 
 ### Achievements
 
-- `GET /api/v1/achievements` - List all achievements
-- `GET /api/v1/achievements/me` - Get user's achievement state
+- `GET /api/v1/achievements` - Get user's achievement data (stats, unlocked, progress, limits)
+- `GET /api/v1/achievements/me` - Alias for `/achievements` (same response)
+- `GET /api/v1/achievements/stats` - Get only user stats (lifetime tasks, streak, etc.)
+- `GET /api/v1/achievements/limits` - Get only effective limits based on tier and perks
 
 ### Focus Mode
 

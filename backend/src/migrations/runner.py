@@ -38,11 +38,19 @@ async def is_migration_applied(session: AsyncSession, name: str) -> bool:
 
 async def mark_migration_applied(session: AsyncSession, name: str) -> None:
     """Mark a migration as applied."""
-    await session.execute(
-        text("INSERT INTO _migrations (name) VALUES (:name)"),
-        {"name": name},
-    )
-    await session.commit()
+    try:
+        await session.execute(
+            text("INSERT INTO _migrations (name) VALUES (:name)"),
+            {"name": name},
+        )
+        await session.commit()
+    except Exception as e:
+        # If migration is already marked (duplicate key), that's fine
+        if "duplicate key" in str(e).lower() or "unique" in str(e).lower():
+            logger.warning(f"Migration {name} already marked as applied (duplicate key), skipping mark")
+            await session.rollback()
+        else:
+            raise
 
 
 async def apply_migration_001_user_achievement_states_created_at(
