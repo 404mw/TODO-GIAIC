@@ -99,5 +99,6 @@ async def get_history(
             offset=offset,
             limit=limit,
             total=total,
+            has_more=(offset + limit) < total,
         ),
     )
