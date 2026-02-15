@@ -290,6 +290,38 @@ async def apply_migration_005_add_credit_ledger_columns(session: AsyncSession) -
     logger.info("✓ Migration applied: 005_add_credit_ledger_columns")
 
 
+async def apply_migration_006_add_updated_at_column(session: AsyncSession) -> None:
+    """Add updated_at column to all tables inheriting from BaseModel/TimestampMixin."""
+    logger.info("Applying migration: 006_add_updated_at_column")
+
+    # Tables that inherit from BaseModel and need updated_at
+    tables = [
+        "ai_credit_ledger",
+        "focus_sessions",
+        "notifications",
+        "task_templates",
+        "reminders",
+        "subscriptions",
+        "subtasks",
+        "notes",
+        "users",
+        "tasks",
+    ]
+
+    # Add updated_at column to each table
+    for table_name in tables:
+        await session.execute(
+            text(f"""
+                ALTER TABLE {table_name}
+                ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            """)
+        )
+        logger.info(f"  ✓ Added updated_at to {table_name}")
+
+    await session.commit()
+    logger.info("✓ Migration applied: 006_add_updated_at_column")
+
+
 # List of all migrations in order
 MIGRATIONS = [
     ("001_user_achievement_states_created_at", apply_migration_001_user_achievement_states_created_at),
@@ -297,6 +329,7 @@ MIGRATIONS = [
     ("003_add_subscription_columns", apply_migration_003_add_subscription_columns),
     ("004_add_consumed_column", apply_migration_004_add_consumed_column),
     ("005_add_credit_ledger_columns", apply_migration_005_add_credit_ledger_columns),
+    ("006_add_updated_at_column", apply_migration_006_add_updated_at_column),
 ]
 
 
