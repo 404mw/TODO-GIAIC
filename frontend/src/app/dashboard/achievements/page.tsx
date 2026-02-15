@@ -239,23 +239,23 @@ export default function AchievementsPage() {
   const error = userError || defsError
 
   // Extract data
-  const userState = userStateResponse?.data
+  const achievementData = userStateResponse?.data
   const definitions = definitionsResponse?.data || []
-  const unlockedIds = userState?.unlocked_achievements || []
+  const unlockedIds = achievementData?.unlocked || []
 
   // Calculate progress for each achievement
   const getProgress = (achievement: AchievementDefinition): number => {
-    if (!userState) return 0
+    if (!achievementData?.stats) return 0
 
     switch (achievement.category) {
       case 'tasks':
-        return userState.lifetime_tasks_completed
+        return achievementData.stats.lifetime_tasks_completed
       case 'streaks':
-        return userState.longest_streak
+        return achievementData.stats.longest_streak
       case 'focus':
-        return userState.focus_completions
+        return achievementData.stats.focus_completions
       case 'notes':
-        return userState.notes_converted
+        return achievementData.stats.notes_converted
       default:
         return 0
     }
@@ -315,8 +315,8 @@ export default function AchievementsPage() {
   const totalAchievements = definitions.length
   const unlockedCount = unlockedIds.length
   const streak = {
-    currentStreak: userState?.current_streak || 0,
-    longestStreak: userState?.longest_streak || 0,
+    currentStreak: achievementData?.stats?.current_streak || 0,
+    longestStreak: achievementData?.stats?.longest_streak || 0,
   }
 
   return (
@@ -368,7 +368,7 @@ export default function AchievementsPage() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <MetricCard
             title="Tasks Completed"
-            value={userState?.lifetime_tasks_completed || 0}
+            value={achievementData?.stats?.lifetime_tasks_completed || 0}
             subtitle="All-time total"
             color="blue"
             icon={<Target className="h-6 w-6" />}
@@ -384,7 +384,7 @@ export default function AchievementsPage() {
 
           <MetricCard
             title="Focus Sessions"
-            value={userState?.focus_completions || 0}
+            value={achievementData?.stats?.focus_completions || 0}
             subtitle="Deep work completed"
             color="purple"
             icon={<Eye className="h-6 w-6" />}

@@ -129,7 +129,7 @@ export default function CreditsPage() {
                   <Calendar className="h-5 w-5 text-blue-500" />
                 </div>
                 <div className="mt-4 text-3xl font-bold text-gray-900 dark:text-white">
-                  {balance?.daily_free || 0}
+                  {balance?.daily || 0}
                 </div>
                 <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">Resets daily</p>
               </div>
@@ -283,9 +283,9 @@ export default function CreditsPage() {
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          {getCreditTypeIcon(transaction.credit_type)}
+                          {getCreditTypeIcon(transaction.category)}
                           <p className="text-sm font-medium text-gray-900 dark:text-white">
-                            {transaction.operation.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                            {transaction.description}
                           </p>
                         </div>
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">

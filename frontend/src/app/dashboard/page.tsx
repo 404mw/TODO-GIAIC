@@ -27,7 +27,7 @@ export default function DashboardPage() {
 
   // Unwrap API responses
   const tasks = tasksResponse?.data || []
-  const achievements = achievementsResponse?.data
+  const achievementData = achievementsResponse?.data
 
   // Filter high-priority incomplete tasks
   const highPriorityTasks = tasks
@@ -45,7 +45,7 @@ export default function DashboardPage() {
     (t: Task) => t.completed_at && t.completed_at.split('T')[0] === today
   ).length
   const totalActive = tasks.filter((t: Task) => !t.completed).length
-  const currentStreak = achievements?.current_streak || 0
+  const currentStreak = achievementData?.stats?.current_streak || 0
 
   // Filter overdue tasks (due date before today and not completed)
   const overdueTasks = tasks.filter(

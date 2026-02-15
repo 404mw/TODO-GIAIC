@@ -24,7 +24,7 @@ export default function ProfilePage() {
   const { data: userStateResponse } = useAchievements()
   const { data: definitionsResponse } = useAchievementDefinitions()
 
-  const unlockedIds = userStateResponse?.data?.unlocked_achievements || []
+  const unlockedIds = userStateResponse?.data?.unlocked || []
   const definitions = definitionsResponse?.data || []
 
   // Get unlocked achievement details

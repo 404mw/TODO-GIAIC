@@ -1,6 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api/client';
-import { AchievementDefinitionSchema, UserAchievementStateSchema } from '@/lib/schemas/achievement.schema';
+import {
+  AchievementDefinitionSchema,
+  AchievementDataSchema,
+} from '@/lib/schemas/achievement.schema';
 import { z } from 'zod';
 
 // Response schemas
@@ -8,15 +11,15 @@ const AchievementListResponseSchema = z.object({
   data: z.array(AchievementDefinitionSchema),
 });
 
-const UserAchievementStateResponseSchema = z.object({
-  data: UserAchievementStateSchema,
+const AchievementDataResponseSchema = z.object({
+  data: AchievementDataSchema,
 });
 
 // Query hooks
 export function useAchievements() {
   return useQuery({
     queryKey: ['achievements', 'user', 'me'],
-    queryFn: () => apiClient.get('/achievements/me', UserAchievementStateResponseSchema),
+    queryFn: () => apiClient.get('/achievements/me', AchievementDataResponseSchema),
   });
 }
 
@@ -33,6 +36,6 @@ export function useUserAchievements(userId: string) {
   return useQuery({
     queryKey: ['achievements', 'user', userId],
     queryFn: () =>
-      apiClient.get(`/users/${userId}/achievements`, UserAchievementStateResponseSchema),
+      apiClient.get(`/users/${userId}/achievements`, AchievementDataResponseSchema),
   });
 }

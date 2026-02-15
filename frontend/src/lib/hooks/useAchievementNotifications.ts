@@ -26,7 +26,7 @@ export function useAchievementNotifications() {
   const isInitialMount = useRef(true)
 
   useEffect(() => {
-    const unlockedIds = userStateResponse?.data?.unlocked_achievements || []
+    const unlockedIds = userStateResponse?.data?.unlocked || []
     const definitions = definitionsResponse?.data || []
 
     // On initial mount, just store the current state without notifying

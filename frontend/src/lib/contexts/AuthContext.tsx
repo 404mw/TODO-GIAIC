@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useState, useEffect, ReactNode } from 'react';
+import { usePathname } from 'next/navigation';
 import type { User } from '@/lib/schemas/user.schema';
 import { authService } from '@/lib/services/auth.service';
 import { usersService } from '@/lib/services/users.service';
@@ -23,16 +24,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const pathname = usePathname();
 
   useEffect(() => {
-    // Restore session on mount
+    // Only fetch user on protected routes (dashboard, app)
+    // Skip public routes (landing page, about, pricing, etc.)
+    const isProtectedRoute = pathname?.startsWith('/dashboard') || pathname?.startsWith('/app');
+
+    if (!isProtectedRoute) {
+      setIsLoading(false);
+      return;
+    }
+
+    // Restore session on mount for protected routes
     const token = localStorage.getItem('auth_token');
     if (token) {
       fetchCurrentUser().finally(() => setIsLoading(false));
     } else {
       setIsLoading(false);
     }
-  }, []);
+  }, [pathname]);
 
   async function fetchCurrentUser() {
     try {
