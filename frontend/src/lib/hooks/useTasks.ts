@@ -17,7 +17,7 @@ const TaskCompletionResponseSchema = z.object({
 });
 
 // Query hooks
-export function useTasks(filters?: { completed?: boolean; priority?: string }) {
+export function useTasks(filters?: { completed?: boolean; priority?: string; enabled?: boolean }) {
   const params = new URLSearchParams();
   if (filters?.completed !== undefined) params.set('completed', String(filters.completed));
   if (filters?.priority) params.set('priority', filters.priority);
@@ -26,6 +26,7 @@ export function useTasks(filters?: { completed?: boolean; priority?: string }) {
   return useQuery({
     queryKey: ['tasks', filters],
     queryFn: () => apiClient.get(`/tasks${queryString ? `?${queryString}` : ''}`, TaskListResponseSchema),
+    enabled: filters?.enabled ?? true, // Default to enabled
   });
 }
 

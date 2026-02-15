@@ -13,7 +13,8 @@ const NoteResponseSchema = z.object({
 });
 
 // Query hooks
-export function useNotes(taskId?: string) {
+export function useNotes(options?: { taskId?: string; enabled?: boolean }) {
+  const taskId = options?.taskId;
   return useQuery({
     queryKey: taskId ? ['notes', 'task', taskId] : ['notes'],
     queryFn: () =>
@@ -21,6 +22,7 @@ export function useNotes(taskId?: string) {
         taskId ? `/tasks/${taskId}/notes` : '/notes',
         NoteListResponseSchema
       ),
+    enabled: options?.enabled ?? true, // Default to enabled
   });
 }
 

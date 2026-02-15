@@ -6,6 +6,7 @@ import { useCommandPaletteStore } from '@/lib/stores/useCommandPaletteStore'
 import { useNewTaskModalStore } from '@/lib/stores/new-task-modal.store'
 import { useTasks } from '@/lib/hooks/useTasks'
 import { useNotes } from '@/lib/hooks/useNotes'
+import { useAuth } from '@/lib/hooks/useAuth'
 // Focus mode store is handled separately since it requires a task
 
 interface CommandItem {
@@ -21,9 +22,12 @@ export function CommandPalette() {
   const router = useRouter()
   const { isOpen, close } = useCommandPaletteStore()
   const openNewTaskModal = useNewTaskModalStore((state) => state.open)
-  const tasksQuery = useTasks()
+  const { isAuthenticated } = useAuth()
+
+  // Only fetch data when authenticated to avoid unnecessary API calls on public pages
+  const tasksQuery = useTasks({ enabled: isAuthenticated })
   const tasks = tasksQuery?.data?.data || []
-  const notesQuery = useNotes()
+  const notesQuery = useNotes({ enabled: isAuthenticated })
   const notes = notesQuery?.data?.data || []
 
   const [query, setQuery] = useState('')
