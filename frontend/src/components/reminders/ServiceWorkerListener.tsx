@@ -34,8 +34,17 @@ export function ServiceWorkerListener() {
         .then((registration) => {
           console.log('[App] Service Worker registered:', registration)
 
+          // Configure API URL from environment variable
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
+
           // Start reminder polling
           if (registration.active) {
+            // Send API URL configuration first
+            registration.active.postMessage({
+              type: 'SET_API_URL',
+              url: apiUrl
+            })
+            // Then start polling
             registration.active.postMessage({ type: 'START_REMINDER_POLLING' })
           }
 
@@ -46,6 +55,12 @@ export function ServiceWorkerListener() {
               newWorker.addEventListener('statechange', () => {
                 if (newWorker.state === 'activated') {
                   console.log('[App] New Service Worker activated')
+                  // Configure API URL for new worker
+                  newWorker.postMessage({
+                    type: 'SET_API_URL',
+                    url: apiUrl
+                  })
+                  // Then start polling
                   newWorker.postMessage({ type: 'START_REMINDER_POLLING' })
                 }
               })
