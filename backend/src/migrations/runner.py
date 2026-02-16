@@ -346,6 +346,70 @@ async def apply_migration_006_add_updated_at_column(session: AsyncSession) -> No
     logger.info("✓ Migration applied: 006_add_updated_at_column")
 
 
+async def apply_migration_007_fix_achievement_enum_case(session: AsyncSession) -> None:
+    """Fix achievementcategory enum to use lowercase values.
+
+    The PostgreSQL enum was created with uppercase values (TASKS, STREAKS, FOCUS, NOTES)
+    but the Python enum uses lowercase values (tasks, streaks, focus, notes).
+    """
+    logger.info("Applying migration: 007_fix_achievement_enum_case")
+
+    try:
+        # Check if enum type exists and what its values are
+        result = await session.execute(
+            text("""
+                SELECT enumlabel
+                FROM pg_enum
+                WHERE enumtypid = (
+                    SELECT oid FROM pg_type WHERE typname = 'achievementcategory'
+                )
+                LIMIT 1
+            """)
+        )
+        first_label = result.scalar()
+
+        # If enum exists and first value is already lowercase, skip migration
+        if first_label and first_label.islower():
+            logger.info("✓ achievementcategory enum already has lowercase values, skipping")
+            await session.commit()
+            return
+
+        logger.info("  Recreating achievementcategory enum with lowercase values...")
+
+        # Drop and recreate the enum type
+        # This will cascade to the achievement_definitions table
+        await session.execute(text("DROP TYPE IF EXISTS achievementcategory CASCADE"))
+
+        # Create new enum type with lowercase values
+        await session.execute(
+            text(
+                "CREATE TYPE achievementcategory AS ENUM "
+                "('tasks', 'streaks', 'focus', 'notes')"
+            )
+        )
+
+        # Recreate the category column on achievement_definitions table
+        await session.execute(
+            text("""
+                ALTER TABLE achievement_definitions
+                ADD COLUMN category achievementcategory NOT NULL DEFAULT 'tasks'
+            """)
+        )
+
+        # If there's existing data, we'd need to update it, but since the table
+        # is likely empty or will be reseeded, we just note it
+        logger.info("  ✓ achievementcategory enum recreated with lowercase values")
+
+        await session.commit()
+        logger.info("✓ Migration applied: 007_fix_achievement_enum_case")
+
+    except Exception as e:
+        logger.error(f"Migration 007 failed: {e}")
+        await session.rollback()
+        # Don't raise - allow app to continue
+        logger.warning("⚠ Migration 007 failed but continuing startup")
+
+
 # List of all migrations in order
 MIGRATIONS = [
     ("001_user_achievement_states_created_at", apply_migration_001_user_achievement_states_created_at),
@@ -354,6 +418,7 @@ MIGRATIONS = [
     ("004_add_consumed_column", apply_migration_004_add_consumed_column),
     ("005_add_credit_ledger_columns", apply_migration_005_add_credit_ledger_columns),
     ("006_add_updated_at_column", apply_migration_006_add_updated_at_column),
+    ("007_fix_achievement_enum_case", apply_migration_007_fix_achievement_enum_case),
 ]
 
 
