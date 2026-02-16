@@ -36,9 +36,22 @@ export function ServiceWorkerListener() {
       return
     }
 
-    // Skip registration on public pages to avoid unnecessary API requests
+    // Helper to send message to service worker
+    const sendToServiceWorker = async (message: any) => {
+      if ('serviceWorker' in navigator) {
+        const registration = await navigator.serviceWorker.getRegistration()
+        if (registration?.active) {
+          registration.active.postMessage(message)
+        } else if (navigator.serviceWorker.controller) {
+          navigator.serviceWorker.controller.postMessage(message)
+        }
+      }
+    }
+
+    // If not on protected route or not authenticated, STOP any existing polling
     if (!shouldEnablePolling) {
-      console.log('[App] Skipping Service Worker polling on public page or unauthenticated')
+      console.log('[App] Stopping Service Worker polling - not on protected route or not authenticated')
+      sendToServiceWorker({ type: 'STOP_REMINDER_POLLING' })
       return
     }
 
@@ -114,11 +127,8 @@ export function ServiceWorkerListener() {
 
     // Cleanup on unmount or when leaving protected routes
     return () => {
-      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-        navigator.serviceWorker.controller.postMessage({
-          type: 'STOP_REMINDER_POLLING',
-        })
-      }
+      console.log('[App] ServiceWorkerListener cleanup - stopping polling')
+      sendToServiceWorker({ type: 'STOP_REMINDER_POLLING' })
     }
   }, [shouldEnablePolling, toast])
 
