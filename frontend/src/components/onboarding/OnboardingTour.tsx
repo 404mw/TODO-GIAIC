@@ -13,7 +13,7 @@
 
 'use client'
 
-import { useEffect, useCallback, useRef } from 'react'
+import { useEffect, useCallback, useRef, useState } from 'react'
 import { driver, DriveStep, Config } from 'driver.js'
 import 'driver.js/dist/driver.css'
 
@@ -59,7 +59,7 @@ const getTourSteps = (): DriveStep[] => [
     },
   },
   {
-    element: '[data-onboarding="tasks-link"]',
+    element: '[data-onboarding="tasks"]',
     popover: {
       title: 'Tasks',
       description: 'Manage all your tasks here. Create, organize, and track your to-dos with priorities and due dates.',
@@ -77,7 +77,7 @@ const getTourSteps = (): DriveStep[] => [
     },
   },
   {
-    element: '[data-onboarding="focus-link"]',
+    element: '[data-onboarding="focus"]',
     popover: {
       title: 'Focus Mode',
       description: 'Eliminate distractions and concentrate on one task at a time with our built-in timer.',
@@ -86,7 +86,7 @@ const getTourSteps = (): DriveStep[] => [
     },
   },
   {
-    element: '[data-onboarding="notes-link"]',
+    element: '[data-onboarding="notes"]',
     popover: {
       title: 'Quick Notes',
       description: 'Capture thoughts and ideas instantly. You can even convert notes into tasks later!',
@@ -95,7 +95,7 @@ const getTourSteps = (): DriveStep[] => [
     },
   },
   {
-    element: '[data-onboarding="achievements-link"]',
+    element: '[data-onboarding="achievements"]',
     popover: {
       title: 'Achievements',
       description: 'Track your productivity streaks, celebrate milestones, and stay motivated!',
@@ -130,6 +130,17 @@ export function OnboardingTour({
 }: OnboardingTourProps) {
   const driverRef = useRef<ReturnType<typeof driver> | null>(null)
   const hasStarted = useRef(false)
+  const [isClient, setIsClient] = useState(false)
+  const [pathname, setPathname] = useState<string | null>(null)
+
+  // Track client-side mount and pathname
+  useEffect(() => {
+    setIsClient(true)
+    setPathname(window.location.pathname)
+  }, [])
+
+  // Check if we're on a protected route
+  const isProtectedRoute = pathname?.startsWith('/dashboard') || pathname?.startsWith('/app')
 
   const startTour = useCallback(() => {
     if (hasStarted.current) return
@@ -143,8 +154,8 @@ export function OnboardingTour({
       prevBtnText: 'Back',
       doneBtnText: 'Done',
       progressText: '{{current}} of {{total}}',
-      onDestroyStarted: () => {
-        // Called when tour is completed or dismissed
+      onDestroyed: () => {
+        // Called when tour is completed (Done button) or destroyed
         markOnboardingComplete()
         onComplete?.()
         hasStarted.current = false
@@ -166,12 +177,13 @@ export function OnboardingTour({
   }, [onComplete, onSkip])
 
   useEffect(() => {
-    if (autoStart && !hasCompletedOnboarding()) {
+    // Only start tour on protected routes (dashboard) to avoid running on landing page
+    if (isClient && autoStart && !hasCompletedOnboarding() && isProtectedRoute) {
       // Slight delay to ensure DOM elements are rendered
       const timer = setTimeout(startTour, 500)
       return () => clearTimeout(timer)
     }
-  }, [autoStart, startTour])
+  }, [isClient, autoStart, isProtectedRoute, startTour])
 
   // Cleanup on unmount
   useEffect(() => {
@@ -196,7 +208,7 @@ export function useOnboardingTour() {
       prevBtnText: 'Back',
       doneBtnText: 'Done',
       progressText: '{{current}} of {{total}}',
-      onDestroyStarted: () => {
+      onDestroyed: () => {
         onComplete?.()
       },
       popoverClass: 'perpetua-tour-popover',
