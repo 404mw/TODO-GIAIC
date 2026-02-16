@@ -16,10 +16,10 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
 import { useCreateCheckoutSession } from '@/lib/hooks/useSubscription'
-import { Loader2 } from 'lucide-react'
+import { Loader2, ChevronDown } from 'lucide-react'
 
 const PLANS = [
   {
@@ -137,6 +137,7 @@ export default function PricingPage() {
   const router = useRouter()
   const createCheckoutSession = useCreateCheckoutSession()
   const [upgrading, setUpgrading] = useState(false)
+  const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null)
 
   const handleUpgrade = async () => {
     try {
@@ -495,7 +496,7 @@ export default function PricingPage() {
           >
             Frequently asked questions
           </motion.h2>
-          <div className="mt-12 space-y-8">
+          <div className="mt-12 space-y-4">
             {FAQS.map((faq, index) => (
               <motion.div
                 key={faq.question}
@@ -503,11 +504,38 @@ export default function PricingPage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: index * 0.05 }}
                 viewport={{ once: true }}
+                className="overflow-hidden rounded-lg border border-white/10 bg-white/5 backdrop-blur-sm"
               >
-                <h3 className="text-lg font-semibold text-white">
-                  {faq.question}
-                </h3>
-                <p className="mt-2 text-gray-400">{faq.answer}</p>
+                <button
+                  onClick={() =>
+                    setOpenFaqIndex(openFaqIndex === index ? null : index)
+                  }
+                  className="flex w-full items-center justify-between gap-4 p-6 text-left transition-colors hover:bg-white/10"
+                >
+                  <h3 className="text-lg font-semibold text-white">
+                    {faq.question}
+                  </h3>
+                  <ChevronDown
+                    className={[
+                      'h-5 w-5 flex-shrink-0 text-gray-400 transition-transform duration-200',
+                      openFaqIndex === index ? 'rotate-180' : '',
+                    ].join(' ')}
+                  />
+                </button>
+                <AnimatePresence initial={false}>
+                  {openFaqIndex === index && (
+                    <motion.div
+                      initial={shouldReduceMotion ? {} : { height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.2, ease: 'easeInOut' }}
+                    >
+                      <p className="border-t border-white/10 px-6 pb-6 pt-4 text-gray-400">
+                        {faq.answer}
+                      </p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </motion.div>
             ))}
           </div>
