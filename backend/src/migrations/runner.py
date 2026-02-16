@@ -480,9 +480,10 @@ async def apply_migration_008_achievement_enum_fix_v2(session: AsyncSession) -> 
                 ORDER BY enumsortorder
             """)
         )
-        enum_values = [row[0] for row in result.fetchall()]
+        rows = result.fetchall()
+        enum_values = [row[0] for row in rows] if rows else []
 
-        logger.info(f"  Current enum values: {enum_values}")
+        logger.info(f"  Current enum values: {enum_values} (found {len(enum_values)} values)")
 
         # If enum doesn't exist, skip
         if not enum_values:
@@ -561,7 +562,7 @@ async def apply_migration_008_achievement_enum_fix_v2(session: AsyncSession) -> 
         logger.info("✓ Migration applied: 008_achievement_enum_fix_v2")
 
     except Exception as e:
-        logger.error(f"Migration 008 failed: {e}")
+        logger.error(f"Migration 008 failed: {e}", exc_info=True)
         await session.rollback()
         raise  # This time we raise to ensure it's properly tracked
 
@@ -586,17 +587,34 @@ async def run_migrations(session: AsyncSession) -> None:
     # Create migrations tracking table
     await create_migrations_table(session)
 
+    # Check which migrations are pending
+    pending_migrations = []
+    applied_migrations = []
+    for name, _ in MIGRATIONS:
+        if await is_migration_applied(session, name):
+            applied_migrations.append(name)
+        else:
+            pending_migrations.append(name)
+
+    logger.info(f"  Already applied: {len(applied_migrations)} migrations")
+    if applied_migrations:
+        logger.info(f"    {', '.join(applied_migrations)}")
+    logger.info(f"  Pending: {len(pending_migrations)} migrations")
+    if pending_migrations:
+        logger.info(f"    {', '.join(pending_migrations)}")
+
     # Apply pending migrations
     applied_count = 0
     for name, migration_func in MIGRATIONS:
         if not await is_migration_applied(session, name):
+            logger.info(f"  Applying migration: {name}")
             try:
                 await migration_func(session)
                 await mark_migration_applied(session, name)
                 applied_count += 1
             except Exception as e:
                 logger.error(f"✗ Migration failed: {name}")
-                logger.error(f"Error: {e}")
+                logger.error(f"Error: {e}", exc_info=True)
                 raise
 
     if applied_count == 0:
