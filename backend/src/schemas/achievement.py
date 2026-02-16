@@ -7,7 +7,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
-from src.schemas.enums import PerkType
+from src.schemas.enums import AchievementCategory, PerkType
 
 
 class AchievementPerk(BaseModel):
@@ -90,4 +90,22 @@ class EffectiveLimitsResponse(BaseModel):
 
     effective_limits: EffectiveLimits = Field(
         description="User's effective limits",
+    )
+
+
+class AchievementDefinitionResponse(BaseModel):
+    """Achievement definition schema for API responses."""
+
+    id: str = Field(description="Achievement code (e.g., 'tasks_5')")
+    name: str = Field(description="Display name")
+    message: str = Field(description="Description/unlock criteria")
+    category: AchievementCategory = Field(description="Achievement category")
+    threshold: int = Field(description="Required count to unlock")
+    perk_type: PerkType | None = Field(
+        default=None,
+        description="Type of perk granted",
+    )
+    perk_value: int | None = Field(
+        default=None,
+        description="Perk amount",
     )

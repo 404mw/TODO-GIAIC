@@ -1331,12 +1331,47 @@ limit: int = 50  # Max 100
 
 ### Achievements
 
-- `GET /api/v1/achievements` - Get user's achievement data (stats, unlocked, progress, limits)
-- `GET /api/v1/achievements/me` - Alias for `/achievements` (same response)
+- `GET /api/v1/achievements` - Get all achievement definitions (catalog of all possible achievements)
+- `GET /api/v1/achievements/me` - Get user's achievement data (stats, unlocked, progress, limits)
 - `GET /api/v1/achievements/stats` - Get only user stats (lifetime tasks, streak, etc.)
 - `GET /api/v1/achievements/limits` - Get only effective limits based on tier and perks
 
-**Example Response (GET /api/v1/achievements):**
+**Example Response (GET /api/v1/achievements - Definitions):**
+```json
+{
+  "data": [
+    {
+      "id": "tasks_5",
+      "name": "Task Starter",
+      "message": "Complete 5 tasks",
+      "category": "tasks",
+      "threshold": 5,
+      "perk_type": "max_tasks",
+      "perk_value": 15
+    },
+    {
+      "id": "tasks_25",
+      "name": "Task Master",
+      "message": "Complete 25 tasks",
+      "category": "tasks",
+      "threshold": 25,
+      "perk_type": "max_tasks",
+      "perk_value": 25
+    },
+    {
+      "id": "streak_7",
+      "name": "Week Warrior",
+      "message": "Maintain a 7-day streak",
+      "category": "streaks",
+      "threshold": 7,
+      "perk_type": "daily_ai_credits",
+      "perk_value": 3
+    }
+  ]
+}
+```
+
+**Example Response (GET /api/v1/achievements/me - User Data):**
 ```json
 {
   "data": {
@@ -1350,28 +1385,28 @@ limit: int = 50  # Max 100
     "unlocked": [
       {
         "id": "tasks_25",
-        "name": "First Steps",
+        "name": "Task Master",
         "description": "Complete 25 tasks",
         "unlocked_at": "2026-02-10T12:00:00.000Z",
         "perk": {
-          "type": "storage",
-          "value": 10
+          "type": "max_tasks",
+          "value": 25
         }
       }
     ],
     "progress": [
       {
         "id": "tasks_50",
-        "name": "Task Master",
+        "name": "Centurion",
         "current": 42,
         "threshold": 50,
         "unlocked": false
       }
     ],
     "effective_limits": {
-      "max_tasks": 60,
-      "max_notes": 35,
-      "daily_ai_credits": 15
+      "max_tasks": 75,
+      "max_notes": 50,
+      "daily_ai_credits": 18
     }
   }
 }

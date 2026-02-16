@@ -515,6 +515,20 @@ class AchievementService:
 
         return 0
 
+    async def get_all_definitions(self) -> list[AchievementDefinition]:
+        """Get all achievement definitions.
+
+        Returns:
+            List of all achievement definitions from the database
+        """
+        result = await self.session.execute(
+            select(AchievementDefinition).order_by(
+                AchievementDefinition.category,
+                AchievementDefinition.threshold,
+            )
+        )
+        return list(result.scalars().all())
+
 
 # =============================================================================
 # FACTORY FUNCTION

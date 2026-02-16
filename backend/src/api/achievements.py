@@ -15,6 +15,7 @@ from src.config import Settings, get_settings
 from src.dependencies import get_current_user, get_db_session as get_db
 from src.models.user import User
 from src.schemas.achievement import (
+    AchievementDefinitionResponse,
     AchievementResponse,
     EffectiveLimitsResponse,
     UserStatsResponse,
@@ -30,43 +31,47 @@ router = APIRouter(prefix="/achievements", tags=["achievements"])
 
 @router.get(
     "",
-    response_model=DataResponse[AchievementResponse],
-    summary="Get user achievements",
+    response_model=DataResponse[list[AchievementDefinitionResponse]],
+    summary="Get achievement definitions",
     description="""
-    Retrieve the authenticated user's achievement data including:
-    - User stats (lifetime tasks, streak, focus completions, notes converted)
-    - List of unlocked achievements with perks
-    - Progress toward all achievements
-    - Effective limits based on tier and achievement perks
+    Retrieve all possible achievement definitions in the system.
 
-    Per api-specification.md Section 8.1.
+    Returns the complete catalog of achievements that users can unlock,
+    including unlock criteria, rewards, and perk information.
+
+    Use GET /achievements/me to get user-specific achievement data.
     """,
 )
 async def get_achievements(
     current_user: Annotated[User, Depends(get_current_user)],
     session: Annotated[AsyncSession, Depends(get_db)],
     settings: Annotated[Settings, Depends(get_settings)],
-) -> DataResponse[AchievementResponse]:
-    """Get user achievements, stats, progress, and effective limits.
-
-    T303: GET /api/v1/achievements
+) -> DataResponse[list[AchievementDefinitionResponse]]:
+    """Get all achievement definitions.
 
     Returns:
-        DataResponse wrapping AchievementResponse with stats, unlocked, progress, effective_limits
+        DataResponse wrapping list of achievement definitions
     """
     service = get_achievement_service(session, settings)
+    definitions = await service.get_all_definitions()
 
-    response = await service.get_achievement_response(
-        user_id=current_user.id,
-        tier=current_user.tier,
-    )
+    # Convert to response schema
+    response_data = [
+        AchievementDefinitionResponse(
+            id=defn.id,
+            name=defn.name,
+            message=defn.description,
+            category=defn.category,
+            threshold=defn.threshold,
+            perk_type=defn.perk_type,
+            perk_value=defn.perk_value,
+        )
+        for defn in definitions
+    ]
 
-    logger.debug(
-        f"Retrieved achievements for user {current_user.id}: "
-        f"{len(response.unlocked)} unlocked, streak={response.stats.current_streak}"
-    )
+    logger.debug(f"Retrieved {len(response_data)} achievement definitions")
 
-    return DataResponse(data=response)
+    return DataResponse(data=response_data)
 
 
 @router.get(
