@@ -19,6 +19,7 @@ from src.schemas.achievement import (
     EffectiveLimitsResponse,
     UserStatsResponse,
 )
+from src.schemas.common import DataResponse
 from src.services.achievement_service import get_achievement_service
 
 
@@ -29,7 +30,7 @@ router = APIRouter(prefix="/achievements", tags=["achievements"])
 
 @router.get(
     "",
-    response_model=AchievementResponse,
+    response_model=DataResponse[AchievementResponse],
     summary="Get user achievements",
     description="""
     Retrieve the authenticated user's achievement data including:
@@ -45,13 +46,13 @@ async def get_achievements(
     current_user: Annotated[User, Depends(get_current_user)],
     session: Annotated[AsyncSession, Depends(get_db)],
     settings: Annotated[Settings, Depends(get_settings)],
-) -> AchievementResponse:
+) -> DataResponse[AchievementResponse]:
     """Get user achievements, stats, progress, and effective limits.
 
     T303: GET /api/v1/achievements
 
     Returns:
-        AchievementResponse with stats, unlocked, progress, effective_limits
+        DataResponse wrapping AchievementResponse with stats, unlocked, progress, effective_limits
     """
     service = get_achievement_service(session, settings)
 
@@ -65,12 +66,12 @@ async def get_achievements(
         f"{len(response.unlocked)} unlocked, streak={response.stats.current_streak}"
     )
 
-    return response
+    return DataResponse(data=response)
 
 
 @router.get(
     "/me",
-    response_model=AchievementResponse,
+    response_model=DataResponse[AchievementResponse],
     summary="Get current user's achievements",
     description="""
     Alias for GET /achievements - retrieves the authenticated user's achievement data.
@@ -83,11 +84,11 @@ async def get_my_achievements(
     current_user: Annotated[User, Depends(get_current_user)],
     session: Annotated[AsyncSession, Depends(get_db)],
     settings: Annotated[Settings, Depends(get_settings)],
-) -> AchievementResponse:
+) -> DataResponse[AchievementResponse]:
     """Get current user's achievements (alias endpoint).
 
     Returns:
-        AchievementResponse with stats, unlocked, progress, effective_limits
+        DataResponse wrapping AchievementResponse with stats, unlocked, progress, effective_limits
     """
     service = get_achievement_service(session, settings)
 
@@ -101,12 +102,12 @@ async def get_my_achievements(
         f"{len(response.unlocked)} unlocked, streak={response.stats.current_streak}"
     )
 
-    return response
+    return DataResponse(data=response)
 
 
 @router.get(
     "/stats",
-    response_model=UserStatsResponse,
+    response_model=DataResponse[UserStatsResponse],
     summary="Get user stats",
     description="Retrieve just the user's achievement statistics.",
 )
@@ -114,11 +115,11 @@ async def get_user_stats(
     current_user: Annotated[User, Depends(get_current_user)],
     session: Annotated[AsyncSession, Depends(get_db)],
     settings: Annotated[Settings, Depends(get_settings)],
-) -> UserStatsResponse:
+) -> DataResponse[UserStatsResponse]:
     """Get user achievement stats only.
 
     Returns:
-        UserStatsResponse with stats
+        DataResponse wrapping UserStatsResponse with stats
     """
     service = get_achievement_service(session, settings)
 
@@ -127,12 +128,12 @@ async def get_user_stats(
         tier=current_user.tier,
     )
 
-    return UserStatsResponse(stats=response.stats)
+    return DataResponse(data=UserStatsResponse(stats=response.stats))
 
 
 @router.get(
     "/limits",
-    response_model=EffectiveLimitsResponse,
+    response_model=DataResponse[EffectiveLimitsResponse],
     summary="Get effective limits",
     description="""
     Retrieve the user's effective limits based on their tier and achievement perks.
@@ -144,15 +145,15 @@ async def get_effective_limits(
     current_user: Annotated[User, Depends(get_current_user)],
     session: Annotated[AsyncSession, Depends(get_db)],
     settings: Annotated[Settings, Depends(get_settings)],
-) -> EffectiveLimitsResponse:
+) -> DataResponse[EffectiveLimitsResponse]:
     """Get user's effective limits.
 
     Returns:
-        EffectiveLimitsResponse with effective_limits
+        DataResponse wrapping EffectiveLimitsResponse with effective_limits
     """
     service = get_achievement_service(session, settings)
 
     state = await service.get_or_create_achievement_state(current_user.id)
     limits = await service.calculate_effective_limits(current_user.tier, state)
 
-    return EffectiveLimitsResponse(effective_limits=limits)
+    return DataResponse(data=EffectiveLimitsResponse(effective_limits=limits))

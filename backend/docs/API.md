@@ -1336,6 +1336,47 @@ limit: int = 50  # Max 100
 - `GET /api/v1/achievements/stats` - Get only user stats (lifetime tasks, streak, etc.)
 - `GET /api/v1/achievements/limits` - Get only effective limits based on tier and perks
 
+**Example Response (GET /api/v1/achievements):**
+```json
+{
+  "data": {
+    "stats": {
+      "lifetime_tasks_completed": 42,
+      "current_streak": 5,
+      "longest_streak": 12,
+      "focus_completions": 15,
+      "notes_converted": 8
+    },
+    "unlocked": [
+      {
+        "id": "tasks_25",
+        "name": "First Steps",
+        "description": "Complete 25 tasks",
+        "unlocked_at": "2026-02-10T12:00:00.000Z",
+        "perk": {
+          "type": "storage",
+          "value": 10
+        }
+      }
+    ],
+    "progress": [
+      {
+        "id": "tasks_50",
+        "name": "Task Master",
+        "current": 42,
+        "threshold": 50,
+        "unlocked": false
+      }
+    ],
+    "effective_limits": {
+      "max_tasks": 60,
+      "max_notes": 35,
+      "daily_ai_credits": 15
+    }
+  }
+}
+```
+
 ### Focus Mode
 
 - `POST /api/v1/focus/start` - Start focus session
