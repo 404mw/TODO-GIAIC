@@ -351,6 +351,8 @@ async def apply_migration_007_fix_achievement_enum_case(session: AsyncSession) -
 
     The PostgreSQL enum was created with uppercase values (TASKS, STREAKS, FOCUS, NOTES)
     but the Python enum uses lowercase values (tasks, streaks, focus, notes).
+
+    This migration preserves existing data by converting uppercase to lowercase.
     """
     logger.info("Applying migration: 007_fix_achievement_enum_case")
 
@@ -368,19 +370,46 @@ async def apply_migration_007_fix_achievement_enum_case(session: AsyncSession) -
         )
         first_label = result.scalar()
 
-        # If enum exists and first value is already lowercase, skip migration
-        if first_label and first_label.islower():
+        # If enum doesn't exist or already has lowercase values, skip
+        if not first_label:
+            logger.info("✓ achievementcategory enum doesn't exist yet, skipping")
+            await session.commit()
+            return
+
+        if first_label.islower():
             logger.info("✓ achievementcategory enum already has lowercase values, skipping")
             await session.commit()
             return
 
-        logger.info("  Recreating achievementcategory enum with lowercase values...")
+        logger.info("  Converting achievementcategory enum to lowercase values...")
 
-        # Drop and recreate the enum type
-        # This will cascade to the achievement_definitions table
+        # Step 1: Add temporary TEXT column to store lowercase values
+        await session.execute(
+            text("""
+                ALTER TABLE achievement_definitions
+                ADD COLUMN IF NOT EXISTS category_temp TEXT
+            """)
+        )
+
+        # Step 2: Copy category data converted to lowercase
+        await session.execute(
+            text("""
+                UPDATE achievement_definitions
+                SET category_temp = LOWER(category::TEXT)
+            """)
+        )
+
+        # Step 3: Drop the old category column (this will drop the constraint)
+        await session.execute(
+            text("""
+                ALTER TABLE achievement_definitions
+                DROP COLUMN IF EXISTS category
+            """)
+        )
+
+        # Step 4: Drop and recreate the enum type with lowercase values
         await session.execute(text("DROP TYPE IF EXISTS achievementcategory CASCADE"))
 
-        # Create new enum type with lowercase values
         await session.execute(
             text(
                 "CREATE TYPE achievementcategory AS ENUM "
@@ -388,17 +417,38 @@ async def apply_migration_007_fix_achievement_enum_case(session: AsyncSession) -
             )
         )
 
-        # Recreate the category column on achievement_definitions table
+        # Step 5: Add category column back with new enum type
         await session.execute(
             text("""
                 ALTER TABLE achievement_definitions
-                ADD COLUMN category achievementcategory NOT NULL DEFAULT 'tasks'
+                ADD COLUMN category achievementcategory
             """)
         )
 
-        # If there's existing data, we'd need to update it, but since the table
-        # is likely empty or will be reseeded, we just note it
-        logger.info("  ✓ achievementcategory enum recreated with lowercase values")
+        # Step 6: Copy data from temp column (cast TEXT to enum)
+        await session.execute(
+            text("""
+                UPDATE achievement_definitions
+                SET category = category_temp::achievementcategory
+            """)
+        )
+
+        # Step 7: Make category NOT NULL and drop temp column
+        await session.execute(
+            text("""
+                ALTER TABLE achievement_definitions
+                ALTER COLUMN category SET NOT NULL
+            """)
+        )
+
+        await session.execute(
+            text("""
+                ALTER TABLE achievement_definitions
+                DROP COLUMN category_temp
+            """)
+        )
+
+        logger.info("  ✓ achievementcategory enum converted to lowercase values")
 
         await session.commit()
         logger.info("✓ Migration applied: 007_fix_achievement_enum_case")
