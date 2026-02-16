@@ -346,130 +346,21 @@ async def apply_migration_006_add_updated_at_column(session: AsyncSession) -> No
     logger.info("✓ Migration applied: 006_add_updated_at_column")
 
 
-async def apply_migration_007_fix_achievement_enum_case(session: AsyncSession) -> None:
-    """Fix achievementcategory enum to use lowercase values.
+async def apply_migration_007_force_achievement_enum_lowercase(session: AsyncSession) -> None:
+    """Forcefully ensure achievementcategory enum uses lowercase values.
 
-    The PostgreSQL enum was created with uppercase values (TASKS, STREAKS, FOCUS, NOTES)
-    but the Python enum uses lowercase values (tasks, streaks, focus, notes).
+    This migration addresses the case where the enum was created with uppercase values
+    but the database has lowercase data, causing a mismatch. It will:
+    1. Check current enum state
+    2. Drop and recreate with lowercase if needed
+    3. Ensure data is lowercase
 
-    This migration preserves existing data by converting uppercase to lowercase.
+    Safe to run multiple times.
     """
-    logger.info("Applying migration: 007_fix_achievement_enum_case")
+    logger.info("Applying migration: 007_force_achievement_enum_lowercase")
 
     try:
-        # Check if enum type exists and what its values are
-        result = await session.execute(
-            text("""
-                SELECT enumlabel
-                FROM pg_enum
-                WHERE enumtypid = (
-                    SELECT oid FROM pg_type WHERE typname = 'achievementcategory'
-                )
-                LIMIT 1
-            """)
-        )
-        first_label = result.scalar()
-
-        # If enum doesn't exist or already has lowercase values, skip
-        if not first_label:
-            logger.info("✓ achievementcategory enum doesn't exist yet, skipping")
-            await session.commit()
-            return
-
-        if first_label.islower():
-            logger.info("✓ achievementcategory enum already has lowercase values, skipping")
-            await session.commit()
-            return
-
-        logger.info("  Converting achievementcategory enum to lowercase values...")
-
-        # Step 1: Add temporary TEXT column to store lowercase values
-        await session.execute(
-            text("""
-                ALTER TABLE achievement_definitions
-                ADD COLUMN IF NOT EXISTS category_temp TEXT
-            """)
-        )
-
-        # Step 2: Copy category data converted to lowercase
-        await session.execute(
-            text("""
-                UPDATE achievement_definitions
-                SET category_temp = LOWER(category::TEXT)
-            """)
-        )
-
-        # Step 3: Drop the old category column (this will drop the constraint)
-        await session.execute(
-            text("""
-                ALTER TABLE achievement_definitions
-                DROP COLUMN IF EXISTS category
-            """)
-        )
-
-        # Step 4: Drop and recreate the enum type with lowercase values
-        await session.execute(text("DROP TYPE IF EXISTS achievementcategory CASCADE"))
-
-        await session.execute(
-            text(
-                "CREATE TYPE achievementcategory AS ENUM "
-                "('tasks', 'streaks', 'focus', 'notes')"
-            )
-        )
-
-        # Step 5: Add category column back with new enum type
-        await session.execute(
-            text("""
-                ALTER TABLE achievement_definitions
-                ADD COLUMN category achievementcategory
-            """)
-        )
-
-        # Step 6: Copy data from temp column (cast TEXT to enum)
-        await session.execute(
-            text("""
-                UPDATE achievement_definitions
-                SET category = category_temp::achievementcategory
-            """)
-        )
-
-        # Step 7: Make category NOT NULL and drop temp column
-        await session.execute(
-            text("""
-                ALTER TABLE achievement_definitions
-                ALTER COLUMN category SET NOT NULL
-            """)
-        )
-
-        await session.execute(
-            text("""
-                ALTER TABLE achievement_definitions
-                DROP COLUMN category_temp
-            """)
-        )
-
-        logger.info("  ✓ achievementcategory enum converted to lowercase values")
-
-        await session.commit()
-        logger.info("✓ Migration applied: 007_fix_achievement_enum_case")
-
-    except Exception as e:
-        logger.error(f"Migration 007 failed: {e}")
-        await session.rollback()
-        # Don't raise - allow app to continue
-        logger.warning("⚠ Migration 007 failed but continuing startup")
-
-
-async def apply_migration_008_achievement_enum_fix_v2(session: AsyncSession) -> None:
-    """Re-attempt fixing achievementcategory enum (migration 007 may have failed).
-
-    This migration ensures the enum has lowercase values matching Python code.
-    It's safe to run even if the enum is already correct.
-    """
-    logger.info("Applying migration: 008_achievement_enum_fix_v2")
-
-    try:
-        # Check current enum values
+        # Step 1: Check if achievementcategory enum exists
         result = await session.execute(
             text("""
                 SELECT enumlabel
@@ -483,88 +374,98 @@ async def apply_migration_008_achievement_enum_fix_v2(session: AsyncSession) -> 
         rows = result.fetchall()
         enum_values = [row[0] for row in rows] if rows else []
 
-        logger.info(f"  Current enum values: {enum_values} (found {len(enum_values)} values)")
+        logger.info(f"  Current achievementcategory enum values: {enum_values}")
 
-        # If enum doesn't exist, skip
-        if not enum_values:
-            logger.info("✓ achievementcategory enum doesn't exist, skipping")
-            await session.commit()
-            return
-
-        # If all values are already lowercase, skip
-        if all(v.islower() for v in enum_values):
-            logger.info("✓ achievementcategory enum already has lowercase values")
-            await session.commit()
-            return
-
-        # If all values are uppercase, we need to fix it
-        if all(v.isupper() for v in enum_values):
-            logger.info("  Converting enum from uppercase to lowercase...")
-
-            # Step 1: Alter column to TEXT type temporarily
-            logger.info("  Step 1: Converting category column to TEXT")
-            await session.execute(
-                text("""
-                    ALTER TABLE achievement_definitions
-                    ALTER COLUMN category TYPE TEXT
-                """)
-            )
-
-            # Step 2: Update values to lowercase
-            logger.info("  Step 2: Converting data to lowercase")
-            await session.execute(
-                text("""
-                    UPDATE achievement_definitions
-                    SET category = LOWER(category)
-                """)
-            )
-
-            # Step 3: Drop old enum type
-            logger.info("  Step 3: Dropping old enum type")
-            await session.execute(
-                text("DROP TYPE achievementcategory CASCADE")
-            )
-
-            # Step 4: Create new enum with lowercase values
-            logger.info("  Step 4: Creating new enum with lowercase values")
-            await session.execute(
-                text(
-                    "CREATE TYPE achievementcategory AS ENUM "
-                    "('tasks', 'streaks', 'focus', 'notes')"
+        # Step 2: Check if achievement_definitions table exists
+        result = await session.execute(
+            text("""
+                SELECT EXISTS (
+                    SELECT FROM information_schema.tables
+                    WHERE table_schema = 'public'
+                    AND table_name = 'achievement_definitions'
                 )
-            )
+            """)
+        )
+        table_exists = result.scalar()
 
-            # Step 5: Convert column back to enum type
-            logger.info("  Step 5: Converting column back to enum type")
-            await session.execute(
-                text("""
-                    ALTER TABLE achievement_definitions
-                    ALTER COLUMN category TYPE achievementcategory
-                    USING category::achievementcategory
-                """)
-            )
+        if not table_exists:
+            logger.info("✓ achievement_definitions table doesn't exist, skipping")
+            await session.commit()
+            return
 
-            # Step 6: Add NOT NULL constraint
-            logger.info("  Step 6: Adding NOT NULL constraint")
-            await session.execute(
-                text("""
-                    ALTER TABLE achievement_definitions
-                    ALTER COLUMN category SET NOT NULL
-                """)
-            )
-
-            logger.info("  ✓ Enum conversion complete")
+        # Step 3: If enum doesn't exist or has mixed case, recreate it
+        needs_fix = False
+        if not enum_values:
+            logger.info("  achievementcategory enum doesn't exist, will create")
+            needs_fix = True
+        elif not all(v.islower() for v in enum_values):
+            logger.info("  achievementcategory enum has uppercase/mixed values, will fix")
+            needs_fix = True
         else:
-            logger.warning(f"  Unexpected enum values (mixed case): {enum_values}")
-            logger.warning("  Skipping migration - manual intervention required")
+            logger.info("✓ achievementcategory enum already has correct lowercase values")
+            await session.commit()
+            return
+
+        # Step 4: Convert column to TEXT temporarily
+        logger.info("  Converting category column to TEXT")
+        await session.execute(
+            text("""
+                ALTER TABLE achievement_definitions
+                ALTER COLUMN category TYPE TEXT
+            """)
+        )
+
+        # Step 5: Ensure all data is lowercase
+        logger.info("  Converting all category data to lowercase")
+        await session.execute(
+            text("""
+                UPDATE achievement_definitions
+                SET category = LOWER(category)
+                WHERE category IS NOT NULL
+            """)
+        )
+
+        # Step 6: Drop old enum type if it exists
+        logger.info("  Dropping old achievementcategory enum type")
+        await session.execute(
+            text("DROP TYPE IF EXISTS achievementcategory CASCADE")
+        )
+
+        # Step 7: Create new enum with lowercase values
+        logger.info("  Creating achievementcategory enum with lowercase values")
+        await session.execute(
+            text(
+                "CREATE TYPE achievementcategory AS ENUM "
+                "('tasks', 'streaks', 'focus', 'notes')"
+            )
+        )
+
+        # Step 8: Convert column back to enum type
+        logger.info("  Converting category column back to achievementcategory enum")
+        await session.execute(
+            text("""
+                ALTER TABLE achievement_definitions
+                ALTER COLUMN category TYPE achievementcategory
+                USING category::achievementcategory
+            """)
+        )
+
+        # Step 9: Restore NOT NULL constraint
+        logger.info("  Restoring NOT NULL constraint")
+        await session.execute(
+            text("""
+                ALTER TABLE achievement_definitions
+                ALTER COLUMN category SET NOT NULL
+            """)
+        )
 
         await session.commit()
-        logger.info("✓ Migration applied: 008_achievement_enum_fix_v2")
+        logger.info("✓ Migration applied: 007_force_achievement_enum_lowercase")
 
     except Exception as e:
-        logger.error(f"Migration 008 failed: {e}", exc_info=True)
+        logger.error(f"Migration 007 failed: {e}", exc_info=True)
         await session.rollback()
-        raise  # This time we raise to ensure it's properly tracked
+        raise
 
 
 # List of all migrations in order
@@ -575,8 +476,7 @@ MIGRATIONS = [
     ("004_add_consumed_column", apply_migration_004_add_consumed_column),
     ("005_add_credit_ledger_columns", apply_migration_005_add_credit_ledger_columns),
     ("006_add_updated_at_column", apply_migration_006_add_updated_at_column),
-    ("007_fix_achievement_enum_case", apply_migration_007_fix_achievement_enum_case),
-    ("008_achievement_enum_fix_v2", apply_migration_008_achievement_enum_fix_v2),
+    ("007_force_achievement_enum_lowercase", apply_migration_007_force_achievement_enum_lowercase),
 ]
 
 
