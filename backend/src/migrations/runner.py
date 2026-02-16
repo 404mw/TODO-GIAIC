@@ -460,6 +460,112 @@ async def apply_migration_007_fix_achievement_enum_case(session: AsyncSession) -
         logger.warning("⚠ Migration 007 failed but continuing startup")
 
 
+async def apply_migration_008_achievement_enum_fix_v2(session: AsyncSession) -> None:
+    """Re-attempt fixing achievementcategory enum (migration 007 may have failed).
+
+    This migration ensures the enum has lowercase values matching Python code.
+    It's safe to run even if the enum is already correct.
+    """
+    logger.info("Applying migration: 008_achievement_enum_fix_v2")
+
+    try:
+        # Check current enum values
+        result = await session.execute(
+            text("""
+                SELECT enumlabel
+                FROM pg_enum
+                WHERE enumtypid = (
+                    SELECT oid FROM pg_type WHERE typname = 'achievementcategory'
+                )
+                ORDER BY enumsortorder
+            """)
+        )
+        enum_values = [row[0] for row in result.fetchall()]
+
+        logger.info(f"  Current enum values: {enum_values}")
+
+        # If enum doesn't exist, skip
+        if not enum_values:
+            logger.info("✓ achievementcategory enum doesn't exist, skipping")
+            await session.commit()
+            return
+
+        # If all values are already lowercase, skip
+        if all(v.islower() for v in enum_values):
+            logger.info("✓ achievementcategory enum already has lowercase values")
+            await session.commit()
+            return
+
+        # If all values are uppercase, we need to fix it
+        if all(v.isupper() for v in enum_values):
+            logger.info("  Converting enum from uppercase to lowercase...")
+
+            # Step 1: Alter column to TEXT type temporarily
+            logger.info("  Step 1: Converting category column to TEXT")
+            await session.execute(
+                text("""
+                    ALTER TABLE achievement_definitions
+                    ALTER COLUMN category TYPE TEXT
+                """)
+            )
+
+            # Step 2: Update values to lowercase
+            logger.info("  Step 2: Converting data to lowercase")
+            await session.execute(
+                text("""
+                    UPDATE achievement_definitions
+                    SET category = LOWER(category)
+                """)
+            )
+
+            # Step 3: Drop old enum type
+            logger.info("  Step 3: Dropping old enum type")
+            await session.execute(
+                text("DROP TYPE achievementcategory CASCADE")
+            )
+
+            # Step 4: Create new enum with lowercase values
+            logger.info("  Step 4: Creating new enum with lowercase values")
+            await session.execute(
+                text(
+                    "CREATE TYPE achievementcategory AS ENUM "
+                    "('tasks', 'streaks', 'focus', 'notes')"
+                )
+            )
+
+            # Step 5: Convert column back to enum type
+            logger.info("  Step 5: Converting column back to enum type")
+            await session.execute(
+                text("""
+                    ALTER TABLE achievement_definitions
+                    ALTER COLUMN category TYPE achievementcategory
+                    USING category::achievementcategory
+                """)
+            )
+
+            # Step 6: Add NOT NULL constraint
+            logger.info("  Step 6: Adding NOT NULL constraint")
+            await session.execute(
+                text("""
+                    ALTER TABLE achievement_definitions
+                    ALTER COLUMN category SET NOT NULL
+                """)
+            )
+
+            logger.info("  ✓ Enum conversion complete")
+        else:
+            logger.warning(f"  Unexpected enum values (mixed case): {enum_values}")
+            logger.warning("  Skipping migration - manual intervention required")
+
+        await session.commit()
+        logger.info("✓ Migration applied: 008_achievement_enum_fix_v2")
+
+    except Exception as e:
+        logger.error(f"Migration 008 failed: {e}")
+        await session.rollback()
+        raise  # This time we raise to ensure it's properly tracked
+
+
 # List of all migrations in order
 MIGRATIONS = [
     ("001_user_achievement_states_created_at", apply_migration_001_user_achievement_states_created_at),
@@ -469,6 +575,7 @@ MIGRATIONS = [
     ("005_add_credit_ledger_columns", apply_migration_005_add_credit_ledger_columns),
     ("006_add_updated_at_column", apply_migration_006_add_updated_at_column),
     ("007_fix_achievement_enum_case", apply_migration_007_fix_achievement_enum_case),
+    ("008_achievement_enum_fix_v2", apply_migration_008_achievement_enum_fix_v2),
 ]
 
 
