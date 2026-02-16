@@ -1,9 +1,11 @@
 'use client'
 
 import { useEffect } from 'react'
+import { usePathname } from 'next/navigation'
 import { checkServiceWorkerSupport, showUnsupportedBrowserWarning } from '@/lib/utils/service-worker'
 import { useToast } from '@/lib/hooks/useToast'
 import { playNotificationSound } from '@/lib/config/notification-sounds'
+import { useAuth } from '@/lib/hooks/useAuth'
 
 /**
  * ServiceWorkerListener - Manages Service Worker registration and reminder polling
@@ -11,19 +13,32 @@ import { playNotificationSound } from '@/lib/config/notification-sounds'
  *
  * Features:
  * - Registers Service Worker for background notifications
- * - Starts reminder polling (60-second interval)
+ * - Starts reminder polling (60-second interval) only on protected routes when authenticated
  * - Listens for REMINDER_DUE messages from Service Worker
  * - Shows graceful fallback warning for unsupported browsers (T099)
  * - Plays notification sound when browser notification shown (T101)
  */
 export function ServiceWorkerListener() {
   const { toast } = useToast()
+  const { isAuthenticated } = useAuth()
+  const pathname = usePathname()
+
+  // Only register and poll on protected routes when user is authenticated
+  const isProtectedRoute = pathname?.startsWith('/dashboard') || pathname?.startsWith('/app')
+  const shouldEnablePolling = isAuthenticated && isProtectedRoute
+
   useEffect(() => {
     // T099: Check Service Worker support before attempting registration
     if (!checkServiceWorkerSupport()) {
       console.warn('[App] Service Worker not supported in this browser')
       const warning = showUnsupportedBrowserWarning()
       toast({ title: 'Browser Compatibility', message: warning, type: 'warning' })
+      return
+    }
+
+    // Skip registration on public pages to avoid unnecessary API requests
+    if (!shouldEnablePolling) {
+      console.log('[App] Skipping Service Worker polling on public page or unauthenticated')
       return
     }
 
@@ -97,7 +112,7 @@ export function ServiceWorkerListener() {
       })
     }
 
-    // Cleanup on unmount
+    // Cleanup on unmount or when leaving protected routes
     return () => {
       if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
         navigator.serviceWorker.controller.postMessage({
@@ -105,7 +120,7 @@ export function ServiceWorkerListener() {
         })
       }
     }
-  }, [])
+  }, [shouldEnablePolling, toast])
 
   return null // This component doesn't render anything
 }
