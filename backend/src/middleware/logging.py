@@ -70,9 +70,9 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             "client_ip": self._get_client_ip(request),
         }
 
-        # Add user ID if authenticated
-        if hasattr(request.state, "user") and request.state.user:
-            log_context["user_id"] = str(request.state.user.id)
+        # Add user ID if authenticated (use scalar ID from request state)
+        if hasattr(request.state, "user_id"):
+            log_context["user_id"] = str(request.state.user_id)
 
         # Log request start
         logger.info("request_started", **log_context)
@@ -85,8 +85,9 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             duration_ms = (time.perf_counter() - start_time) * 1000
 
             # Add user ID after authentication (may have been set during request)
-            if hasattr(request.state, "user") and request.state.user:
-                log_context["user_id"] = str(request.state.user.id)
+            # Use scalar ID from request state to avoid DetachedInstanceError
+            if "user_id" not in log_context and hasattr(request.state, "user_id"):
+                log_context["user_id"] = str(request.state.user_id)
 
             # Log successful request
             logger.info(

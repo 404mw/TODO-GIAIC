@@ -299,7 +299,9 @@ async def get_current_user_optional(
             return None
 
         # Attach user to request state for middleware access
+        # Store scalar ID to avoid DetachedInstanceError in logging
         request.state.user = user
+        request.state.user_id = user.id
         return user
 
     except HTTPException:
@@ -337,7 +339,9 @@ async def get_current_user(
         )
 
     # Attach user to request state for middleware access
+    # Store scalar ID to avoid DetachedInstanceError in logging
     request.state.user = user
+    request.state.user_id = user.id
     return user
 
 
