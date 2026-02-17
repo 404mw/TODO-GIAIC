@@ -89,22 +89,48 @@ Apply this to ALL datetime fields in API responses.
 
 ### Rule 5: PostgreSQL Enum Handling
 
-**The Problem**: SQLAlchemy uses enum NAMES (GRANT) instead of VALUES (grant), causing PostgreSQL type errors.
+**The Problem**: SQLAlchemy's default behavior uses enum NAMES (TASKS, STREAKS, GRANT) instead of VALUES ("tasks", "streaks", "grant"), causing PostgreSQL type mismatches and `LookupError` exceptions.
+
+**Why This Happens**:
+```python
+class AchievementCategory(str, Enum):
+    TASKS = "tasks"      # Name: TASKS, Value: "tasks"
+    STREAKS = "streaks"  # Name: STREAKS, Value: "streaks"
+
+# Without explicit config, PostgreSQL enum gets: TASKS, STREAKS (names)
+# But data in DB is: "tasks", "streaks" (values) → MISMATCH!
+```
 
 **Your Enforcement**: Always use explicit SQLAlchemy Enum with values_callable:
 ```python
 from sqlalchemy import Column, Enum as SQLAEnum
 
-operation: CreditOperation = Field(
+# WRONG - will create enum with uppercase names
+category: AchievementCategory = Field(
+    nullable=False,
+    description="Achievement category",
+)
+
+# CORRECT - creates enum with lowercase values
+category: AchievementCategory = Field(
     sa_column=Column(
-        SQLAEnum(CreditOperation, values_callable=lambda x: [e.value for e in x]),
+        SQLAEnum(AchievementCategory, values_callable=lambda x: [e.value for e in x]),
         nullable=False,
     ),
-    description="Transaction type",
+    description="Achievement category",
 )
 ```
 
+**Real Example from Production Bug** (2024-02-17):
+- `achievement.py` model didn't have explicit enum config
+- PostgreSQL created enum: `achievementcategory (TASKS, STREAKS, FOCUS, NOTES)`
+- Database data: `'tasks'`, `'streaks'`, `'focus'`, `'notes'`
+- Result: `LookupError: 'tasks' is not among the defined enum values`
+- Fix: Added `SQLAEnum` with `values_callable` + migration to convert existing enums
+
 **Scan For**: Any enum fields without explicit `sa_column` configuration.
+
+**Models Already Fixed**: `credit.py` (CreditOperation, CreditType), `achievement.py` (AchievementCategory, PerkType)
 
 ### Rule 6: Python Exception Handling Order
 
@@ -160,6 +186,8 @@ mock_result.scalars.return_value.unique.return_value.all.return_value = [...]
 - **CompletedBy**: `MANUAL`, `AUTO`, `FORCE` (no `USER` value)
 - **CreditOperation**: `grant`, `consume`, `expire`, `carryover` (all lowercase)
 - **CreditType**: `kickstart`, `daily`, `subscription`, `purchased` (all lowercase)
+- **AchievementCategory**: `tasks`, `streaks`, `focus`, `notes` (all lowercase)
+- **PerkType**: `max_tasks`, `max_notes`, `daily_credits` (all lowercase)
 
 ### Health Endpoints
 - Location: **Root level** (`/health/live`, `/health/ready`)
