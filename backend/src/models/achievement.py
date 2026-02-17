@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 from uuid import UUID
 
 from sqlmodel import Column, Field, Relationship, SQLModel
-from sqlalchemy import JSON
+from sqlalchemy import JSON, Enum as SQLAEnum
 
 from src.models.base import BaseModel, TimestampMixin
 from src.schemas.enums import AchievementCategory, PerkType
@@ -45,7 +45,10 @@ class AchievementDefinition(SQLModel, table=True):
         description="How to unlock",
     )
     category: AchievementCategory = Field(
-        nullable=False,
+        sa_column=Column(
+            SQLAEnum(AchievementCategory, values_callable=lambda x: [e.value for e in x]),
+            nullable=False,
+        ),
         description="Achievement category",
     )
     threshold: int = Field(
@@ -57,6 +60,10 @@ class AchievementDefinition(SQLModel, table=True):
     # Perk granted on unlock (optional)
     perk_type: PerkType | None = Field(
         default=None,
+        sa_column=Column(
+            SQLAEnum(PerkType, values_callable=lambda x: [e.value for e in x]),
+            nullable=True,
+        ),
         description="Type of perk granted",
     )
     perk_value: int | None = Field(
