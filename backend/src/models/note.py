@@ -6,7 +6,8 @@ T034: Note model per data-model.md Entity 5
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlmodel import Field, Relationship, SQLModel
+from sqlmodel import Column, Field, Relationship, SQLModel
+from sqlalchemy import Enum as SQLAEnum
 
 from src.models.base import BaseModel
 from src.schemas.enums import TranscriptionStatus
@@ -70,6 +71,10 @@ class Note(NoteBase, BaseModel, table=True):
     )
     transcription_status: TranscriptionStatus | None = Field(
         default=None,
+        sa_column=Column(
+            SQLAEnum(TranscriptionStatus, values_callable=lambda x: [e.value for e in x]),
+            nullable=True,
+        ),
         description="Voice transcription state",
     )
 

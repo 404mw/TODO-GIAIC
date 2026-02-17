@@ -468,6 +468,134 @@ async def apply_migration_007_force_achievement_enum_lowercase(session: AsyncSes
         raise
 
 
+async def apply_migration_008_force_transcription_status_enum_lowercase(session: AsyncSession) -> None:
+    """Forcefully ensure transcriptionstatus enum uses lowercase values.
+
+    This migration addresses the case where the enum was created with uppercase values
+    but the database has lowercase data, causing a mismatch. It will:
+    1. Check current enum state
+    2. Drop and recreate with lowercase if needed
+    3. Ensure data is lowercase
+
+    Safe to run multiple times.
+    """
+    logger.info("Applying migration: 008_force_transcription_status_enum_lowercase")
+
+    try:
+        # Step 1: Check if transcriptionstatus enum exists
+        result = await session.execute(
+            text("""
+                SELECT enumlabel
+                FROM pg_enum
+                WHERE enumtypid = (
+                    SELECT oid FROM pg_type WHERE typname = 'transcriptionstatus'
+                )
+                ORDER BY enumsortorder
+            """)
+        )
+        rows = result.fetchall()
+        enum_values = [row[0] for row in rows] if rows else []
+
+        logger.info(f"  Current transcriptionstatus enum values: {enum_values}")
+
+        # Step 2: Check if notes table exists
+        result = await session.execute(
+            text("""
+                SELECT EXISTS (
+                    SELECT FROM information_schema.tables
+                    WHERE table_schema = 'public'
+                    AND table_name = 'notes'
+                )
+            """)
+        )
+        table_exists = result.scalar()
+
+        if not table_exists:
+            logger.info("✓ notes table doesn't exist, skipping")
+            await session.commit()
+            return
+
+        # Step 3: If enum doesn't exist or has mixed case, recreate it
+        needs_fix = False
+        if not enum_values:
+            logger.info("  transcriptionstatus enum doesn't exist, will create")
+            needs_fix = True
+        elif not all(v.islower() for v in enum_values):
+            logger.info("  transcriptionstatus enum has uppercase/mixed values, will fix")
+            needs_fix = True
+        else:
+            logger.info("✓ transcriptionstatus enum already has correct lowercase values")
+            await session.commit()
+            return
+
+        # Step 4: Convert column to TEXT temporarily (if column exists)
+        # Check if column exists first
+        result = await session.execute(
+            text("""
+                SELECT EXISTS (
+                    SELECT FROM information_schema.columns
+                    WHERE table_schema = 'public'
+                    AND table_name = 'notes'
+                    AND column_name = 'transcription_status'
+                )
+            """)
+        )
+        column_exists = result.scalar()
+
+        if column_exists:
+            logger.info("  Converting transcription_status column to TEXT")
+            await session.execute(
+                text("""
+                    ALTER TABLE notes
+                    ALTER COLUMN transcription_status TYPE TEXT
+                """)
+            )
+
+            # Step 5: Ensure all data is lowercase
+            logger.info("  Converting all transcription_status data to lowercase")
+            await session.execute(
+                text("""
+                    UPDATE notes
+                    SET transcription_status = LOWER(transcription_status)
+                    WHERE transcription_status IS NOT NULL
+                """)
+            )
+
+        # Step 6: Drop old enum type if it exists
+        logger.info("  Dropping old transcriptionstatus enum type")
+        await session.execute(
+            text("DROP TYPE IF EXISTS transcriptionstatus CASCADE")
+        )
+
+        # Step 7: Create new enum with lowercase values
+        logger.info("  Creating transcriptionstatus enum with lowercase values")
+        await session.execute(
+            text(
+                "CREATE TYPE transcriptionstatus AS ENUM "
+                "('pending', 'completed', 'failed')"
+            )
+        )
+
+        # Step 8: Convert column back to enum type (if it exists)
+        if column_exists:
+            logger.info("  Converting transcription_status column back to transcriptionstatus enum")
+            await session.execute(
+                text("""
+                    ALTER TABLE notes
+                    ALTER COLUMN transcription_status TYPE transcriptionstatus
+                    USING transcription_status::transcriptionstatus
+                """)
+            )
+
+        await session.commit()
+        logger.info("✓ Migration applied: 008_force_transcription_status_enum_lowercase")
+
+    except Exception as e:
+        logger.error(f"Migration 008 failed: {e}", exc_info=True)
+        await session.rollback()
+        raise
+
+
 # List of all migrations in order
 MIGRATIONS = [
     ("001_user_achievement_states_created_at", apply_migration_001_user_achievement_states_created_at),
@@ -477,6 +605,7 @@ MIGRATIONS = [
     ("005_add_credit_ledger_columns", apply_migration_005_add_credit_ledger_columns),
     ("006_add_updated_at_column", apply_migration_006_add_updated_at_column),
     ("007_force_achievement_enum_lowercase", apply_migration_007_force_achievement_enum_lowercase),
+    ("008_force_transcription_status_enum_lowercase", apply_migration_008_force_transcription_status_enum_lowercase),
 ]
 
 
