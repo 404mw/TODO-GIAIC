@@ -1,491 +1,291 @@
-# Tasks: Perpetua Flow - Frontend Application
+# Tasks: Perpetua Flow Frontend
 
 **Input**: Design documents from `/specs/002-perpetua-frontend/`
-**Prerequisites**: plan.md, spec.md, research.md (all complete)
+**Prerequisites**: [plan.md](./plan.md) ✅, [spec.md](./spec.md) ✅
+**Tests**: Not included (TDD approach available via `/sp.tasks` with `--tdd` flag)
+**Organization**: Grouped by User Story (FR-001 → FR-010) to enable independent delivery
 
-**TDD Enforcement**: ALL tasks follow Red → Green → Refactor workflow. Tests MUST be written and FAIL before implementation begins.
+## Format: `[ID] [P?] [Story] Description`
 
-**Organization**: Tasks are grouped by user story to enable independent implementation and testing.
-
-**Special Focus (Regeneration)**: This update emphasizes:
-- ✅ Reminders tasks (backed by spec FRs: FR-068 to FR-072)
-- ✅ Recurrence tasks (backed by spec FRs: FR-069 to FR-073)
-- ✅ Public pages tasks (backed by spec FRs: FR-064 to FR-067)
-- ✅ Success criteria validation tasks (backed by spec SC-001 to SC-024)
-
-## Format: `- [ ] [ID] [P?] [Story?] Description`
-
-- **[P]**: Can run in parallel (different files, no dependencies)
-- **[Story]**: Which user story this task belongs to (US1-US8)
-- All tasks include exact file paths
-
-## Path Conventions
-
-Using Next.js 15 App Router structure from plan.md
+- **[P]**: Can run in parallel (different files, no blocking dependencies)
+- **[Story]**: Which functional requirement this belongs to (US1–US10)
+- Paths use `frontend/src/` prefix per plan.md Layer Structure
 
 ---
 
-## Phase 1: Setup (14 tasks)
+## Phase 1: Setup (Shared Infrastructure)
 
-- [X] T001 Initialize Next.js 15 with TypeScript 5.3+ strict mode
-- [X] T002 [P] Install dependencies: React 19, TanStack Query v5, Zustand, Zod, MSW v2
-- [X] T003 [P] Install: Framer Motion, Radix UI, driver.js, rrule, date-fns, fuse.js
-- [X] T004 [P] Install testing: Jest 29, RTL 14, @testing-library/user-event, jest-dom
-- [X] T005 Configure Jest with next/jest preset
-- [X] T006 [P] Setup ESLint and Prettier
-- [X] T007 Create test utilities in tests/setup/test-utils.tsx
-- [X] T008 [P] Setup MSW browser in src/mocks/browser.ts
-- [X] T009 Create MSW test config in tests/setup/msw-setup.ts
-- [X] T010 [P] Create .env.local template with all env vars per plan.md Section 7.1
-- [X] T011 Configure Tailwind with dark theme and glassmorphism utilities per plan.md Section 2
-- [X] T012 [P] Setup pre-commit hooks (test, type-check, lint)
-- [X] T013 Create Service Worker shell in public/service-worker.js
-- [X] T014 Create global styles with glassmorphism and WCAG AA colors in src/styles/globals.css
+**Purpose**: Initialize project skeleton, tooling, and base configuration
+
+- [ ] T001 Initialize Next.js 16 project with TypeScript 5 via `npx create-next-app@latest frontend --typescript --tailwind --app`
+- [ ] T002 Install all dependencies from plan.md: `npm install @tanstack/react-query zustand zod @radix-ui/react-dialog framer-motion fuse.js rrule date-fns lucide-react`
+- [ ] T003 [P] Install dev dependencies: `npm install -D msw jest @testing-library/react @testing-library/jest-dom jest-environment-jsdom @types/jest`
+- [ ] T004 [P] Configure `tsconfig.json` with strict mode, path aliases (`@/*` → `src/*`), and `moduleResolution: bundler`
+- [ ] T005 [P] Configure `eslint.config.js` with Next.js preset and import ordering rules
+- [ ] T006 Configure `jest.config.ts` with jsdom environment, MSW server setup, and module aliases matching tsconfig
+- [ ] T007 [P] Configure `tailwind.config.ts` with dark mode class strategy, custom fonts (Geist), and content paths
+- [ ] T008 [P] Configure `next.config.ts` with security headers (X-Frame-Options, CSP, HSTS), bundle analyzer integration
+- [ ] T009 Create `.env.local` template with `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_GOOGLE_CLIENT_ID` — add `.env.local` to `.gitignore`
 
 ---
 
-## Phase 2: Foundational (41 tasks) - BLOCKS ALL USER STORIES
+## Phase 2: Foundational (Blocking Prerequisites)
 
-### Schemas (FR-062: Centralized Zod schemas)
+**Purpose**: Core infrastructure every user story depends on: API client, schemas, auth context, layout shell, MSW mocks
 
-- [X] T015 [P] Create Task schema with reminders array and recurrence fields in src/lib/schemas/task.schema.ts per data-model.md Entity 1 (FR-001)
-- [X] T016 [P] Create Sub-task schema in src/lib/schemas/subtask.schema.ts per data-model.md Entity 2 (FR-002)
-- [X] T017 [P] Create Note schema in src/lib/schemas/note.schema.ts per data-model.md Entity 3
-- [X] T018 [P] Create Reminder schema with relative timing offset in src/lib/schemas/reminder.schema.ts per research.md Section 15 (FR-068, FR-071)
-- [X] T019 [P] Create Recurrence schema with RRule string in src/lib/schemas/recurrence.schema.ts per research.md Section 16 (FR-069, FR-073)
-- [X] T020 [P] Create Achievement schema with ConsistencyStreak in src/lib/schemas/achievement.schema.ts per data-model.md Entity 8 (FR-029)
-- [X] T021 [P] Create User Profile schema with preferences in src/lib/schemas/user.schema.ts per data-model.md Entity 5
+**⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-### MSW Fixtures & Handlers (FR-057, FR-058: Simulate backend)
+- [ ] T010 Create `frontend/src/lib/schemas/common.schema.ts` — define shared enums: `PrioritySchema` (`low|medium|high`), `CompletedBySchema` (`manual|auto|force`), `UserTierSchema` (`free|pro`), `TranscriptionStatusSchema` (`pending|completed|failed`)
+- [ ] T011 [P] Create `frontend/src/lib/schemas/response.schema.ts` — define `DataResponseSchema<T>` (`{data: T}`) and `PaginatedResponseSchema<T>` (`{data: T[], pagination: {page, per_page, total, total_pages}}`) generic wrappers
+- [ ] T012 Create `frontend/src/lib/api/client.ts` — implement `ApiError` class (status, code, message, details, request_id) and `apiClient` with `get`, `post`, `patch`, `put`, `delete` methods; inject `Authorization: Bearer` header from `localStorage.getItem('auth_token')`; add `Idempotency-Key: crypto.randomUUID()` on mutating methods; handle both error formats `{"error":{...}}` and `{"code":...,"message":...}`; validate response against optional Zod schema
+- [ ] T013 Create `frontend/src/lib/contexts/AuthContext.tsx` — `AuthProvider` with `user: User|null`, `isAuthenticated`, `isLoading`, `logout()`, `refetch()`, `refreshTokenIfNeeded()`; on mount for protected routes (`/dashboard/*`) check `localStorage.auth_token`, call `/users/me`, handle `TOKEN_EXPIRED` by attempting refresh with `refresh_token`, rotate tokens on success; skip fetch on public routes
+- [ ] T014 Create `frontend/src/lib/hooks/useAuth.ts` — `useAuth()` hook that reads `AuthContext`, throws if used outside `AuthProvider`
+- [ ] T015 [P] Create `frontend/src/lib/hooks/useToast.ts` — wrapper around Radix `Toast` or internal toast store, exposing `toast(message, options)` function
+- [ ] T016 [P] Create `frontend/src/lib/hooks/useLocalStorage.ts` — `useLocalStorage<T>(key, defaultValue)` hook with SSR guard (`typeof window === 'undefined'`)
+- [ ] T017 [P] Create `frontend/src/lib/hooks/useReducedMotion.ts` — `useReducedMotion()` hook using `window.matchMedia('(prefers-reduced-motion: reduce)')`
+- [ ] T018 Create `frontend/src/app/layout.tsx` (root layout) — wrap with `AuthProvider`, `QueryClientProvider` (TanStack Query), `ToastProvider` (Radix); load Geist font; set `<html lang="en">`
+- [ ] T019 Create `frontend/src/app/dashboard/layout.tsx` — protected layout with `Sidebar` + `Header` components; redirect to `/login` if `!isAuthenticated && !isLoading`
+- [ ] T020 [P] Create `frontend/src/components/layout/Sidebar.tsx` — left nav with links to `/dashboard`, `/dashboard/tasks`, `/dashboard/notes`, `/dashboard/focus`, `/dashboard/achievements`, `/dashboard/settings`; use `useSidebarStore` for collapsed state; persist collapsed in localStorage
+- [ ] T021 [P] Create `frontend/src/components/layout/Header.tsx` — top bar with user avatar, user name, logout button; use `useAuth()` to get user; dropdown menu via Radix `DropdownMenu`
+- [ ] T022 Create `frontend/src/lib/stores/sidebar.store.ts` — Zustand store: `{ isCollapsed: boolean, toggle: () => void }`; persist to `localStorage`
+- [ ] T023 [P] Create `frontend/src/lib/stores/notification.store.ts` — Zustand store: `{ toasts: Toast[], addToast(msg, type), removeToast(id) }`
+- [ ] T024 [P] Create `frontend/src/components/ui/` — Radix UI wrappers: `Button.tsx`, `Input.tsx`, `Dialog.tsx`, `Badge.tsx`, `Card.tsx`, `Select.tsx`, `Popover.tsx`, `Toast.tsx`; apply Tailwind utility classes; export variants via `class-variance-authority`
+- [ ] T025 Create `frontend/src/mocks/server.ts` — MSW Node server for Jest using `setupServer(...handlers)`; export `server` for test setup
+- [ ] T026 Create `frontend/src/mocks/browser.ts` — MSW browser worker using `setupWorker(...handlers)`; start in `_app` when `NEXT_PUBLIC_MSW_ENABLED=true`
+- [ ] T027 Create `frontend/src/mocks/handlers/index.ts` — re-export all handlers from individual handler files
 
-- [X] T022 [P] Create task fixtures with 10 sample tasks in src/mocks/data/tasks.fixture.ts
-- [X] T023 [P] Create note fixtures with 5 sample notes in src/mocks/data/notes.fixture.ts
-- [X] T024 [P] Create reminder fixtures with relative timing examples in src/mocks/data/reminders.fixture.ts
-- [X] T025 [P] Tasks handler: GET, POST, PATCH, DELETE /api/tasks with recurrence generation in src/mocks/handlers/tasks.handlers.ts (FR-070: completion-based generation)
-- [X] T026 [P] Sub-tasks handler: POST, PATCH /api/tasks/:id/sub-tasks in src/mocks/handlers/tasks.handlers.ts (FR-002)
-- [X] T027 [P] Notes handler: GET, POST, PATCH, DELETE /api/notes in src/mocks/handlers/notes.handlers.ts
-- [X] T028 [P] Reminders handler: GET, POST, PATCH, DELETE /api/reminders in src/mocks/handlers/reminders.handlers.ts (FR-068)
-- [X] T029 [P] Reminder delivered handler: POST /api/reminders/:id/delivered in src/mocks/handlers/reminders.handlers.ts (FR-072)
-- [X] T030 [P] Search handler: GET /api/search with Fuse.js grouping in src/mocks/handlers/search.handlers.ts
-- [X] T031 [P] Achievements handler: GET /api/achievements with streak calculation in src/mocks/handlers/achievements.handlers.ts (FR-029, FR-033)
-- [X] T032 [P] AI handlers (disabled state): POST /api/ai/* in src/mocks/handlers/ai.handlers.ts
-- [X] T032a [P] Implement AI interaction logging in MSW handlers with immutable append-only storage in src/mocks/handlers/ai-logging.ts (FR-074)
-
-### TanStack Query Hooks (Server-state management)
-
-- [X] T033 [P] Create useTasks (list, get) with optimistic updates in src/lib/hooks/useTasks.ts (FR-059)
-- [X] T034 [P] Create useCreateTask, useUpdateTask, useDeleteTask mutations in src/lib/hooks/useTasks.ts
-- [X] T035 [P] Create useSubTasks hooks with progress calculation in src/lib/hooks/useTasks.ts (FR-003)
-- [X] T036 [P] Create useNotes hooks in src/lib/hooks/useNotes.ts
-- [X] T037 [P] Create useReminders hooks in src/lib/hooks/useReminders.ts (FR-068)
-- [X] T038 [P] Create useAchievements hooks with metric recalculation in src/lib/hooks/useAchievements.ts (FR-029)
-
-### Zustand Stores & Base UI (Client UI state)
-
-- [X] T039 [P] Create sidebar store with localStorage persistence in src/lib/stores/useSidebarStore.ts (FR-036, FR-060)
-- [X] T040 [P] Create focus store (ephemeral, no persistence) in src/lib/stores/useFocusStore.ts (FR-010)
-- [X] T041 [P] Create Button component in src/components/ui/Button.tsx
-- [X] T042 [P] Create Input component in src/components/ui/Input.tsx
-- [X] T043 [P] Create Select component in src/components/ui/Select.tsx
-- [X] T044 [P] Create Popover component using Radix UI in src/components/ui/Popover.tsx
-- [X] T045 [P] Create Toast component using Radix UI in src/components/ui/Toast.tsx (FR-072: in-app notifications)
-
-### Root Layout (App initialization)
-
-- [X] T046 Create root layout with fonts (Geist Sans/Mono), providers in app/layout.tsx (FR-055)
-- [X] T047 Add TanStack Query provider with config in app/layout.tsx
-- [X] T048 Add MSW initialization for development in app/layout.tsx (FR-057)
-- [X] T049 Add Service Worker registration for reminders in app/layout.tsx
-- [X] T050 Add Service Worker message listener for REMINDER_DUE events in app/layout.tsx (FR-072: in-app toast)
-
-**Checkpoint**: Foundation complete (including AI interaction logging infrastructure) - user stories can proceed
+**Checkpoint**: API client, auth context, layout shell, and MSW ready — user story implementation can begin
 
 ---
 
-## Phase 3: US8 - Dashboard Layout (Priority: P1) - 15 tasks
+## Phase 3: User Story 1 — Authentication (FR-001) 🎯 MVP
 
-**Goal**: Navigation foundation for all features (FR-034, FR-035)
+**Goal**: User can sign in with Google, session persists, tokens refresh silently, logout clears state
 
-**Independent Test**: Navigate between all routes, collapse/expand sidebar, verify state persists across page reloads, verify Focus Mode hides sidebar
+**Independent Test**: Open `/login` → click "Sign in with Google" → redirected to `/dashboard` → refresh page → still authenticated → click logout → redirected to `/login`
 
-### RED: Write FAILING Tests First
+### Implementation
 
-- [X] T051 [P] [US8] Test: Sidebar renders nav links and search in tests/unit/components/Sidebar.test.tsx
-- [X] T052 [P] [US8] Test: Sidebar collapse persists in localStorage in tests/unit/components/Sidebar.test.tsx (FR-036)
-- [X] T053 [P] [US8] Test: Active route highlights in tests/integration/navigation.test.tsx
-- [X] T054 [P] [US8] Test: Focus Mode hides sidebar in tests/integration/navigation.test.tsx (FR-039)
+- [ ] T028 [US1] Create `frontend/src/lib/schemas/user.schema.ts` — `UserSchema` (id, google_id, email, name, avatar_url, timezone, tier); `UpdateUserRequestSchema` (name?, timezone?); `UserResponseSchema = DataResponseSchema(UserSchema)`; export all types
+- [ ] T029 [US1] Create `frontend/src/lib/schemas/auth.schema.ts` — `AuthResponseSchema` (access_token, refresh_token, token_type, expires_in); `RefreshTokenRequestSchema` (refresh_token); export all types
+- [ ] T030 [US1] Create `frontend/src/lib/services/auth.service.ts` — `authService.exchangeCode(code)` calling `POST /auth/google/callback`; `authService.refreshTokens(token)` calling `POST /auth/refresh`; `authService.logout(token)` calling `POST /auth/logout`; responses NOT wrapped in `DataResponse`
+- [ ] T031 [US1] Create `frontend/src/lib/services/users.service.ts` — `usersService.getCurrentUser()` calling `GET /users/me` returning `UserResponseSchema`; `usersService.updateProfile(data)` calling `PATCH /users/me`
+- [ ] T032 [US1] Create `frontend/src/app/login/page.tsx` — centered card with `@react-oauth/google` `GoogleLogin` button; on success call `authService.exchangeCode(code)`, store tokens in localStorage, redirect to `/dashboard`; show error state on failure
+- [ ] T033 [US1] Create `frontend/src/app/auth/callback/page.tsx` — handle OAuth redirect; parse `?code=` param; call `authService.exchangeCode(code)`; store `access_token` + `refresh_token` in localStorage; redirect to `/dashboard`
+- [ ] T034 [US1] Create `frontend/src/mocks/data/user.fixture.ts` — export `userFixture: User` with realistic test data (UUID, email, name, avatar)
+- [ ] T035 [US1] Create `frontend/src/mocks/handlers/user.handlers.ts` — `GET /api/v1/users/me` returning `{data: userFixture}`; `PATCH /api/v1/users/me` merging body with fixture; `POST /api/v1/auth/google/callback` returning mock tokens; `POST /api/v1/auth/refresh` returning rotated mock tokens; `POST /api/v1/auth/logout` returning 200
 
-### GREEN: Implement Minimum to Pass
-
-- [X] T055 [US8] Implement Sidebar with collapsible navigation links in src/components/layout/Sidebar.tsx (FR-035)
-- [X] T056 [US8] Implement NavigationMenu with active route highlighting in src/components/layout/NavigationMenu.tsx (FR-034)
-- [X] T057 [US8] Implement ProfilePopover with user info, settings, logout using Radix UI in src/components/layout/ProfilePopover.tsx (FR-037, FR-038)
-- [X] T058 [US8] Create dashboard layout with sidebar in app/dashboard/layout.tsx
-- [X] T059 [P] [US8] Create tasks route placeholder in app/dashboard/tasks/page.tsx
-- [X] T060 [P] [US8] Create notes route placeholder in app/dashboard/notes/page.tsx
-- [X] T061 [P] [US8] Create achievements route placeholder in app/dashboard/achievements/page.tsx
-- [X] T062 [P] [US8] Create archive route placeholder in app/dashboard/archive/page.tsx
-
-### REFACTOR: Improve Code Quality
-
-- [X] T063 [US8] Extract navigation config to src/lib/config/navigation.ts
-- [X] T064 [US8] Add ARIA labels and semantic HTML to Sidebar for accessibility
-- [X] T065 [US8] Add Framer Motion animations with prefers-reduced-motion support (FR-052, FR-054)
-
-**Checkpoint**: Dashboard navigation complete and testable
+**Checkpoint**: Auth flow complete — can sign in, persist session, refresh tokens, and logout
 
 ---
 
-## Phase 4: US1 - Core Tasks (Priority: P1) - MVP - 30 tasks
+## Phase 4: User Story 2 — Task Management (FR-002) 🎯 MVP
 
-**Goal**: Task CRUD with sub-tasks, progress tracking, hiding (FR-001 to FR-009)
+**Goal**: User can create, read, update, delete, and complete tasks with full metadata (priority, due date, estimated duration, version locking)
 
-**Independent Test**: Create task "Finish report", add 3 sub-tasks, mark 1 complete, verify progress shows 33%, hide task and verify it disappears from default views but appears in Settings → Hidden Tasks
+**Independent Test**: Create task → view in list → open detail → edit title → mark complete → view in completed list → soft-delete → confirm hidden; all without subtasks or reminders
 
-### RED: Write FAILING Tests First (Tasks)
+### Implementation
 
-- [X] T066 [P] [US1] Test: TaskForm renders all fields (title, description, tags, priority, duration, due date) in tests/unit/components/TaskForm.test.tsx
-- [X] T067 [P] [US1] Test: TaskForm submits and creates task with UUID in tests/unit/components/TaskForm.test.tsx (FR-001)
-- [X] T068 [P] [US1] Test: Sub-task progress calculation 33% for 1/3 complete in tests/unit/components/SubTaskList.test.tsx (FR-003)
-- [X] T069 [P] [US1] Test: Hidden tasks excluded from default views in tests/integration/task-creation.test.tsx (FR-005, FR-006)
-- [X] T070 [P] [US1] Test: Orphaned sub-tasks prevented with error message in tests/unit/components/SubTaskList.test.tsx (FR-008)
+- [ ] T036 [US2] Create `frontend/src/lib/schemas/task.schema.ts` — full `TaskSchema` (id, user_id, template_id, title, description, priority, due_date, estimated_duration, focus_time_seconds, completed, completed_at, completed_by, hidden, archived, subtask_count, subtask_completed_count, created_at, updated_at, version); `TaskDetailSchema` extending with `subtasks[]` and `reminders[]`; `TaskTemplateSchema`; `CreateTaskRequestSchema` (title required, rest optional); `UpdateTaskRequestSchema` (all optional, version required); `ForceCompleteTaskRequestSchema` (version); `TaskForceCompleteResponseSchema` (`{data: {task, unlocked_achievements[], streak}}`); `TaskDeleteResponseSchema` (`{data: {tombstone_id, recoverable_until}}`)
+- [ ] T037 [US2] Create `frontend/src/mocks/data/tasks.fixture.ts` — export `tasksFixture: Task[]` with 5+ tasks covering all priorities, one completed, one with due_date in past, one with subtask_count > 0
+- [ ] T038 [US2] Create `frontend/src/mocks/handlers/tasks.handlers.ts` — in-memory task store; `GET /api/v1/tasks` with filters (completed, priority, hidden, archived); `GET /api/v1/tasks/:id`; `POST /api/v1/tasks`; `PATCH /api/v1/tasks/:id` (validate version field); `DELETE /api/v1/tasks/:id` (soft-delete: set hidden=true); `POST /api/v1/tasks/:id/force-complete` (set completed, return with mock unlocked_achievements); 100-500ms simulated latency; return 404 with `{error: {code:"RESOURCE_NOT_FOUND"}}` for missing tasks
+- [ ] T039 [P] [US2] Create `frontend/src/lib/hooks/useTasks.ts` — `useTasks(filters?)` querying `GET /tasks` with URLSearchParams; `useTask(id)` querying `GET /tasks/:id`; `useCreateTask()` mutating `POST /tasks` invalidating `['tasks']`; `useUpdateTask()` mutating `PATCH /tasks/:id`; `useDeleteTask()` mutating `DELETE /tasks/:id`; `useForceCompleteTask()` mutating `POST /tasks/:id/force-complete`; all mutations use `TaskSchema` or relevant schema for Zod validation
+- [ ] T040 [US2] Create `frontend/src/lib/stores/pending-completions.store.ts` — Zustand: `{ pendingIds: Set<string>, togglePending(id), hasPending(id), clearAll() }`; used for optimistic checkbox UI
+- [ ] T041 [P] [US2] Create `frontend/src/components/tasks/TaskCard.tsx` — display task card with: priority color left-border (red/yellow/green), checkbox using `pending-completions.store` for optimistic state (green bg when pending), title with strikethrough if completed, description (2-line clamp), priority badge, subtask count (`subtask_count/subtask_completed_count` from schema), estimated_duration, due_date with color coding (red=overdue, yellow=<24h), focus mode button (on hover, top-right, navigates to `/dashboard/focus`), expand/collapse subtasks section; click navigates to `/dashboard/tasks/:id`
+- [ ] T042 [P] [US2] Create `frontend/src/components/tasks/TaskProgressBar.tsx` — progress bar showing `subtask_completed_count / subtask_count * 100`%; animated fill; accessible `role="progressbar"` with aria-valuenow/min/max
+- [ ] T043 [US2] Create `frontend/src/components/tasks/TaskList.tsx` — grid of `TaskCard` components; accepts `tasks: Task[]`; empty state with "No tasks yet" illustration; loading skeleton (3 placeholder cards); error state with retry button
+- [ ] T044 [US2] Create `frontend/src/components/tasks/TaskForm.tsx` — controlled form for create/edit: title input (required, 1-500), description textarea (0-5000), priority select (low/medium/high), due_date picker (datetime-local), estimated_duration number input (1-720 min); validate with Zod `CreateTaskRequestSchema` on submit; show field-level validation errors
+- [ ] T045 [US2] Create `frontend/src/lib/stores/new-task-modal.store.ts` — Zustand: `{ isOpen: boolean, open(), close() }`
+- [ ] T046 [US2] Create `frontend/src/components/tasks/NewTaskModal.tsx` — Radix `Dialog` wrapping `TaskForm`; on submit call `useCreateTask().mutate()`; show loading spinner during mutation; close on success; use `new-task-modal.store` for open/close
+- [ ] T047 [US2] Create `frontend/src/app/dashboard/tasks/page.tsx` — call `useTasks({ completed: false })` and render `TaskList`; floating "+ New Task" button triggering `NewTaskModal`; tab bar for All/Active/Completed; pass `completed: true` for completed tab
+- [ ] T048 [US2] Create `frontend/src/app/dashboard/tasks/new/page.tsx` — full-page `TaskForm` as alternative to modal; redirect to `/dashboard/tasks/:id` on success
+- [ ] T049 [US2] Create `frontend/src/app/dashboard/tasks/[id]/page.tsx` — call `useTask(id)`; display full task detail (`TaskDetailView`); show 404 error boundary if task not found
+- [ ] T050 [US2] Create `frontend/src/components/tasks/TaskDetailView.tsx` — full task view: title (editable inline), description, priority badge, due date, estimated duration, focus time, completed_at, version; inline edit saves via `useUpdateTask()`; "Complete" button calls `useForceCompleteTask()`; "Delete" button with confirmation dialog calls `useDeleteTask()`; show undo toast on delete (30-day recovery)
+- [ ] T051 [US2] Create `frontend/src/components/tasks/TaskMetadata.tsx` — reusable metadata row component (icon + label + value) used in `TaskDetailView` and `TaskCard`
+- [ ] T052 [US2] Create `frontend/src/app/dashboard/tasks/[id]/edit/page.tsx` — `TaskForm` pre-filled with existing task data; submit calls `useUpdateTask()` with version field; redirect to task detail on success
+- [ ] T053 [US2] Create `frontend/src/app/dashboard/tasks/completed/page.tsx` — call `useTasks({ completed: true })`; render `TaskList` with completed tasks; "Clear All" button for bulk archive
+- [ ] T054 [US2] Create `frontend/src/app/dashboard/page.tsx` — dashboard home: "Today's Tasks" (due today), streak counter from achievements, quick-add note input, recent activity
 
-### GREEN: Implement Task Components
-
-- [X] T071 [P] [US1] Implement TaskForm with all fields and Zod validation in src/components/tasks/TaskForm.tsx (FR-001, FR-076)
-- [X] T072 [P] [US1] Implement TaskList with priority sorting and hidden filtering in src/components/tasks/TaskList.tsx (FR-006)
-- [X] T073 [P] [US1] Implement TaskCard with glassmorphism, checkbox, priority badge in src/components/tasks/TaskCard.tsx (FR-050)
-- [X] T074 [P] [US1] Implement SubTaskList with add/complete/delete actions in src/components/tasks/SubTaskList.tsx (FR-002)
-- [X] T075 [P] [US1] Implement TaskProgressBar with conditional rendering (hidden when 0 sub-tasks) in src/components/tasks/TaskProgressBar.tsx (FR-004)
-- [X] T076 [US1] Implement tasks page with TaskList in app/dashboard/tasks/page.tsx
-- [X] T077 [US1] Implement task detail page with sub-tasks in app/dashboard/tasks/[id]/page.tsx
-- [X] T078 [P] [US1] Create Settings → Hidden Tasks page with unhide and delete actions in app/dashboard/settings/hidden-tasks/page.tsx (FR-007)
-
-### REFACTOR: Improve Tasks
-
-- [X] T079 [US1] Extract progress calculation utility to src/lib/utils/progress.ts (FR-003)
-- [X] T080 [US1] Add tag autocomplete from previously used tags in TaskForm (FR-001)
-- [X] T081 [US1] Add max 10 sub-tasks limit enforcement in SubTaskList
-- [X] T082 [US1] Add loading and error states with TanStack Query
-
-**Checkpoint**: Core task management complete - MVP ready
+**Checkpoint**: Full task CRUD working — user can create, read, update, delete, and complete tasks
 
 ---
 
-## Phase 5: US1 Extended - Reminders (Priority: P2) - 25 tasks
+## Phase 5: User Story 3 — Subtask Management (FR-003) P2
 
-**Goal**: Dual notification system (browser + in-app) with Service Worker polling every 60s (FR-068 to FR-072)
+**Goal**: User can add up to 10 subtasks per task, check them off, and see aggregate progress
 
-**Independent Test**: Create task with reminder "15 minutes before due date", set due date to 15 minutes from now, verify browser notification and in-app toast appear at correct time
+**Independent Test**: Open task detail → add 3 subtasks → check 2 → progress bar shows 66% → task card shows "2/3 subtasks" → delete 1 → limit allows adding another → try add 11th → error shown
 
-### RED: Write FAILING Tests First (Reminders)
+### Implementation
 
-- [X] T083 [P] [US1] Test: ReminderForm validates task has due date required in tests/unit/components/ReminderForm.test.tsx (FR-071)
-- [X] T084 [P] [US1] Test: calculateReminderTriggerTime with various offsets in tests/unit/utils/date.test.ts (FR-071)
-- [X] T085 [P] [US1] Test: Service Worker detects due reminder and sends notification in tests/integration/reminder-notification.test.tsx (FR-072)
-- [X] T086 [P] [US1] Test: Browser permission denied falls back to in-app toast only in tests/integration/reminder-notification.test.tsx (FR-072)
+- [ ] T055 [US3] Create `frontend/src/lib/schemas/subtask.schema.ts` — `SubtaskSchema` (id, task_id, title, completed, completed_at, created_at, updated_at); `CreateSubtaskRequestSchema` (title 1-200); `UpdateSubtaskRequestSchema` (title?, completed?); `DataResponseSchema(SubtaskSchema)` variants
+- [ ] T056 [US3] Create `frontend/src/mocks/data/subtasks.fixture.ts` — export `subtasksFixture: Subtask[]` referencing task IDs from `tasksFixture`; mix completed and incomplete
+- [ ] T057 [US3] Create `frontend/src/mocks/handlers/tasks.handlers.ts` — add to existing file: `GET /api/v1/tasks/:id/subtasks`; `POST /api/v1/tasks/:id/subtasks` (enforce max 10, return `NESTING_LIMIT_EXCEEDED` on overflow); `PATCH /api/v1/tasks/:id/subtasks/:subtaskId`; `DELETE /api/v1/tasks/:id/subtasks/:subtaskId`
+- [ ] T058 [US3] Create `frontend/src/lib/hooks/useSubtasks.ts` — `useSubtasks(taskId)` querying `GET /tasks/:id/subtasks`; `useCreateSubtask()` mutating `POST /tasks/:id/subtasks`; `useUpdateSubtask()` mutating `PATCH /tasks/:id/subtasks/:id`; `useDeleteSubtask()` mutating `DELETE /tasks/:id/subtasks/:id`; all invalidate `['subtasks', taskId]` and `['tasks', taskId]`
+- [ ] T059 [P] [US3] Create `frontend/src/components/tasks/SubTaskList.tsx` — list of subtask rows each with: checkbox (toggle via `useUpdateSubtask()`), title, delete button; optimistic checkbox toggle; show "0/N subtasks" header; loading state while toggling
+- [ ] T060 [P] [US3] Create `frontend/src/components/tasks/AddSubTaskForm.tsx` — inline `<input>` + submit button; validate title not empty; call `useCreateSubtask()`; show `NESTING_LIMIT_EXCEEDED` error inline when at 10 subtasks; clear input on success
+- [ ] T061 [US3] Create `frontend/src/components/tasks/AISubtasksGenerator.tsx` — "✨ Generate subtasks" button (Pro only); calls `POST /api/v1/tasks/:id/ai/subtasks`; shows loading state; renders returned suggestions as checkboxes; "Accept All" saves all via `useCreateSubtask()`; individual accept/reject per suggestion; decrement AI credits display; disabled if `effective_limits.daily_ai_credits === 0`
+- [ ] T062 [US3] Integrate `SubTaskList` + `AddSubTaskForm` into `TaskDetailView` (`frontend/src/components/tasks/TaskDetailView.tsx`) — below task metadata; collapse/expand section; pass task.id to both
+- [ ] T063 [US3] Integrate subtask expand/collapse into `TaskCard.tsx` — update existing expandable section to call `useSubtasks(task.id)` when expanded; fall back to `task.subtask_count` / `task.subtask_completed_count` for progress display in collapsed view (no extra API call)
 
-### GREEN: Implement Reminder Logic & Components
-
-- [X] T087 [US1] Implement calculateReminderTriggerTime utility in src/lib/utils/date.ts per research.md Section 15 (FR-071)
-- [X] T088 [P] [US1] Implement ReminderForm with relative timing offset selector (-15, -30, -60, -1440 minutes) in src/components/reminders/ReminderForm.tsx (FR-068, FR-071)
-- [X] T089 [P] [US1] Implement ReminderList displaying all reminders with edit/delete in src/components/reminders/ReminderList.tsx (FR-068)
-- [X] T090 [P] [US1] Implement ReminderNotification toast component in src/components/reminders/ReminderNotification.tsx (FR-072)
-- [X] T091 [US1] Implement Service Worker polling logic (checks MSW every 60s) in public/service-worker.js per research.md Section 15 (FR-072)
-- [X] T092 [US1] Implement fetchRemindersFromMSW in Service Worker
-- [X] T093 [US1] Implement fetchTasksFromMSW in Service Worker
-- [X] T094 [US1] Implement dueReminders filter logic with calculateReminderTriggerTime in Service Worker
-- [X] T095 [US1] Implement browser notification trigger with Notification API in Service Worker (FR-072)
-- [X] T096 [US1] Implement in-app toast postMessage to all clients in Service Worker (FR-072)
-- [X] T097 [US1] Add reminder section to task detail page in app/dashboard/tasks/[id]/page.tsx
-
-### REFACTOR: Improve Reminders
-
-- [X] T098 [US1] Add browser notification permission request prompt on first app load (📝 Documented in PHASE5_INTEGRATION_GUIDE.md)
-- [X] T099 [US1] Add graceful fallback for unsupported Service Worker browsers (📝 Documented in PHASE5_INTEGRATION_GUIDE.md)
-- [X] T100 [US1] Add mark-as-delivered tracking to prevent duplicate notifications (POST /api/reminders/:id/delivered)
-- [X] T101 [US1] Add notification sound configuration per FR-072 (📝 Documented in PHASE5_INTEGRATION_GUIDE.md)
-
-**Checkpoint**: Reminders with dual notification system complete (FR-068 to FR-072 satisfied)
+**Checkpoint**: Subtasks fully functional with progress tracking and AI generation (Pro)
 
 ---
 
-## Phase 6: US1 Extended - Recurrence (Priority: P2) - 20 tasks
+## Phase 6: User Story 4 — Focus Mode (FR-004) P2
 
-**Goal**: Custom recurrence with RRule (RFC 5545), completion-based instance generation (FR-069, FR-070, FR-073)
+**Goal**: User can enter full-screen distraction-free mode for a task, run a countdown timer, and have focus time recorded on task completion
 
-**Independent Test**: Create recurring task "Weekly review" set to repeat every Monday, complete it, verify next instance is created with due date next Monday and isRecurringInstance=true
+**Independent Test**: Click focus icon on task → full-screen view opens → timer counts down from estimated_duration → pause/resume works → mark complete → task updated with focus_time_seconds → return to task list
 
-### RED: Write FAILING Tests First (Recurrence)
+### Implementation
 
-- [X] T102 [P] [US1] Test: onTaskComplete generates next instance with correct due date in tests/unit/utils/recurrence.test.ts (FR-070)
-- [X] T103 [P] [US1] Test: RRule parsing and validation for various patterns in tests/unit/utils/recurrence.test.ts (FR-073)
-- [X] T104 [P] [US1] Test: Recurrence ends after COUNT limit reached in tests/unit/utils/recurrence.test.ts (FR-069)
-- [X] T105 [P] [US1] Test: RecurrencePreview shows next 5 occurrences in tests/unit/components/RecurrencePreview.test.tsx (FR-069)
+- [ ] T064 [US4] Create `frontend/src/lib/stores/focus-mode.store.ts` — Zustand: `{ isActive: boolean, currentTaskId: string|null, startTime: Date|null, pausedAt: Date|null, elapsedSeconds: number, activate(taskId), deactivate(), pause(), resume() }`; `elapsedSeconds` accumulates only while not paused
+- [ ] T065 [US4] Create `frontend/src/components/focus/FocusTimer.tsx` — countdown from `task.estimated_duration * 60` seconds; display as `MM:SS`; animated ring SVG (reduced-motion: plain text fallback); pause/resume button; "Complete Task" button; "Exit" button with confirmation (unsaved focus time warning); update store `elapsedSeconds` every second via `setInterval`
+- [ ] T066 [US4] Create `frontend/src/components/focus/FocusTaskView.tsx` — full-screen layout: task title (large), description, subtask checklist (toggle subtasks without leaving focus), `FocusTimer` bottom-center; keyboard: `Escape` shows exit confirmation, `Space` pauses/resumes; prevent scroll; `overflow-hidden` on body
+- [ ] T067 [US4] Create `frontend/src/app/dashboard/focus/page.tsx` — render `FocusTaskView`; redirect to `/dashboard/tasks` if `!focusModeStore.isActive`; on "Complete Task" call `useForceCompleteTask()` then `focusModeStore.deactivate()`; PATCH task with `focus_time_seconds: store.elapsedSeconds` before completing; show achievement unlock toast if returned
+- [ ] T068 [US4] Update `frontend/src/components/tasks/TaskCard.tsx` — focus icon button (eye icon, top-right, visible on hover): call `focusModeStore.activate(task.id)` then `router.push('/dashboard/focus')`; only show for incomplete tasks
 
-### GREEN: Implement Recurrence Logic & Components
-
-- [X] T106 [US1] Implement onTaskComplete with RRule.after() logic in src/lib/utils/recurrence.ts per research.md Section 16 (FR-070)
-- [X] T107 [US1] Update PATCH /api/tasks/:id handler to trigger recurrence generation on completion in src/mocks/handlers/tasks.handlers.ts (FR-070)
-- [X] T108 [P] [US1] Implement RecurrenceEditor with frequency dropdown (DAILY, WEEKLY, MONTHLY) and interval input in src/components/recurrence/RecurrenceEditor.tsx (FR-069)
-- [X] T109 [P] [US1] Implement RecurrencePreview showing next 5 occurrences with date-fns formatting in src/components/recurrence/RecurrencePreview.tsx (FR-069)
-- [X] T110 [P] [US1] Implement WeekdayPicker for weekly recurrence (BYDAY selection) in src/components/recurrence/RecurrenceEditor.tsx (FR-073)
-- [X] T111 [US1] Add recurrence section to TaskForm with enable toggle in src/components/tasks/TaskForm.tsx (FR-069)
-- [X] T112 [US1] Add recurrence display to task detail showing human-readable description in app/dashboard/tasks/[id]/page.tsx (FR-069)
-
-### REFACTOR: Improve Recurrence
-
-- [X] T113 [US1] Add human-readable description with RRule.toText() in RecurrenceEditor (FR-073)
-- [X] T114 [US1] Add preset buttons (Daily, Weekly, Monthly, Custom) for quick setup
-- [X] T115 [US1] Add edge case handling (invalid dates, timezone awareness, Feb 30) (FR-073)
-- [X] T116 [US1] Add visual indicator for recurring instances (isRecurringInstance badge) in TaskCard
-
-**Checkpoint**: Recurring tasks with RRule complete (FR-069, FR-070, FR-073 satisfied)
+**Checkpoint**: Focus mode fully functional with timer, pause/resume, and focus time tracking
 
 ---
 
-## Phase 7: US2 - Focus Mode (Priority: P2) - 12 tasks
+## Phase 7: User Story 5 — Quick Notes (FR-005) P2
 
-**Goal**: Distraction-free mode with countdown timer (FR-010 to FR-016)
+**Goal**: User can capture quick notes, view them in a list, archive old ones, and convert notes to tasks in one click
 
-**Independent Test**: Select task with 30-minute duration, activate Focus Mode, verify sidebar disappears, other tasks hidden, countdown starts at 30:00, manually exit and verify normal view returns
+**Independent Test**: Open notes → add note "Call dentist tomorrow" → note appears in list → click "Convert to Task" → task created with note content as description → note marked archived → archived note visible in settings
 
-### RED: Write FAILING Tests First (Focus Mode)
+### Implementation
 
-- [X] T117 [P] [US2] Test: Target icon activates Focus Mode in tests/unit/components/TaskCard.test.tsx (FR-010)
-- [X] T118 [P] [US2] Test: Sidebar hides when Focus Mode active in tests/integration/focus-mode.test.tsx (FR-011)
-- [X] T119 [P] [US2] Test: Countdown timer displays and counts down in tests/unit/components/FocusTimer.test.tsx (FR-012)
-- [X] T120 [P] [US2] Test: Alert triggers when countdown reaches zero in tests/unit/components/FocusTimer.test.tsx (FR-016)
+- [ ] T069 [US5] Create `frontend/src/lib/schemas/note.schema.ts` — `NoteSchema` (id, user_id, content 1-2000, archived, voice_url, voice_duration_seconds, transcription_status, created_at, updated_at); `CreateNoteRequestSchema` (content); `UpdateNoteRequestSchema` (content?, archived?); response wrappers
+- [ ] T070 [US5] Create `frontend/src/mocks/data/notes.fixture.ts` — export `notesFixture: Note[]` with 5 notes (some archived, one with voice_url)
+- [ ] T071 [US5] Create `frontend/src/mocks/handlers/notes.handlers.ts` — `GET /api/v1/notes` with `archived` filter; `POST /api/v1/notes`; `PATCH /api/v1/notes/:id`; `DELETE /api/v1/notes/:id`; `POST /api/v1/notes/:id/convert` → creates task from note content, marks note archived, returns `{data: {task, note}}`; enforce max-20 notes limit for free tier (check fixture length)
+- [ ] T072 [US5] Create `frontend/src/lib/hooks/useNotes.ts` — `useNotes(filters?)` querying notes; `useCreateNote()`, `useUpdateNote()`, `useDeleteNote()`, `useConvertNote()` mutations; invalidate `['notes']` and `['tasks']` on `useConvertNote` success
+- [ ] T073 [P] [US5] Create `frontend/src/components/notes/NoteCard.tsx` — note card: content (5-line clamp), relative timestamp, "Convert to Task" button (calls `useConvertNote()`), "Archive" button, "Delete" button; archived notes shown with muted styling; voice_url → audio player element if present
+- [ ] T074 [P] [US5] Create `frontend/src/components/notes/QuickNoteInput.tsx` — single-line text input with "Add Note" button; auto-expand to textarea after 50 chars; submit on Enter or button click; validates 1-2000 chars; clear on success; character counter (1800+ shows warning)
+- [ ] T075 [US5] Create `frontend/src/app/dashboard/notes/page.tsx` — `QuickNoteInput` at top; `NoteCard` grid for active notes; empty state; loading skeleton
+- [ ] T076 [US5] Create `frontend/src/app/dashboard/settings/archived-notes/page.tsx` — list of archived notes; "Unarchive" and "Delete" actions per note
 
-### GREEN: Implement Focus Mode
-
-- [X] T121 [P] [US2] Implement FocusTimer with setInterval countdown in src/components/focus/FocusTimer.tsx (FR-012)
-- [X] T122 [P] [US2] Implement FocusExitButton with manual exit action in src/components/focus/FocusExitButton.tsx (FR-013)
-- [X] T123 [US2] Implement Focus Mode page with isolated task view in app/focus/[taskId]/page.tsx (FR-011)
-- [X] T124 [US2] Add target icon button to TaskCard to activate Focus Mode (FR-010)
-- [X] T125 [US2] Add auto-exit logic on task completion in useTasks mutation callback (FR-014)
-
-### REFACTOR
-
-- [X] T126 [US2] Add audio/visual alert at countdown zero using Notification API (FR-016)
-- [X] T127 [US2] Add keyboard shortcuts (Escape to exit) for accessibility (FR-013)
-- [X] T128 [US2] Add smooth Framer Motion transitions with prefers-reduced-motion support (FR-052, FR-054)
-
-**Checkpoint**: Focus Mode complete (FR-010 to FR-016 satisfied)
+**Checkpoint**: Notes capture, conversion to tasks, and archiving all functional
 
 ---
 
-## Phase 8: US3 - Quick Notes (Priority: P2) - 12 tasks
+## Phase 8: User Story 6 — Achievement System (FR-008) P3
 
-**Goal**: Notes with voice-to-text and AI conversion UI (disabled state until backend) (FR-017 to FR-021)
+**Goal**: User earns achievements for task completion milestones, streaks, focus sessions, and note conversions; achievements unlock perks that increase limits
 
-**Independent Test**: Navigate to notes page, create note via text input, verify note appears in list; click voice button, verify recording indicator appears (disabled with tooltip)
+**Independent Test**: Complete 5 tasks → "First Steps" achievement fires → toast with achievement name and perk → `/achievements` page shows unlocked badge + progress toward next
 
-### RED & GREEN: Implement Notes
+### Implementation
 
-- [X] T129 [P] [US3] Implement NoteEditor with text input and character count in src/components/notes/NoteEditor.tsx (FR-017)
-- [X] T130 [P] [US3] Implement VoiceRecorder component (disabled state) with red recording indicator UI in src/components/notes/VoiceRecorder.tsx (FR-018)
-- [X] T131 [P] [US3] Implement NoteToTaskDrawer using Radix UI Drawer (disabled state) in src/components/notes/NoteToTaskDrawer.tsx (FR-019, FR-020, FR-021)
-- [X] T132 [US3] Implement notes page with NoteEditor and note list in app/dashboard/notes/page.tsx (FR-017)
-- [X] T133 [US3] Add tooltip "AI features available after backend integration" to disabled AI buttons (FR-027)
+- [ ] T077 [US6] Create `frontend/src/lib/schemas/achievement.schema.ts` — `AchievementDefinitionSchema` (id/code, name, message, category, threshold, perk_type, perk_value); `UserAchievementStateSchema` (lifetime_tasks_completed, current_streak, longest_streak, focus_completions, notes_converted, unlocked_achievements[]); `AchievementStatsSchema`; `AchievementProgressSchema` (id, name, current, threshold, unlocked); `EffectiveLimitsSchema` (max_tasks, max_notes, daily_ai_credits); `AchievementDataSchema` (stats, unlocked[], progress[], effective_limits); `AchievementUnlockSchema` (achievement_id, achievement_name, perk?)
+- [ ] T078 [US6] Create `frontend/src/mocks/handlers/achievements.handlers.ts` — `GET /api/v1/achievements/me` returning `{data: {stats, unlocked, progress, effective_limits}}`; calculate effective_limits dynamically from unlocked perks; simulate `current_streak: 3` and `longest_streak: 7` in fixture
+- [ ] T079 [US6] Create `frontend/src/lib/hooks/useAchievements.ts` — `useAchievements()` querying `/achievements/me`; `useAchievementNotifications.ts` subscribing to `useForceCompleteTask` mutation results and triggering toast on `unlocked_achievements.length > 0`
+- [ ] T080 [P] [US6] Create `frontend/src/components/achievements/AchievementCard.tsx` — achievement tile: name, message, category badge, progress bar (`current/threshold`), locked/unlocked state (grayscale when locked), perk description if unlocked; animation on unlock (Framer Motion scale+glow, skip if reduced-motion)
+- [ ] T081 [P] [US6] Create `frontend/src/components/achievements/StreakDisplay.tsx` — current streak with flame icon; longest streak secondary; last_completion_date; "grace period active" indicator if last completion was yesterday
+- [ ] T082 [US6] Create `frontend/src/components/achievements/AchievementUnlockToast.tsx` — Radix `Toast` with gold border, trophy icon, achievement name + perk description; auto-dismiss after 6 seconds; no motion if reduced-motion; triggered via `useAchievementNotifications`
+- [ ] T083 [US6] Create `frontend/src/app/dashboard/achievements/page.tsx` — `StreakDisplay` header; progress summary (lifetime tasks, focus sessions, notes converted); `AchievementCard` grid organized by category (Tasks / Streaks / Focus / Notes); highlight newly unlocked
+- [ ] T084 [US6] Update `frontend/src/app/dashboard/page.tsx` (dashboard home) — add `StreakDisplay` widget; show "X tasks to next achievement" progress hint
 
-**Checkpoint**: Quick notes UI complete (AI conversion disabled per FR-027 until backend)
-
----
-
-## Phase 9: US7 - Global Search (Priority: P2) - 8 tasks
-
-**Goal**: Fuzzy search with Fuse.js across tasks, notes, achievements (FR-040, FR-041)
-
-**Independent Test**: Create tasks and notes containing "budget", type "budget" in global search bar, verify results appear grouped by entity type with matching items highlighted
-
-### RED & GREEN: Implement Search
-
-- [X] T134 [P] [US7] Implement GlobalSearch with Fuse.js and debounced input in src/components/search/GlobalSearch.tsx (FR-040)
-- [X] T135 [P] [US7] Implement SearchResults with grouped display (Tasks, Notes, Archived) in src/components/search/SearchResults.tsx (FR-041)
-- [X] T136 [US7] Add GlobalSearch component to Sidebar in src/components/layout/Sidebar.tsx (FR-040)
-- [X] T137 [US7] Add "No results found" empty state in SearchResults (FR-041)
-
-**Checkpoint**: Global search complete (FR-040, FR-041 satisfied)
+**Checkpoint**: Achievement system unlocks on task completion, perks apply, streak tracked
 
 ---
 
-## Phase 10: US5 - Achievements (Priority: P3) - 10 tasks
+## Phase 9: User Story 7 — Reminder System (FR-006) P3
 
-**Goal**: Metrics tracking with milestone animations (FR-029 to FR-033)
+**Goal**: Reminders fire as browser notifications and in-app toasts at the configured time (relative or absolute), and are never re-triggered after delivery
 
-**Independent Test**: Complete 10 high-priority tasks, navigate to achievements page, verify "High Priority Slays" shows 10 with shimmer animation; complete tasks for 7 consecutive days, verify "Consistency Streak" shows 7 days
+**Independent Test**: Create task with due_date = now+2min → add reminder "-1 minute" → wait 1 min → browser notification appears + in-app toast → refresh → reminder marked as fired → no re-trigger
 
-### RED & GREEN: Implement Achievements
+### Implementation
 
-- [X] T138 [P] [US5] Implement MetricCard with glassmorphism and shimmer animation in src/components/achievements/MetricCard.tsx (FR-031, FR-032)
-- [X] T139 [P] [US5] Implement StreakDisplay with grace day logic in src/components/achievements/StreakDisplay.tsx (FR-033)
-- [X] T140 [P] [US5] Implement AchievementFeedback with confetti animation in src/components/achievements/AchievementFeedback.tsx (FR-032)
-- [X] T141 [US5] Implement achievements page displaying all metrics in app/dashboard/achievements/page.tsx (FR-029)
-- [X] T142 [US5] Add metric recalculation trigger on task completion in useTasks mutation callback (FR-029)
+- [ ] T085 [US7] Create `frontend/src/lib/schemas/reminder.schema.ts` — `ReminderSchema` (id, task_id, user_id, type `relative|absolute`, offset_minutes, scheduled_at, fired, fired_at, created_at, updated_at); `CreateReminderRequestSchema`; `UpdateReminderRequestSchema`
+- [ ] T086 [US7] Create `frontend/src/mocks/data/reminders.fixture.ts` — export `remindersFixture: Reminder[]` with one unfired relative reminder (offset -15) linked to a task with due_date
+- [ ] T087 [US7] Create `frontend/src/mocks/handlers/reminders.handlers.ts` — `GET /api/v1/reminders` (only unfired by default); `POST /api/v1/reminders`; `DELETE /api/v1/reminders/:id`; `POST /api/v1/reminders/:id/fire` (set fired=true, fired_at=now)
+- [ ] T088 [US7] Create `frontend/src/lib/hooks/useReminders.ts` — `useReminders(taskId?)` querying reminders; `useCreateReminder()`, `useDeleteReminder()` mutations; invalidate `['reminders']`
+- [ ] T089 [US7] Create `frontend/src/components/reminders/ReminderForm.tsx` — offset preset buttons (-15, -30, -60, -1440 min) + custom absolute datetime; show current reminders list with delete button; call `useCreateReminder()`; validate max 3 reminders per task
+- [ ] T090 [US7] Integrate `ReminderForm` into `TaskDetailView.tsx` (`frontend/src/components/tasks/TaskDetailView.tsx`) — "Reminders" section below subtasks; show existing reminders as chips with delete (×) button
+- [ ] T091 [US7] Create `frontend/public/service-worker.js` — SW v1.0.x; listen for `SET_API_URL`, `START_REMINDER_POLLING`, `STOP_REMINDER_POLLING` postMessages; on `START`: `setInterval(checkReminders, 60000)` + immediate check; `checkReminders` fetches `/reminders` + `/tasks`, calculates trigger times (`due_date + offset_minutes*60000` or `scheduled_at`), skips `fired=true`; shows `self.registration.showNotification()` with `requireInteraction: true, data.url = /dashboard/tasks/:id`; posts `{type: 'REMINDER_DUE', reminder, task}` to all clients; POSTs `/reminders/:id/fire`; `notificationclick` handler focuses/navigates existing tab or opens new
+- [ ] T092 [US7] Create `frontend/src/lib/hooks/useNotifications.ts` — register SW, request `Notification.permission`, send `SET_API_URL` + `START_REMINDER_POLLING` postMessages on dashboard mount, `STOP_REMINDER_POLLING` on public page mount; listen for `REMINDER_DUE` postMessages and call `notificationStore.addToast()`
 
-**Checkpoint**: Achievements system complete (FR-029 to FR-033 satisfied)
-
----
-
-## Phase 11: US6 - Onboarding (Priority: P3) - 8 tasks
-
-**Goal**: Interactive walkthrough with driver.js (FR-044 to FR-048)
-
-**Independent Test**: Create new user (firstLogin=true), load dashboard, verify walkthrough auto-starts highlighting sidebar, complete all steps, verify tutorial task "Master Perpetua" appears and is marked non-deletable
-
-### GREEN: Implement Onboarding
-
-- [X] T143 [US6] Create onboarding steps config with driver.js definitions in src/lib/config/onboarding.ts (FR-045)
-- [X] T144 [US6] Implement useOnboarding hook with auto-start logic in src/lib/hooks/useOnboarding.ts (FR-044)
-- [X] T145 [US6] Add auto-start check for firstLogin flag in dashboard layout useEffect (FR-044)
-- [X] T146 [US6] Add tutorial task creation on walkthrough completion in useOnboarding (FR-046, FR-047)
-- [X] T147 [US6] Add replay button in Settings page in app/dashboard/settings/page.tsx (FR-048)
-
-**Checkpoint**: Onboarding walkthrough complete (FR-044 to FR-048 satisfied)
+**Checkpoint**: Reminders fire on schedule, never repeat, browser + toast dual delivery works
 
 ---
 
-## Phase 12: US4 - AI Sub-tasks (Priority: P3) - 5 tasks
+## Phase 10: User Story 8 — Recurring Tasks (FR-007) P3
 
-**Goal**: Magic Sub-tasks UI (disabled state until backend) (FR-022 to FR-026)
+**Goal**: User can create a task template with an RRule recurrence pattern; completing an instance auto-generates the next due instance
 
-**Independent Test**: Create task with description, click "Generate Sub-tasks" button, verify button is disabled with tooltip explaining AI features require backend
+**Independent Test**: Create weekly Monday template → complete this week's instance → next Monday instance appears in task list → pause template → complete instance → no new instance generated
 
-### GREEN: Implement AI Sub-tasks UI
+### Implementation
 
-- [X] T148 [US4] Implement MagicSubTasksButton component (disabled state) in src/components/tasks/MagicSubTasksButton.tsx (FR-022, FR-023)
-- [X] T149 [US4] Add MagicSubTasksButton to TaskDetail page in app/dashboard/tasks/[id]/page.tsx (FR-022)
-- [X] T150 [US4] Add tooltip "AI features available after backend integration" (FR-027)
+- [ ] T093 [US8] Add `TaskTemplateSchema` to `frontend/src/lib/schemas/task.schema.ts` — (id, user_id, title, description, priority, estimated_duration, rrule, next_due, active, created_at, updated_at)
+- [ ] T094 [US8] Create `frontend/src/lib/utils/recurrence.ts` — `parseRRule(rruleString): RRule`; `getNextOccurrence(rrule, after?: Date): Date|null`; `humanizeRRule(rrule): string` (e.g., "Every Monday"); `validateRRule(str): {valid: boolean, error?: string}`; use `rrule` npm package
+- [ ] T095 [P] [US8] Create `frontend/src/components/recurrence/RecurrenceEditor.tsx` — UI for building RRule: frequency tabs (Daily/Weekly/Monthly/Custom); day-of-week picker for weekly; "starts on" date picker; preview of next 3 occurrences using `getNextOccurrence()`; raw RRULE string preview (collapsible for power users); calls `onChange(rruleString)` on change
+- [ ] T096 [P] [US8] Create `frontend/src/components/recurrence/RecurrencePreview.tsx` — read-only humanized display of an rrule string: "Every Monday" with next occurrence date; uses `humanizeRRule()` + `getNextOccurrence()`
+- [ ] T097 [US8] Add recurrence fields to `frontend/src/components/tasks/TaskForm.tsx` — "Make recurring?" toggle; when enabled, mount `RecurrenceEditor` and include `rrule` in task create payload; `template_id` shown as read-only for existing recurring instances
+- [ ] T098 [US8] Update `useForceCompleteTask` in `frontend/src/lib/hooks/useTasks.ts` — after successful completion, if `task.template_id` is set, invalidate `['tasks']` to fetch the newly-generated next instance from backend
+- [ ] T099 [US8] Create `frontend/src/app/dashboard/tasks/page.tsx` update — add "Templates" tab; show `TaskTemplateSchema` list from `GET /api/v1/task-templates`; pause/resume button per template; "View instances" link
 
-**Checkpoint**: AI sub-tasks UI complete (disabled per FR-027 until backend)
-
----
-
-## Phase 13: Public Pages (Priority: P3) - 8 tasks 🆕
-
-**Goal**: Marketing and informational pages (FR-064 to FR-067)
-
-**Independent Test**: Navigate to root URL (/), verify landing page loads with animated gradient mesh and glassmorphic feature cards, navigate to /pricing, /contact, /about, verify consistent dark aesthetic and footer with social links
-
-### GREEN: Implement Public Pages
-
-- [X] T151 [P] [Public] Create public pages route group layout in app/(public)/layout.tsx with shared header and footer (FR-066)
-- [X] T152 [P] [Public] Implement landing page with animated gradient mesh background using Framer Motion in app/(public)/page.tsx (FR-064)
-- [X] T153 [P] [Public] Implement FeatureCard component with glassmorphism and backdrop blur in src/components/public/FeatureCard.tsx (FR-065)
-- [X] T154 [P] [Public] Implement Pricing page with pricing tiers in app/(public)/pricing/page.tsx (FR-066)
-- [X] T155 [P] [Public] Implement Contact page with form (name, email, message) in app/(public)/contact/page.tsx (FR-066)
-- [X] T156 [P] [Public] Implement About page with project description in app/(public)/about/page.tsx (FR-066)
-- [X] T157 [Public] Implement Footer component with social links (GitHub, Twitter, LinkedIn) and legal pages in src/components/public/Footer.tsx (FR-067)
-- [X] T158 [Public] Implement gradient mesh animation utility in src/lib/utils/animations.ts (FR-064)
-
-**Checkpoint**: Public pages complete (FR-064 to FR-067 satisfied) 🆕
+**Checkpoint**: Recurring tasks auto-generate next instance on completion
 
 ---
 
-## Phase 14: Success Criteria Validation (All Priorities) - 24 tasks 🆕
+## Phase 11: User Story 9 — AI Features (FR-009) P3 (Pro)
 
-**Goal**: Validate all success criteria from spec.md (SC-001 to SC-024)
+**Goal**: Pro users can generate subtasks via AI, get priority recommendations, and parse notes with natural language date/priority extraction
 
-**Independent Test**: Run through all validation tasks and verify each success criterion passes or is tracked for future measurement
+**Independent Test**: Pro user → task detail → "✨ Generate subtasks" → 5 suggestions returned → accept 3 → saved → AI credit decremented by 1; free user → button disabled
 
-### User Productivity (SC-001 to SC-005)
+### Implementation
 
-- [X] T159 [Validation] Validate SC-001: Measure time to create basic task (title + priority) - target under 15 seconds using manual stopwatch test
-- [X] T160 [Validation] Validate SC-002: Count clicks from task list to Focus Mode activation - target 2 clicks maximum (click target icon, Focus Mode active)
-- [X] T161 [Validation] Validate SC-003: Create new user account, measure time to first task completion including walkthrough - target under 5 minutes
-- [X] T162 [Validation] Validate SC-004: Measure voice note to task conversion time - target under 60 seconds (deferred until backend, add TODO in analytics.ts)
-- [X] T163 [Validation] Validate SC-005: Benchmark global search with 1000 sample tasks - target under 1 second response time using performance.measure API
+- [ ] T100 [US9] Create `frontend/src/lib/schemas/ai.schema.ts` — `AISubtaskSuggestionSchema` (title, estimated_duration?); `AISubtaskResponseSchema` (data: {suggestions: AISubtaskSuggestion[]}); `AIPriorityResponseSchema` (data: {priority, reasoning}); `AINoteParseResponseSchema` (data: {title, description?, due_date?, priority?, estimated_duration?})
+- [ ] T101 [US9] Create `frontend/src/mocks/handlers/ai.handlers.ts` — `POST /api/v1/tasks/:id/ai/subtasks` returning 5 mock suggestions; `POST /api/v1/tasks/:id/ai/priority` returning `{priority: 'high', reasoning: '...'}`;  `POST /api/v1/notes/:id/parse` returning parsed note metadata; decrement `daily_ai_credits_used` on each call
+- [ ] T102 [US9] Create `frontend/src/lib/hooks/useAI.ts` — `useGenerateSubtasks(taskId)` mutation; `useGetPriorityRecommendation(taskId)` mutation; `useParseNote(noteId)` mutation; each uses `apiClient.post` with respective schemas; surface `ApiError` with code `CREDITS_EXHAUSTED` for 402 responses
+- [ ] T103 [US9] Update `frontend/src/components/tasks/AISubtasksGenerator.tsx` — hook up to real `useGenerateSubtasks()`; check `effective_limits.daily_ai_credits > 0` before enabling button; show "X credits remaining" badge; call `useCreateSubtask()` for each accepted suggestion
+- [ ] T104 [US9] Add note parsing to `frontend/src/components/notes/NoteCard.tsx` — "Smart Convert" button (Pro, calls `useParseNote()` before `useConvertNote()`); shows preview of parsed fields (title, due_date, priority) in a confirmation popover before creating task; falls back to plain convert for free tier
 
-### AI Feature Adoption (SC-006 to SC-008) - Deferred until backend
-
-- [X] T164 [Validation] Validate SC-006: Add analytics tracking for "Convert to Task" feature usage - create TODO in src/lib/analytics.ts for 70% adoption target
-- [X] T165 [Validation] Validate SC-007: Add analytics for AI sub-task generation streaming - create TODO for 10-second completion target in src/lib/analytics.ts
-- [X] T166 [Validation] Validate SC-008: Add analytics for voice transcription accuracy - create TODO for 90% accuracy target in src/lib/analytics.ts
-
-### User Engagement (SC-009 to SC-011)
-
-- [X] T167 [Validation] Validate SC-009: Add analytics tracking for walkthrough completion rate - create TODO in src/lib/analytics.ts for 60% target
-- [X] T168 [Validation] Validate SC-010: Add analytics for Consistency Streak impact on completion frequency - create TODO for 40% increase metric
-- [X] T169 [Validation] Validate SC-011: Add analytics for Focus Mode correlation with high-priority completions - create TODO for 30% increase metric
-
-### Technical Performance (SC-012 to SC-015)
-
-- [X] T170 [Validation] Validate SC-012: Measure dashboard initial load time with Chrome DevTools network throttling (Fast 3G) - target under 2 seconds
-- [X] T171 [Validation] Validate SC-013: Measure route transition duration using performance.measure API - target under 200ms
-- [X] T172 [Validation] Validate SC-014: Verify MSW simulated latency between 100-500ms using Chrome DevTools Network tab
-- [X] T173 [Validation] Validate SC-015: Load 1000 tasks in MSW fixture, verify UI responsiveness (no jank, smooth scrolling at 60fps)
-
-### Accessibility & UX (SC-016 to SC-019)
-
-- [X] T174 [Validation] Validate SC-016: Run WCAG AA contrast checker (axe DevTools extension) on all interactive elements - verify 4.5:1 minimum ratio
-- [X] T175 [Validation] Validate SC-017: Enable prefers-reduced-motion in OS settings, verify zero animation disruption (all animations disabled)
-- [X] T176 [Validation] Validate SC-018: Count clicks from dashboard to all primary features (Tasks, Notes, Focus Mode) - verify max 3 clicks
-- [X] T177 [Validation] Validate SC-019: Review all AI error messages (rate limit, parsing failed, timeout) - verify under 50 words with clear next steps
-
-### Design System Compliance (SC-020 to SC-022)
-
-- [X] T178 [Validation] Validate SC-020: Manually review all glassmorphic elements - verify blur backdrop does not obscure critical text
-- [X] T179 [Validation] Validate SC-021: Audit all pages for accidental light backgrounds - verify 100% dark mode consistency
-- [X] T180 [Validation] Validate SC-022: Review typography usage - verify primary (Geist Sans) vs monospace (Geist Mono) distinction is unambiguous
-
-### Retention & Motivation (SC-023 to SC-024)
-
-- [X] T181 [Validation] Validate SC-023: Add analytics for achievement unlock impact on return visits - create TODO in src/lib/analytics.ts for 50% increase target
-- [X] T182 [Validation] Validate SC-024: Add analytics for tutorial task completion rate within 30 days - create TODO for 40% target
-
-**Checkpoint**: All success criteria validated or tracked for future measurement (SC-001 to SC-024 covered) 🆕
+**Checkpoint**: AI features (subtask generation, note parsing) functional for Pro users; gracefully disabled for free
 
 ---
 
-## Phase 15: Polish (15 tasks)
+## Phase 12: User Story 10 — Command Palette (FR-010) P4
 
-- [X] T183 [P] Add error boundaries for graceful error handling in app/error.tsx and app/dashboard/error.tsx
-- [X] T184 [P] Create 404 page with navigation back to dashboard in app/not-found.tsx
-- [X] T185 [P] Create 500 error page in app/error.tsx
-- [X] T186 [P] Optimize bundle size: analyze with @next/bundle-analyzer, lazy load heavy components
-- [X] T187 [P] Add SEO metadata for public pages (title, description, Open Graph) in each page.tsx
-- [X] T188 [P] Add loading skeletons for all async components (TaskList, NoteEditor, MetricCard)
-- [X] T189 [P] Add performance monitoring with Web Vitals tracking in app/layout.tsx
-- [X] T190 [P] Code cleanup: Remove console.logs, unused imports, commented code across all files
-- [X] T191 [P] Update README.md with project overview, setup instructions, architecture in frontend/README.md
-- [X] T192 [P] Create quickstart.md developer guide in specs/002-perpetua-frontend/quickstart.md per plan.md Phase 1.3
-- [X] T193 [P] Add JSDoc comments to all exported utilities in src/lib/utils/
-- [X] T194 Run full test suite and verify coverage threshold passes (NOTE: Coverage temporarily lowered during active development - see jest.config.js)
-- [X] T195 Run full keyboard navigation test (NOTE: UI components use Radix primitives with built-in a11y)
-- [X] T196 Run accessibility audit with axe DevTools (NOTE: Radix UI provides WCAG AA compliance out-of-box)
-- [X] T197 Final validation: Fresh clone, follow quickstart.md, verify app runs without errors (app builds and starts successfully)
+**Goal**: Power user can open command palette with Cmd+K, fuzzy-search commands, navigate with arrows, execute with Enter
 
-**Checkpoint**: Application polished and production-ready (within frontend-only scope)
+**Independent Test**: Press Cmd+K → palette opens → type "foc" → "Start Focus Mode" option highlighted → press Enter → focus mode activates for first incomplete task → press Escape → palette closes
+
+### Implementation
+
+- [ ] T105 [US10] Create `frontend/src/lib/stores/command-palette.store.ts` — Zustand: `{ isOpen: boolean, query: string, selectedIndex: number, open(), close(), setQuery(q), setSelectedIndex(n) }`
+- [ ] T106 [US10] Create `frontend/src/lib/commands/task-commands.ts` — command definitions: `{ id, name, icon, category, aliases, action(router, stores) }`; categories: Navigation, Tasks, Notes, Focus; commands include "Go to Tasks", "New Task", "Start Focus Mode", "New Note", "Go to Achievements"; `action` callbacks use `router.push()` or store dispatch
+- [ ] T107 [US10] Create `frontend/src/components/layout/CommandPalette.tsx` — Radix `Dialog` triggered by store; `<input>` for search query; Fuse.js `new Fuse(commands, {keys:['name','aliases'], threshold: 0.4})`; filtered results list with keyboard nav (ArrowUp/Down, Enter to execute, Escape to close); highlight matched characters; group by category; max 8 results; accessible `role="listbox"` + `role="option"` + `aria-selected`
+- [ ] T108 [US10] Register global `Cmd+K` / `Ctrl+K` listener in `frontend/src/app/dashboard/layout.tsx` — `window.addEventListener('keydown', handler)` in `useEffect`; call `commandPaletteStore.open()`; cleanup on unmount
+- [ ] T109 [US10] Mount `CommandPalette` in `frontend/src/app/dashboard/layout.tsx` — always rendered (not conditionally) so Radix can animate open/close; controlled by `isOpen` from store
+
+**Checkpoint**: Command palette opens, fuzzy-searches, and executes navigation + task commands
 
 ---
 
-## Summary
+## Phase 13: Polish & Cross-Cutting Concerns
 
-**Total Tasks**: 198 tasks across 15 phases
-**MVP Tasks**: ~83 (Phases 1-4: Setup, Foundation, Dashboard, Core Tasks)
-**Reminders Tasks**: 19 (Phase 5) - FR-068 to FR-072 ✅
-**Recurrence Tasks**: 15 (Phase 6) - FR-069, FR-070, FR-073 ✅
-**Public Pages Tasks**: 8 (Phase 13) - FR-064 to FR-067 ✅
-**Success Criteria Validation Tasks**: 24 (Phase 14) - SC-001 to SC-024 ✅
-**Parallel Opportunities**: ~70 tasks marked [P] can run in parallel
+**Purpose**: Fix P0 gaps from spec.md §VII, accessibility, performance, and error handling
 
-**Special Focus Coverage**:
-✅ **Reminders** (19 tasks): Full implementation with dual notification system (browser + in-app), Service Worker polling, relative timing, delivery tracking (FR-068 to FR-072)
-✅ **Recurrence** (15 tasks): RRule library integration, custom intervals, completion-based generation, human-readable descriptions (FR-069, FR-070, FR-073)
-✅ **Public Pages** (8 tasks): Landing page with gradient mesh, pricing/contact/about pages, footer with social links (FR-064 to FR-067)
-✅ **Success Criteria Validation** (24 tasks): All 24 success criteria from spec.md explicitly validated or tracked (SC-001 to SC-024)
-
-**Estimated Effort Distribution**:
-- Setup & Foundational: ~15% (T001-T050) - includes AI logging infrastructure
-- User Story 8 (Dashboard): ~5% (T051-T065)
-- User Story 1 Core: ~12% (T066-T082)
-- User Story 1 Extended (Reminders + Recurrence): ~17% (T083-T116)
-- User Stories 2, 3, 4, 5, 6, 7: ~20% (T117-T150)
-- Public Pages: ~4% (T151-T158)
-- Success Criteria Validation: ~12% (T159-T182)
-- Polish: ~8% (T183-T197)
-- Remaining: ~7% (miscellaneous)
+- [ ] T110 [P] Fix P0 Gap 1: Move auth token to IndexedDB in `frontend/src/lib/utils/token-storage.ts` — `getToken()`, `setToken()`, `removeToken()` using `indexedDB` (with `localStorage` fallback); update `AuthContext.tsx` and `service-worker.js` to use shared IndexedDB key so SW can read auth token for reminder polling
+- [ ] T111 [P] Fix P0 Gap 2: Add React Error Boundary to `frontend/src/components/errors/ErrorBoundary.tsx` — class component catching render errors; fallback UI with "Something went wrong" message + "Reload" button + error details (dev only); wrap `RootLayout` children in `frontend/src/app/layout.tsx`
+- [ ] T112 Fix P0 Gap 3: Add conflict resolution modal to `frontend/src/components/tasks/ConflictResolutionModal.tsx` — shown when `useUpdateTask` fails with `VERSION_CONFLICT`; display side-by-side diff (Your version vs Server version); three options: "Keep mine" (force update), "Take theirs" (discard changes), "Cancel"
+- [ ] T113 [P] Add `prefers-reduced-motion` guard to all Framer Motion animations — use `useReducedMotion()` hook to conditionally pass `transition={{ duration: 0 }}` or `variants={null}` across `AchievementCard`, `AchievementUnlockToast`, `FocusTimer` ring animation
+- [ ] T114 [P] Add rate limiting to API mutations — create `frontend/src/lib/utils/rate-limiter.ts` with `createRateLimiter(maxCalls, windowMs)` returning a guard function; wrap `useCreateTask`, `useCreateSubtask`, `useCreateNote` mutationFns with 10 calls/second limit
+- [ ] T115 [P] Implement optimistic updates in `useForceCompleteTask` — immediately update task in query cache before API call resolves; revert on error using `onMutate` / `onError` TanStack Query callbacks
+- [ ] T116 [P] Add bundle analyzer check — run `ANALYZE=true next build` in CI; fail build if main chunk > 500KB gzipped; document in `README.md`
+- [ ] T117 [P] Configure `next.config.ts` security headers — `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: camera=(), microphone=()`, basic CSP blocking inline scripts
+- [ ] T118 [P] Add `frontend/src/app/dashboard/settings/hidden-tasks/page.tsx` — list of `hidden: true` tasks with "Restore" and "Permanently Delete" actions; use `useUpdateTask({ hidden: false })` for restore
+- [ ] T119 [P] Add `frontend/src/app/dashboard/profile/page.tsx` — display user avatar, name, email, timezone; edit name + timezone via `usersService.updateProfile()`; avatar from Google (read-only)
+- [ ] T120 [P] Add `frontend/src/app/dashboard/settings/page.tsx` — settings hub: links to hidden-tasks, archived-notes, profile; notification permission toggle (calls `Notification.requestPermission()`); theme toggle placeholder; data export button (placeholder)
+- [ ] T121 [P] Add onboarding tour — integrate `driver.js`; create `frontend/src/components/onboarding/OnboardingTour.tsx`; auto-start on first login (check `localStorage.onboarding_complete`); tour steps: Sidebar, Task list, New Task button, Focus mode icon, Notes; mark complete on finish
 
 ---
 
@@ -493,113 +293,93 @@ Using Next.js 15 App Router structure from plan.md
 
 ### Phase Dependencies
 
-- **Phase 1 (Setup)**: No dependencies - can start immediately
-- **Phase 2 (Foundational)**: Depends on Phase 1 - BLOCKS all user stories
-- **Phase 3 (US8 Dashboard)**: Depends on Phase 2 - Provides navigation framework for all features
-- **Phase 4 (US1 Core Tasks)**: Depends on Phase 3 - Core MVP functionality
-- **Phase 5 (US1 Reminders)**: Depends on Phase 4 - Extends core tasks with notifications
-- **Phase 6 (US1 Recurrence)**: Depends on Phase 4 - Extends core tasks with scheduling
-- **Phases 7-12 (US2-US7, US4)**: Depend on Phase 4 - Can proceed in parallel after core tasks complete
-- **Phase 13 (Public Pages)**: Depends only on Phase 1 (Setup) - Completely independent of dashboard features
-- **Phase 14 (Success Criteria)**: Depends on completion of all relevant user stories
-- **Phase 15 (Polish)**: Depends on all phases complete
+- **Phase 1 (Setup)**: No dependencies — start immediately
+- **Phase 2 (Foundational)**: Depends on Phase 1 ⚠️ BLOCKS everything
+- **Phase 3 (US1 Auth)**: Depends on Phase 2 — can start after Foundational
+- **Phase 4 (US2 Tasks)**: Depends on Phase 2 + Phase 3 (needs user context)
+- **Phase 5–11 (US3–US9)**: All depend on Phase 2 + 4 (tasks are core); can proceed in parallel with each other
+- **Phase 12 (US10 Command Palette)**: Depends on Phase 4 (needs tasks), Phase 6 (needs focus), Phase 7 (needs notes)
+- **Phase 13 (Polish)**: Depends on all user story phases
 
-### Critical Path
+### User Story Dependencies
 
-1. Setup (Phase 1) → 2. Foundation (Phase 2) → 3. Dashboard (Phase 3) → 4. Core Tasks (Phase 4) → 5. Reminders (Phase 5) + Recurrence (Phase 6)
+| Story | Depends On | Can Parallelize With |
+|-------|-----------|----------------------|
+| US1 Auth | Foundational | — |
+| US2 Tasks | US1 | — |
+| US3 Subtasks | US2 | US4, US5 |
+| US4 Focus | US2 | US3, US5 |
+| US5 Notes | US2 | US3, US4 |
+| US6 Achievements | US2 (completion events) | US7, US8, US9 |
+| US7 Reminders | US2 (task context) | US6, US8, US9 |
+| US8 Recurrence | US2 (task schema) | US6, US7, US9 |
+| US9 AI Features | US3 (subtasks), US5 (notes) | US6, US7, US8 |
+| US10 Command Palette | US2, US4, US5 | US6–US9 |
 
-### Parallel Opportunities
+### Within Each User Story
 
-Once Phase 4 (Core Tasks) is complete:
-- **Parallel Track A**: Phase 5 (Reminders) + Phase 6 (Recurrence) - extends US1
-- **Parallel Track B**: Phase 7 (Focus Mode), Phase 8 (Notes), Phase 9 (Search) - independent features
-- **Parallel Track C**: Phase 13 (Public Pages) - completely independent
-- **Parallel Track D**: Phase 10 (Achievements), Phase 11 (Onboarding), Phase 12 (AI UI) - polish features
+- Schemas → Fixtures → Mock Handlers → Hooks → Components → Page
+- `[P]` components within a story can be built simultaneously
 
-All [P] marked tasks within each phase can execute in parallel.
+---
+
+## Parallel Execution Examples
+
+### Parallel Group A: Foundational UI (Phase 2)
+```
+Task: T020 – Sidebar.tsx
+Task: T021 – Header.tsx
+Task: T024 – UI components (Button, Input, Dialog, etc.)
+```
+
+### Parallel Group B: After Foundational
+```
+Task: T028–T035 (US1 Auth)      ← Developer A
+Task: T036–T054 (US2 Tasks)     ← Developer B (after US1 complete)
+```
+
+### Parallel Group C: After US2 Tasks
+```
+Task: T055–T063 (US3 Subtasks)  ← Developer A
+Task: T064–T068 (US4 Focus)     ← Developer B
+Task: T069–T076 (US5 Notes)     ← Developer C
+```
 
 ---
 
 ## Implementation Strategy
 
-### MVP First (Phases 1-4)
+### MVP First (Phases 1–4 only)
+1. Complete Phase 1: Setup
+2. Complete Phase 2: Foundational (API client, auth, layout, MSW)
+3. Complete Phase 3: US1 Auth
+4. Complete Phase 4: US2 Task Management (core CRUD)
+5. **STOP and VALIDATE**: User can sign in, create/complete/delete tasks
+6. Deploy MVP
 
-1. Complete Phase 1 (Setup) - ~14 tasks
-2. Complete Phase 2 (Foundational) - ~40 tasks - **CRITICAL BLOCKER**
-3. Complete Phase 3 (US8 Dashboard) - ~15 tasks - Navigation framework
-4. Complete Phase 4 (US1 Core Tasks) - ~30 tasks - Core CRUD
-5. **STOP and VALIDATE**: MVP with basic task management complete (~99 tasks)
+### Incremental Delivery
+- **v0.1**: Setup + Foundation → bare skeleton
+- **v0.2**: Auth → login/logout working
+- **v0.3**: Task CRUD → core value delivered (MVP!)
+- **v0.4**: Subtasks + Focus Mode → enhanced productivity
+- **v0.5**: Notes + Achievements → habit loop complete
+- **v0.6**: Reminders + Recurring → automation added
+- **v0.7**: AI Features (Pro) → monetisation tier
+- **v0.8**: Command Palette + Polish → power-user polish
 
-### Extended MVP (Add Reminders & Recurrence)
-
-6. Complete Phase 5 (Reminders) - ~19 tasks - Notification system
-7. Complete Phase 6 (Recurrence) - ~15 tasks - Scheduling automation
-8. **STOP and VALIDATE**: Extended MVP with full task lifecycle (~133 tasks)
-
-### Feature Complete (Add All User Stories + Public Pages)
-
-9. Complete Phases 7-12 in parallel - ~48 tasks - All features
-10. Complete Phase 13 (Public Pages) - ~8 tasks - Marketing site
-11. **STOP and VALIDATE**: Feature complete (~189 tasks)
-
-### Production Ready (Validate & Polish)
-
-12. Complete Phase 14 (Success Criteria) - ~24 tasks - Quality validation
-13. Complete Phase 15 (Polish) - ~15 tasks - Production readiness
-14. **FINAL VALIDATION**: Production-ready application (197 tasks)
-
----
-
-## Parallel Team Strategy
-
-With 3-4 developers (recommended after Phase 4):
-
-1. **Week 1-2**: Team completes Setup + Foundational + Dashboard together (Phases 1-3)
-2. **Week 3**: Team completes Core Tasks together (Phase 4) - MVP baseline
-3. **Week 4-5**: Split team:
-   - Developer A: Reminders (Phase 5)
-   - Developer B: Recurrence (Phase 6)
-   - Developer C: Focus Mode (Phase 7) + Search (Phase 9)
-   - Developer D: Public Pages (Phase 13)
-4. **Week 6**: Converge and integrate
-5. **Week 7**: Notes (Phase 8), Achievements (Phase 10), Onboarding (Phase 11), AI UI (Phase 12)
-6. **Week 8**: Success Criteria Validation (Phase 14) + Polish (Phase 15)
+### P0 Gaps (Must Fix Before Public Launch)
+- **T110**: SW token access (reminders broken without this)
+- **T111**: Error boundary (crashes without this)
+- **T112**: Conflict resolution UI (data integrity without this)
 
 ---
 
 ## Notes
 
-- **TDD Mandatory**: RED (write failing test) → GREEN (implement) → REFACTOR (improve)
-- **[P] tasks**: Different files, no dependencies, can execute in parallel
-- **[Story] labels**: Track to user stories (US1-US8) for traceability
-- **[Validation] tasks**: Success criteria checks from spec.md (SC-001 to SC-024)
-- **[Public] tasks**: Marketing/informational pages outside authentication scope
-- **Reminders**: Service Worker polling MSW every 60s, dual notifications (browser + in-app)
-- **Recurrence**: RRule library (RFC 5545), completion-based generation, custom intervals
-- **AI Features**: UI built but disabled until backend integration per FR-027
-- **Coverage gate**: 80% minimum enforced in pre-commit hook (jest.config.js)
-- **Commit strategy**: After each task or logical group of related tasks
-- **Checkpoints**: Stop at each checkpoint to validate story works independently
-- **Success Criteria**: All 24 criteria from spec.md explicitly validated or tracked with TODOs
-
----
-
-## Key Milestones
-
-1. **Foundation Ready** (T050 complete) → User story work can begin
-2. **Navigation Framework Ready** (T065 complete) → Task features can integrate
-3. **MVP Core Ready** (T082 complete) → Basic task management functional - first deployable MVP
-4. **Reminders Complete** (T101 complete) → Dual notification system functional
-5. **Recurrence Complete** (T116 complete) → Recurring tasks automated - Extended MVP ready
-6. **All User Stories Complete** (T150 complete) → Dashboard feature-complete
-7. **Public Pages Complete** (T158 complete) → Marketing site live
-8. **Success Criteria Validated** (T182 complete) → Quality metrics verified
-9. **Production Ready** (T197 complete) → Deployment-ready application
-
----
-
-**Generated**: 2026-01-08
-**Spec Version**: specs/002-perpetua-frontend/spec.md
-**Plan Version**: specs/002-perpetua-frontend/plan.md
-**Research Version**: specs/002-perpetua-frontend/research.md (updated with Reminders & Recurrence)
-**Data Model Version**: specs/002-perpetua-frontend/data-model.md
+- `[P]` = different files, no shared state dependencies — safe to parallelize
+- `[USN]` = maps task to functional requirement from `spec.md`
+- Every schema change must also update MSW fixtures/handlers to match
+- Commit after each phase checkpoint to enable clean rollback
+- `frontend/` path prefix omitted in descriptions for brevity but all paths are relative to repo root
+- Total task count: **121 tasks** across **13 phases**
+- Test approach: MSW mocks real API at network level — no separate unit tests needed for happy paths; add tests for schema validation and utility functions if coverage < 80%

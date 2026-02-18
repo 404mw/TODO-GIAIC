@@ -1,692 +1,1506 @@
-# Feature Specification: Perpetua Flow - Frontend Application
+# Perpetua Flow Frontend - Specification
 
-**Feature Branch**: `002-perpetua-frontend`
-**Created**: 2026-01-07
-**Status**: Draft
-**Input**: User description: "Perpetua Flow - Frontend-only task management app with futuristic minimal design, AI automation, focus mode, and Achievements System for gamification"
-
-## User Scenarios & Testing *(mandatory)*
-
-### User Story 1 - Create and Manage Tasks (Priority: P1)
-
-A user wants to capture, organize, and track their tasks with a clean, distraction-free interface. They need to create tasks with relevant metadata (title, description, tags, priority, estimated duration), organize them with sub-tasks, and track progress visually.
-
-**Why this priority**: Core task management is the foundation of the entire application. Without this, no other features can function. This represents the minimum viable product.
-
-**Independent Test**: Can be fully tested by creating a task, adding sub-tasks, marking items complete, and verifying progress calculation. Delivers immediate value as a basic task tracker.
-
-**Acceptance Scenarios**:
-
-1. **Given** the user is on the dashboard tasks view, **When** they click "New Task" and fill in title "Finish report", description "Q4 metrics", priority "High", and duration "2h", **Then** the task appears in the task list with all metadata visible
-2. **Given** a task exists, **When** the user adds 3 sub-tasks and marks 1 complete, **Then** the progress bar shows 33% completion
-3. **Given** multiple tasks exist with different priorities, **When** the user views the task list, **Then** tasks are organized by priority (High, Medium, Low)
-4. **Given** a task has no sub-tasks, **When** the user views the task, **Then** no progress bar is displayed
-5. **Given** a task exists, **When** the user marks it as hidden, **Then** the task disappears from all default views and can only be accessed via Settings → Tasks → Hidden
+**Version**: 1.0 (Reverse Engineered from Implementation)
+**Date**: 2026-02-18
+**Source**: `g:\Hackathons\GIAIC_Hackathons\02-TODO\frontend`
+**Constitution**: `.specify/memory/constitution.md` v1.0.0
 
 ---
 
-### User Story 2 - Focus Mode for Deep Work (Priority: P2)
+## Executive Summary
 
-A user needs to eliminate distractions and concentrate on a single task. They activate Focus Mode on a specific task, which hides everything else and shows only that task with a countdown timer based on estimated duration.
+Perpetua Flow is a production-grade, single-user task management SaaS application designed to help users build lasting productivity habits through smart task management, consistency tracking, and focused work sessions. The frontend is a modern, AI-powered Next.js application that prioritizes data integrity, user experience, and maintainability.
 
-**Why this priority**: Differentiation feature that provides significant productivity value. Can be implemented independently after basic task management exists.
-
-**Independent Test**: Can be tested by selecting any task, activating Focus Mode, verifying UI changes (sidebar hidden, other tasks hidden, countdown visible), and confirming exit conditions work properly.
-
-**Acceptance Scenarios**:
-
-1. **Given** a task with 30-minute duration exists, **When** the user clicks the target icon on that task, **Then** Focus Mode activates, sidebar disappears, all other tasks are hidden, and a 30-minute countdown timer appears
-2. **Given** Focus Mode is active, **When** the user manually exits, **Then** the normal dashboard view returns with sidebar and all tasks visible
-3. **Given** Focus Mode is active, **When** the user marks the task complete, **Then** Focus Mode automatically exits and achievement feedback appears
-4. **Given** Focus Mode is active, **When** the countdown reaches zero, **Then** an audio/visual alert notifies the user
-5. **Given** Focus Mode is active, **When** the user attempts to open profile popover or other distractions, **Then** those interactions are disabled
+**Core Philosophy**: Build once, evolve forever — no rewrites. Specification is the supreme authority.
 
 ---
 
-### User Story 3 - AI-Powered Quick Notes & Task Conversion (Priority: P2)
+## I. Problem Statement & System Intent
 
-A user wants to quickly capture ideas via text or voice, then optionally convert them into structured tasks using AI. They can record voice notes with visual feedback, then use AI to parse the note into task fields automatically.
+### Problem Being Solved
 
-**Why this priority**: Unique AI integration feature that reduces friction in task creation. Can be built independently once task creation exists.
+Users struggle to maintain consistent productivity due to:
+1. **Task overload**: No clear prioritization or breakdown of complex work
+2. **Broken habits**: Missing the "one day" breaks streaks and demotivates
+3. **Distractions**: Inability to focus on single tasks without interruption
+4. **Idea loss**: Quick thoughts get forgotten before becoming actionable
+5. **Reminder fatigue**: Generic reminders lack context and timing flexibility
 
-**Independent Test**: Can be tested by creating a quick note via voice or text, then converting it to a task using the AI parser. Verifies voice recording, AI parsing, and task creation integration.
+### Target Users
 
-**Acceptance Scenarios**:
+- **Primary**: Individual knowledge workers (developers, designers, writers, managers)
+- **Secondary**: Students and freelancers managing personal projects
+- **Tier Model**: Free (basic features), Pro (AI features, voice notes, unlimited tasks)
 
-1. **Given** the user is on the notes page, **When** they click the voice-to-text button and speak "Buy groceries tomorrow morning", **Then** a red recording indicator appears with animated waveform, and the text is transcribed into the note
-2. **Given** a note exists with content "Finish project proposal by Friday, high priority", **When** the user clicks "Convert to Task", **Then** a right-side drawer opens with AI-parsed fields: title "Finish project proposal", description includes full note text, priority set to "High", reminder set for Friday
-3. **Given** the AI conversion drawer is open, **When** the user reviews and confirms the parsed fields, **Then** a new task is created and the note is archived
-4. **Given** the user is recording voice, **When** recording exceeds 5 minutes, **Then** recording automatically stops and the content is transcribed
+### Core Value Proposition
 
----
+Perpetua Flow is **not just another task manager** — it's a **habit-building productivity system** that:
 
-### User Story 4 - AI-Generated Sub-tasks (Priority: P3)
+1. **Makes consistency achievable**: Streak tracking with "grace days" prevents demotivation
+2. **Breaks down complexity**: Subtasks and AI-powered task decomposition
+3. **Enforces deep work**: Focus mode with countdown timers and distraction elimination
+4. **Captures fleeting thoughts**: Quick notes that convert to structured tasks
+5. **Reminds intelligently**: Context-aware reminders with flexible timing
 
-A user has a complex task and wants AI assistance to break it down into actionable sub-tasks. They use the "Magic Sub-tasks" feature which analyzes the task title and description to generate relevant sub-tasks with streaming output.
-
-**Why this priority**: Advanced AI feature that enhances task breakdown. Provides value but isn't essential for core functionality.
-
-**Independent Test**: Can be tested by creating a task with a detailed description, clicking "Generate Sub-tasks", and verifying the AI streams suggestions that can be accepted or rejected.
-
-**Acceptance Scenarios**:
-
-1. **Given** a task exists with title "Plan company retreat" and description "3-day offsite for 50 people in mountain location", **When** the user clicks "Generate Sub-tasks" in the task detail view, **Then** AI streams sub-task suggestions in real-time (e.g., "Research mountain venues", "Create budget breakdown", "Survey team for dates", "Book accommodations")
-2. **Given** sub-tasks are being generated, **When** streaming is in progress, **Then** the Generate button is disabled and shows a loading state
-3. **Given** sub-tasks already exist for a task, **When** the user clicks "Generate Sub-tasks", **Then** a confirmation prompt warns that existing sub-tasks will be overwritten
-4. **Given** AI generation fails mid-stream, **When** the error occurs, **Then** partial output is preserved and an error message is shown
+**Why this exists instead of Todoist/Asana**: Those are project management tools. Perpetua Flow is a **personal productivity coach** focused on building sustainable habits, not just tracking tasks.
 
 ---
 
-### User Story 5 - Achievements & Motivation Tracking (Priority: P3)
+## II. Functional Requirements
 
-A user wants to stay motivated by seeing their accomplishment history and earning achievements. The system tracks fixed metrics (High Priority Slays, Consistency Streaks, Completion Ratio) and displays them with animated visualizations.
+### FR-001: User Authentication (Google OAuth 2.0)
 
-**Why this priority**: Gamification feature that enhances long-term engagement. Can be added after core task management is stable.
+**What**: Secure authentication via Google OAuth with JWT token management
 
-**Independent Test**: Can be tested by completing various tasks over time and verifying metrics update correctly, achievements unlock at milestones, and visualizations display properly.
+**Why**:
+- Reduces friction (no password management)
+- Leverages Google's security infrastructure
+- Enables future cross-device sync via Google account
 
-**Acceptance Scenarios**:
+**Inputs**:
+- Google OAuth redirect with authorization code
+- Refresh token for session extension
 
-1. **Given** the user completes 10 high-priority tasks, **When** they navigate to the achievements page, **Then** the "High Priority Slays" metric shows 10 and triggers subtle shimmer animation
-2. **Given** the user completes at least one task per day for 7 consecutive days, **When** they view achievements, **Then** the "Consistency Streak" metric shows 7 days
-3. **Given** the user creates 20 tasks and completes 15, **When** they view the completion ratio, **Then** it displays 75% with an animated progress visualization
-4. **Given** the user reaches a milestone (e.g., 50 completed tasks), **When** the milestone triggers, **Then** a rare confetti animation appears briefly
+**Outputs**:
+- Access token (JWT, 15-minute TTL)
+- Refresh token (rotation on use)
+- User profile (email, name, avatar)
 
----
+**Side Effects**:
+- Token storage in `localStorage`
+- User session creation in backend
+- Redirect to dashboard on success
 
-### User Story 6 - New User Onboarding (Priority: P3)
+**Success Criteria**:
+- [ ] User can authenticate with Google account
+- [ ] Tokens refresh automatically before expiration
+- [ ] Logout clears all session data
+- [ ] Failed auth redirects to login with error message
 
-A first-time user needs guidance to understand the app's key features. An interactive walkthrough automatically starts on first login, teaching them about the sidebar, note creation, task conversion, and Focus Mode.
+**Edge Cases**:
+- Token expiration during active session → silent refresh
+- Network failure during auth → retry with exponential backoff
+- Revoked Google permissions → force re-authentication
 
-**Why this priority**: Improves first-time user experience but not critical for existing users. Can be implemented after all core features are stable.
-
-**Independent Test**: Can be tested by creating a new user account and verifying the walkthrough starts automatically, guides through all steps, and can be replayed from Settings.
-
-**Acceptance Scenarios**:
-
-1. **Given** a user logs in for the first time, **When** the dashboard loads, **Then** an interactive walkthrough automatically starts highlighting the sidebar
-2. **Given** the walkthrough is active, **When** the user completes the "Create Quick Note" step, **Then** the walkthrough advances to the "Convert Note to Task" step
-3. **Given** the walkthrough is active, **When** the user activates Focus Mode, **Then** the walkthrough completes and a tutorial task "Master Perpetua" appears in their task list
-4. **Given** the user has completed the walkthrough, **When** they navigate to Settings and click "Replay Tutorial", **Then** the walkthrough restarts from the beginning
-
----
-
-### User Story 7 - Global Search Across Entities (Priority: P2)
-
-A user wants to quickly find tasks, notes, or achievements without navigating through different pages. They use the global search bar in the sidebar to search across all entities with results scoped by type.
-
-**Why this priority**: Quality-of-life feature that significantly improves navigation efficiency. Should be implemented after multiple entity types exist.
-
-**Independent Test**: Can be tested by creating tasks, notes, and achievements, then searching for keywords and verifying results are correctly categorized and linked.
-
-**Acceptance Scenarios**:
-
-1. **Given** multiple tasks and notes exist containing the word "budget", **When** the user types "budget" in the global search bar, **Then** results appear grouped by type (Tasks, Notes, Archived Tasks) with matching items highlighted
-2. **Given** search results are displayed, **When** the user clicks a task result, **Then** they navigate to that task's detail view
-3. **Given** the user searches for a term with no matches, **When** the search completes, **Then** a "No results found" message appears
+**Implementation Evidence**: [`src/lib/contexts/AuthContext.tsx`](frontend/src/lib/contexts/AuthContext.tsx), [`src/lib/hooks/useAuth.ts`](frontend/src/lib/hooks/useAuth.ts)
 
 ---
 
-### User Story 8 - Dashboard Layout & Navigation (Priority: P1)
+### FR-002: Task Creation & Management
 
-A user needs intuitive navigation between different sections of the app (Tasks, Notes, Workflows, Achievements, Activity) with a consistent layout featuring a collapsible sidebar and route-based main content area.
+**What**: Full CRUD operations for tasks with rich metadata
 
-**Why this priority**: Foundation for all other features. Must exist before implementing any content-specific functionality.
+**Why**: Core entity of the productivity system — must support complex workflows
 
-**Independent Test**: Can be tested by navigating between all routes, collapsing/expanding the sidebar, and verifying state persists across sessions.
-
-**Acceptance Scenarios**:
-
-1. **Given** the user is on the dashboard, **When** they click "Tasks" in the sidebar, **Then** the main view shows `/dashboard/tasks` content and the Tasks menu item is highlighted
-2. **Given** the sidebar is open, **When** the user clicks the collapse button, **Then** the sidebar minimizes to icons only and this preference is saved to localStorage
-3. **Given** the user has collapsed the sidebar, **When** they reload the page, **Then** the sidebar remains collapsed
-4. **Given** Focus Mode is active, **When** the user attempts to interact with the sidebar, **Then** the sidebar is hidden and unavailable
-
----
-
-### Edge Cases
-
-- What happens when a user tries to create a sub-task without a parent task? System prevents orphaned sub-tasks and shows an error message.
-- How does the system handle voice recording if microphone permissions are denied? Display a clear error message with instructions to enable permissions.
-- What happens if AI sub-task generation takes longer than 30 seconds? Show a timeout error and preserve any partial output generated so far.
-- How does the system handle AI rate limits or quota exhaustion? Display clear error message, temporarily disable affected AI features (Magic Sub-tasks, Note-to-Task conversion), and automatically retry after configurable cooldown period (default 15 minutes).
-- How does the system handle conflicting localStorage data between browser sessions? Latest write wins; no conflict resolution needed for UI preferences.
-- How does the system handle optimistic update conflicts when server response differs from client state? Server state always wins; optimistic changes are discarded silently without user notification.
-- What happens when a user tries to add a sub-task to another sub-task? System prevents nesting beyond one level and shows an error message.
-- How does the system handle recurring tasks when the user's device is offline? Recurring instances are generated on next online session based on last completion timestamp.
-- What happens if a user manually exits Focus Mode before the countdown completes? Task remains in its current state (incomplete unless explicitly marked complete).
-- How does the system handle malformed voice transcription from the API? Display the raw transcription and allow manual editing before task conversion.
-- What happens when localStorage quota is exceeded? Display a warning and stop persisting new preferences; existing preferences remain accessible.
-- How does the system handle theme preferences if the dark mode CSS fails to load? Fall back to a minimal inline dark theme to prevent white flash.
-- What happens if user denies browser notification permission? System falls back to in-app toasts only; Service Worker still polls and sends messages to all open tabs; no error shown, degraded experience is silent except for one-time informational prompt
-- What happens if user creates invalid recurrence pattern like Feb 30? System validates via RRule parsing, shows error "Invalid date pattern: February 30 does not exist", suggests valid alternatives (e.g., "last day of February")
-- What happens if user sets recurrence interval beyond 365 days? System shows error "Maximum interval is 365 days", suggests using manual task creation for longer cycles
-
-## Requirements *(mandatory)*
-
-### Functional Requirements
-
-#### Core Task Management
-
-- **FR-001**: System MUST allow users to create tasks with client-generated UUID identifier, title, description, tags (freeform text input with autocomplete from previously used tags), priority (Low/Medium/High), estimated duration, and optional recurrence settings
-- **FR-002**: System MUST support one level of sub-tasks (sub-tasks cannot have their own sub-tasks)
-- **FR-003**: System MUST calculate task progress as (completed sub-tasks / total sub-tasks) × 100
-- **FR-004**: System MUST hide progress UI when a task has zero sub-tasks
-- **FR-005**: System MUST allow users to hide tasks (sets hidden flag to true) without deleting them; hidden tasks remain incomplete and can be unhidden
-- **FR-006**: System MUST exclude hidden tasks from all default views (Tasks page, search results, Focus Mode task selection)
-- **FR-007**: System MUST provide access to hidden tasks via Settings → Tasks → Hidden, where users can unhide or permanently delete them
-- **FR-008**: System MUST prevent orphaned sub-tasks (sub-tasks must have a parent task)
-- **FR-009**: System MUST validate that duration represents estimated time only (no automatic time tracking)
-
-#### Focus Mode
-
-- **FR-010**: System MUST allow users to activate Focus Mode on any task via a target icon
-- **FR-011**: When Focus Mode activates, system MUST hide sidebar, hide all other tasks, and display only the active task with countdown timer
-- **FR-012**: System MUST initialize countdown timer using the task's estimated duration
-- **FR-013**: System MUST allow manual exit from Focus Mode at any time
-- **FR-014**: System MUST automatically exit Focus Mode when the active task is marked complete
-- **FR-015**: System MUST disable all popovers and distractions during Focus Mode
-- **FR-016**: System MUST alert user (audio/visual) when countdown reaches zero
-
-#### AI Features
-
-- **FR-017**: System MUST provide a Quick Notes interface with voice-to-text capability
-- **FR-018**: During voice recording, system MUST display an unmistakable global red recording indicator with animated waveform
-- **FR-019**: System MUST allow users to convert notes to tasks via a right-side sliding drawer
-- **FR-020**: System MUST use AI to parse note content and pre-fill task fields (title, description, priority, tags, reminders)
-- **FR-021**: Users MUST review and confirm AI-parsed fields before task creation
-- **FR-022**: System MUST provide "Magic Sub-tasks" feature in Task Detail view
-- **FR-023**: Magic Sub-tasks MUST stream AI-generated suggestions in real-time
-- **FR-024**: System MUST disable Generate button during AI streaming
-- **FR-025**: System MUST prompt user for confirmation before overwriting existing sub-tasks
-- **FR-026**: System MUST preserve partial AI output if streaming fails
-- **FR-027**: System MUST never execute AI actions without user confirmation
-- **FR-028**: When AI rate limits or quotas are exceeded, system MUST display clear error message, temporarily disable affected AI features, and automatically retry after cooldown period (configurable via .env)
-
-#### Achievements & Metrics
-
-- **FR-029**: System MUST track fixed metrics: High Priority Slays, Consistency Streaks, % Addition to Completion
-- **FR-030**: Metric definitions MUST be versioned and never change retroactively
-- **FR-031**: System MUST display metrics on animated dashboard cards
-- **FR-032**: System MUST provide subtle milestone feedback (shimmer or confetti) for rare achievements only
-- **FR-033**: Consistency Streak MUST require at least one completed task per day (calculated using UTC midnight reset); streak breaks only after missing 2+ consecutive days (1 grace day allowed)
-
-#### Navigation & Layout
-
-- **FR-034**: System MUST provide route-based navigation for: /dashboard/tasks, /dashboard/notes, /dashboard/achievements, /dashboard/settings, /dashboard/archive
-- **FR-035**: System MUST display a collapsible sidebar with navigation links and global search
-- **FR-036**: System MUST persist sidebar open/closed state in localStorage
-- **FR-037**: System MUST provide a profile section (Radix Popover) with: user name, email, account settings, theme tweaks, logout
-- **FR-038**: Profile popover MUST close on click-outside
-- **FR-039**: Profile popover MUST be disabled during Focus Mode
-
-#### Search
-
-- **FR-040**: System MUST provide global search across all entities (tasks, notes, achievements, archived tasks)
-- **FR-041**: Search results MUST be scoped and grouped by entity type
-
-#### AI Widget
-
-- **FR-042**: System MUST display a floating AI widget bubble in bottom-right corner (dashboard only)
-- **FR-043**: CMD+K MUST open AI input (reserved for future command palette)
-
-#### New User Experience
-
-- **FR-044**: System MUST auto-start interactive walkthrough on first login using driver.js
-- **FR-045**: Walkthrough MUST include steps: Sidebar overview, Create Quick Note, Convert Note to Task, Activate Focus Mode
-- **FR-046**: System MUST create a permanent tutorial task "Master Perpetua" with feature sub-tasks
-- **FR-047**: Tutorial task MUST be archivable but not deletable
-- **FR-048**: Users MUST be able to replay walkthrough from Settings
-
-#### Design System
-
-- **FR-049**: System MUST enforce strict dark mode only (no light mode option)
-- **FR-050**: System MUST use glassmorphism exclusively for dashboard widgets and task cards
-- **FR-051**: System MUST meet WCAG AA contrast standards
-- **FR-052**: System MUST use Framer Motion for component entry/exit and route transitions
-- **FR-053**: All animations MUST have duration ≤ 200ms
-- **FR-054**: System MUST respect prefers-reduced-motion accessibility setting
-- **FR-055**: System MUST use Inter or Geist Sans for primary typography
-- **FR-056**: System MUST use monospace font exclusively for duration, status, and system metadata
-
-#### State Management & Data
-
-- **FR-057**: System MUST use simulated backend data via Mock Service Worker (MSW)
-- **FR-058**: All data queries MUST simulate network behavior (latency, loading, failure)
-- **FR-059**: Optimistic updates MUST be ephemeral and reset on page reload; server state always wins in conflicts (optimistic changes discarded silently)
-- **FR-060**: System MUST persist only sidebar state and theme preferences in localStorage
-- **FR-061**: System MUST NOT persist task data in localStorage
-- **FR-062**: System MUST define all data contracts using centralized Zod schemas in /schemas
-- **FR-063**: Zod schemas MUST exclude UI-only flags (isEditing, isStreaming, etc.)
-
-#### Public Pages
-
-- **FR-064**: System MUST provide landing page with animated gradient mesh background
-- **FR-065**: Landing page MUST include glassmorphic feature cards
-- **FR-066**: System MUST provide Pricing, Contact, About pages following dark aesthetic
-- **FR-067**: Footer MUST contain social links and legal pages
-
-#### Reminders & Recurrence
-
-- **FR-068**: System MUST support task reminders with configurable notification timing
-- **FR-069**: System MUST support recurring task intervals (daily, weekly, monthly, custom)
-- **FR-070**: Recurring tasks MUST generate next instance based on completion timestamp
-- **FR-071**: System MUST allow users to set reminder timestamps for tasks (absolute date/time)
-- **FR-072**: System MUST display reminder notifications at configured time (browser notifications)
-- **FR-072a**: If browser notification permission is denied, system MUST fall back to in-app toast notifications only; Service Worker continues polling MSW but only sends postMessage to clients (no Notification API calls); users are shown a one-time prompt explaining reduced notification functionality with link to browser settings to enable permissions
-- **FR-073**: Recurrence settings MUST include: interval type (daily/weekly/monthly/custom), interval value (e.g., every 3 days), and optional end date
-- **FR-073a**: Custom recurrence intervals MUST: be limited to maximum 365 days (1 year); be validated via RRule RFC 5545 parsing before storage; reject invalid patterns (e.g., "every Feb 30", "every 0 days") with specific error messages; support common patterns: "every N days" (1-365), "every N weeks on [weekdays]" (1-52), "every month on day X" (1-28 to avoid month-end issues); display validation errors inline in RecurrenceEditor component; provide human-readable pattern description preview using RRule.toText()
-- **FR-074**: System MUST log all AI interactions (prompts, responses, timestamps) for transparency and debugging
-
-#### Settings & Configuration
-
-- **FR-075**: System MUST provide Settings page with configurable preferences: AI cooldown period, notification preferences, tutorial replay, hidden task management
-- **FR-076**: Users MUST be able to set due dates for tasks (optional field, separate from reminders)
-
-#### Archive & Task Management
-
-- **FR-077**: System MUST support task archiving as distinct from hiding (archived tasks are completed and removed from active views but accessible via Archive page; archiving sets archived flag to true and requires task to be marked complete first)
-
-### Task State Management Clarifications
-
-**Hidden vs Archived vs Deleted**:
-
-- **Hidden**: Task is incomplete, temporarily removed from views, can be unhidden or permanently deleted via Settings → Tasks → Hidden
-- **Archived**: Task is complete, permanently removed from active views, accessible via Archive page, cannot be unarchived (immutable completed state)
-- **Deleted**: Task is permanently removed from the system (hard delete, no recovery); only available for hidden tasks via Settings
-
-**State Transitions**:
-
-- Incomplete Task → Hidden (reversible via unhide)
-- Hidden Task → Deleted (permanent, via Settings)
-- Complete Task → Archived (automatic or manual, irreversible)
-- Hidden Task → Complete → Archived (unhide first, then complete, then archive)
-
-### Key Entities *(include if feature involves data)*
-
-- **Task**: Represents a user's to-do item with unique client-generated UUID identifier, title, description, tags (array of freeform strings with autocomplete history), priority (Low/Medium/High), estimated duration, reminder (optional timestamp), recurrence settings (optional object containing intervalType, intervalValue, endDate), due date (optional timestamp, separate from reminder), hidden flag (boolean, mutually exclusive with archived), archived flag (boolean, requires completion status true), completion status (boolean), creation timestamp, completion timestamp (optional, required when archived is true), and optional parent task UUID reference
-- **Sub-task**: Represents a child task that contributes to parent task progress; can only be one level deep; contains unique client-generated UUID identifier, title, completion status, creation timestamp, and required parent task UUID reference
-- **Note**: Represents a quick capture of user thoughts with content text, creation timestamp, archived flag, and optional voice transcription metadata
-- **User Profile**: Represents user account information including name, email, preferences (sidebar state, theme tweaks), first-login flag, and tutorial completion status
-- **Achievement**: Represents tracked metrics including High Priority Slays count, Consistency Streak days (with last completion date and grace day tracking), Completion Ratio percentage, and milestone thresholds with timestamps
-
-**Terminology Note**: The feature was originally referred to as "dopamine engine" in early discussions, but the official term used throughout this specification and implementation is "Achievements System" to better reflect its gamification purpose.
-
-- **Recurrence Settings** (embedded in Task): Object containing intervalType (enum: "daily" | "weekly" | "monthly" | "custom"), intervalValue (integer, e.g., 3 for "every 3 days"), and optional endDate (timestamp)
-- **AI Interaction Log**: Represents logged AI interactions with request type (enum: "note-to-task" | "generate-sub-tasks"), prompt text, response text, timestamp, and associated entity UUID (task or note)
-- **Workflow**: [OUT OF SCOPE for initial release] Future feature for grouping related tasks into sequential workflows; removed from navigation and data model
-- **Activity Log**: [OUT OF SCOPE for initial release] Future feature for displaying user action history; removed from navigation and data model
-
-## Success Criteria *(mandatory)*
-
-### Measurable Outcomes
-
-#### User Productivity
-
-- **SC-001**: Users can create a basic task (title + priority) in under 15 seconds
-- **SC-002**: Users can activate Focus Mode on any task within 2 clicks
-- **SC-003**: 90% of users successfully complete their first task within 5 minutes of account creation
-- **SC-004**: Users can convert a voice note to a structured task in under 60 seconds
-- **SC-005**: Global search returns relevant results in under 1 second for datasets up to 10,000 tasks
-
-#### AI Feature Adoption
-
-- **SC-006**: 70% of users who create notes with >20 words use the "Convert to Task" feature
-- **SC-007**: AI sub-task generation completes streaming within 10 seconds for 95% of requests
-- **SC-008**: Voice transcription accuracy exceeds 90% for clear recordings in supported languages
-
-#### User Engagement
-
-- **SC-009**: 60% of new users complete the entire onboarding walkthrough
-- **SC-010**: Users with active Consistency Streaks complete tasks 40% more frequently than users without streaks
-- **SC-011**: Users who activate Focus Mode at least once per week complete 30% more high-priority tasks
-
-#### Technical Performance
-
-- **SC-012**: Dashboard initial load completes in under 2 seconds on standard broadband
-- **SC-013**: Route transitions complete in under 200ms
-- **SC-014**: MSW simulated API responses return within 100-500ms (realistic latency)
-- **SC-015**: Application remains responsive with up to 1,000 tasks loaded in memory
-
-#### Accessibility & UX
-
-- **SC-016**: All interactive elements meet WCAG AA contrast requirements (minimum 4.5:1 for normal text)
-- **SC-017**: Users with prefers-reduced-motion enabled experience zero animation disruption
-- **SC-018**: 95% of users can navigate to any primary feature (Tasks, Notes, Focus Mode) within 3 clicks from dashboard
-- **SC-019**: Error messages for failed AI operations provide clear next steps in under 50 words
-
-#### Design System Compliance
-
-- **SC-020**: 100% of glassmorphic elements maintain readability (blur does not obscure critical text)
-- **SC-021**: Color palette maintains consistent dark aesthetic across all pages (no accidental light backgrounds)
-- **SC-022**: Typography hierarchy is immediately recognizable (primary vs. monospace usage is unambiguous)
-
-#### Retention & Motivation
-
-- **SC-023**: Users who unlock at least one achievement return to the app 50% more frequently within the following week
-- **SC-024**: Tutorial task "Master Perpetua" completion rate reaches 40% within 30 days of account creation
-
-## Clarifications
-
-### Session 2026-01-07
-
-- Q: How should the system identify and handle duplicate tasks? → A: Client-generated UUID (collision-resistant, offline-friendly, no server dependency)
-- Q: When should a consistency streak reset? → A: Reset at midnight UTC (consistent but ignores user timezone)
-- Q: How should the system handle conflicts between optimistic updates and server responses? → A: Server wins, discard optimistic changes silently (simple, consistent with ephemeral design)
-- Q: How should the system handle AI rate limit or quota exhaustion? → A: Show error, disable AI features temporarily, retry after cooldown period (graceful degradation)
-- Q: How should users input and manage task tags? → A: Freeform with autocomplete from previously used tags (balance of flexibility and consistency)
-
-## Assumptions
-
-1. **Authentication**: User authentication exists but is implemented outside this feature scope (login/signup flows are separate)
-2. **Browser Support**: Modern browsers supporting ES6+, CSS Grid, Flexbox, and Web Speech API
-3. **Network**: Users have reasonably stable internet connections (MSW simulates offline behavior for testing)
-4. **AI Backend**: An AI API endpoint exists that accepts task context and returns structured sub-task suggestions or note parsing
-5. **Voice API**: A speech-to-text API (e.g., Web Speech API or cloud service) is available for voice transcription
-6. **Language Support**: Initial release supports English only; internationalization is out of scope
-7. **Screen Size**: Primary support for desktop/tablet (1024px+ width); mobile optimization is future work
-8. **Data Volume**: Typical user has <5,000 tasks; performance optimization beyond this is deferred
-9. **Backend Migration**: The MSW mock structure mirrors expected real API contracts (RESTful JSON endpoints)
-10. **Notifications**: Browser notification permissions are requested but not required for core functionality
-11. **Accessibility Tools**: Users with screen readers rely on semantic HTML and ARIA labels (to be implemented following WAI-ARIA best practices)
-12. **Theme Customization**: "Theme tweaks" refers to minor adjustments (accent colors, spacing preferences) within the dark mode palette
-
-## Testing Requirements *(mandatory)*
-
-### Testing Philosophy
-
-This feature MUST follow Test-Driven Development (TDD) as mandated by the project constitution (Section VIII). All functionality MUST be proven with tests before implementation.
-
-### Testing Framework & Tools
-
-- **React Testing Library**: Primary testing framework for component testing (user-centric, accessibility-focused)
-- **Jest**: Test runner and assertion library
-- **MSW (Mock Service Worker)**: API mocking for integration tests
-- **@testing-library/jest-dom**: Custom matchers for DOM assertions
-- **@testing-library/user-event**: User interaction simulation
-- **@testing-library/react-hooks**: Hook testing utilities (if needed)
-
-### Test Coverage Requirements
-
-#### Unit Tests (React Testing Library)
-
-All components MUST have tests covering:
-
-1. **Rendering & Display**
-   - Component renders without crashing
-   - Required elements are present in the document
-   - Correct text content is displayed
-   - Conditional rendering based on props/state
-
-2. **User Interactions**
-   - Click events trigger expected behavior
-   - Form input changes update state correctly
-   - Keyboard navigation works as expected
-   - Focus management is correct
-
-3. **Accessibility**
-   - Required ARIA labels are present
-   - Semantic HTML elements are used correctly
-   - Keyboard interactions follow WCAG guidelines
-   - Screen reader announcements are correct
-
-4. **State Management**
-   - Zustand stores update correctly
-   - TanStack Query cache updates optimistically
-   - LocalStorage persistence works as expected
-   - State resets appropriately on unmount
-
-#### Integration Tests
-
-Critical user flows MUST have integration tests:
-
-1. **Task Creation Flow**
-   - User fills form → submits → task appears in list → MSW intercepts API call
-
-2. **Focus Mode Flow**
-   - User clicks target icon → sidebar hides → countdown starts → timer completes → exit behavior
-
-3. **AI Note Conversion Flow**
-   - User creates note → clicks convert → drawer opens → AI parses (MSW mocked) → user confirms → task created
-
-4. **Global Search Flow**
-   - User types query → results appear grouped → user clicks result → navigation occurs
-
-#### Test Structure (Given-When-Then)
-
-All tests MUST follow the Given-When-Then pattern:
-
+**Task Schema** (from [`src/lib/schemas/task.schema.ts`](frontend/src/lib/schemas/task.schema.ts)):
 ```typescript
-test('marks task as complete when user clicks checkbox', async () => {
-  // GIVEN: A task exists in the list
-  render(<TaskList tasks={[mockTask]} />);
-  const checkbox = screen.getByRole('checkbox', { name: /finish report/i });
+{
+  id: string (UUID)
+  user_id: string (UUID)
+  template_id: string | null (UUID, for recurring instances)
 
-  // WHEN: User clicks the checkbox
-  await userEvent.click(checkbox);
+  // Core fields
+  title: string (1-500 chars, required)
+  description: string (max 5000 chars, optional)
+  priority: 'low' | 'medium' | 'high' (default: 'medium')
+  due_date: datetime | null
+  estimated_duration: number | null (minutes, 1-720)
 
-  // THEN: Task is marked complete and API is called
-  expect(checkbox).toBeChecked();
-  await waitFor(() => {
-    expect(screen.getByText(/completed/i)).toBeInTheDocument();
+  // Focus tracking
+  focus_time_seconds: number (seconds spent in focus mode)
+
+  // Completion
+  completed: boolean
+  completed_at: datetime | null
+  completed_by: 'manual' | 'auto' | 'force' | null
+
+  // Status flags
+  hidden: boolean (soft delete)
+  archived: boolean
+
+  // Subtask aggregates (optimization for list view)
+  subtask_count: number
+  subtask_completed_count: number
+
+  // Metadata
+  created_at: datetime
+  updated_at: datetime
+  version: number (optimistic locking)
+}
+```
+
+**Operations**:
+
+1. **Create Task** (POST `/api/v1/tasks`)
+   - Input: `{ title, description?, priority?, due_date?, estimated_duration? }`
+   - Output: Created task with generated ID
+   - Validation: Title required (1-500 chars), duration 1-720 minutes
+   - Limit: 50 tasks per user (free tier), upgradable via achievements
+
+2. **Update Task** (PATCH `/api/v1/tasks/{id}`)
+   - Input: Partial task + `version` (required for optimistic locking)
+   - Output: Updated task with incremented version
+   - Conflict handling: If version mismatch, return 409 with latest version
+
+3. **Delete Task** (DELETE `/api/v1/tasks/{id}`)
+   - Soft delete: Sets `hidden: true`
+   - Returns: `{ tombstone_id, recoverable_until }`
+   - Recovery window: 30 days, then permanent deletion
+
+4. **Complete Task** (POST `/api/v1/tasks/{id}/force-complete`)
+   - Marks task as complete with `completed_by: 'force'`
+   - Updates achievement stats (streak, lifetime count)
+   - Returns: `{ task, unlocked_achievements[], streak }`
+   - Triggers: Achievement unlock checks, streak calculation
+
+**Success Criteria**:
+- [ ] Tasks persist across sessions
+- [ ] Optimistic locking prevents concurrent edit conflicts
+- [ ] Deleted tasks recoverable for 30 days
+- [ ] Completion triggers achievement system
+- [ ] All operations complete within 2 seconds (p95)
+
+**Edge Cases**:
+- Completing task with incomplete subtasks → allowed but shows warning
+- Editing task during auto-completion → version conflict handled gracefully
+- Deleting recurring task instance → only instance deleted, template preserved
+
+**Implementation Evidence**: [`src/lib/hooks/useTasks.ts`](frontend/src/lib/hooks/useTasks.ts), [`src/components/tasks/TaskCard.tsx`](frontend/src/components/tasks/TaskCard.tsx)
+
+---
+
+### FR-003: Subtask Management
+
+**What**: Nested subtasks (max 10 per task) with independent completion tracking
+
+**Why**: Break down complex tasks into manageable steps, track incremental progress
+
+**Subtask Schema** (from [`src/lib/schemas/subtask.schema.ts`](frontend/src/lib/schemas/subtask.schema.ts)):
+```typescript
+{
+  id: string (UUID)
+  task_id: string (UUID, foreign key)
+  title: string (1-200 chars, required)
+  completed: boolean
+  completed_at: datetime | null
+  created_at: datetime
+  updated_at: datetime
+}
+```
+
+**Operations**:
+
+1. **Create Subtask** (POST `/api/v1/tasks/{task_id}/subtasks`)
+   - Input: `{ title }`
+   - Validation: Max 10 subtasks per task (enforced by backend)
+   - Error: `NESTING_LIMIT_EXCEEDED` if limit reached
+
+2. **Update Subtask** (PATCH `/api/v1/tasks/{task_id}/subtasks/{id}`)
+   - Input: `{ title?, completed? }`
+   - Side effect: Updates parent task's `subtask_completed_count`
+
+3. **Delete Subtask** (DELETE `/api/v1/tasks/{task_id}/subtasks/{id}`)
+   - Hard delete (subtasks not recoverable independently)
+   - Updates parent task's `subtask_count`
+
+**Progress Calculation**:
+- `progress = (subtask_completed_count / subtask_count) * 100`
+- Shown in task card and detail view
+- Real-time update on subtask toggle
+
+**Success Criteria**:
+- [ ] Subtask creation respects 10-per-task limit
+- [ ] Progress bar updates immediately on subtask toggle
+- [ ] Parent task shows aggregated progress in list view
+- [ ] Deleting parent task cascades to subtasks
+
+**Implementation Evidence**: [`src/lib/hooks/useSubtasks.ts`](frontend/src/lib/hooks/useSubtasks.ts), [`src/components/tasks/SubTaskList.tsx`](frontend/src/components/tasks/SubTaskList.tsx)
+
+---
+
+### FR-004: Focus Mode
+
+**What**: Distraction-free, full-screen task view with countdown timer
+
+**Why**: Deep work requires eliminating distractions and time-boxing effort
+
+**Focus Mode State** (from [`src/lib/stores/focus-mode.store.ts`](frontend/src/lib/stores/focus-mode.store.ts)):
+```typescript
+{
+  isActive: boolean
+  currentTaskId: string | null
+  startTime: Date | null
+}
+```
+
+**Workflow**:
+
+1. **Activation**:
+   - User clicks focus icon on task card
+   - Stores task ID and start time in Zustand store
+   - Navigates to `/dashboard/focus` full-screen route
+   - Starts countdown based on `task.estimated_duration`
+
+2. **Focus Session**:
+   - Full-screen UI with task title, description, subtasks
+   - Countdown timer (visual + numeric)
+   - Escape key to exit (keyboard shortcut)
+   - Pause button (stops timer, preserves state)
+
+3. **Completion**:
+   - Manual complete button
+   - Auto-exit when timer reaches zero
+   - Records `focus_time_seconds` on task
+   - Updates achievement stat `focus_completions`
+
+4. **Exit**:
+   - Returns to task list with focus time saved
+   - Preserves incomplete status if not manually completed
+   - Clears focus mode state in Zustand
+
+**Success Criteria**:
+- [ ] Focus mode blocks navigation away (confirmation dialog)
+- [ ] Timer accuracy within 1 second
+- [ ] Focus time persisted even if browser crashes
+- [ ] Escape key always exits (no trap)
+- [ ] Achievement "Focus Master" unlocked after 50 focus completions
+
+**Edge Cases**:
+- Browser tab becomes inactive → timer pauses (intentional)
+- Network failure during focus → time tracked locally, synced on reconnect
+- Task deleted by another device → graceful exit with saved time
+
+**Implementation Evidence**: [`src/app/dashboard/focus/page.tsx`](frontend/src/app/dashboard/focus/page.tsx), [`src/components/focus/FocusTimer.tsx`](frontend/src/components/focus/)
+
+---
+
+### FR-005: Quick Notes
+
+**What**: Rapid text capture with one-click conversion to tasks
+
+**Why**: Capture fleeting thoughts before they're forgotten, reduce friction to action
+
+**Note Schema** (from [`src/lib/schemas/note.schema.ts`](frontend/src/lib/schemas/note.schema.ts)):
+```typescript
+{
+  id: string (UUID)
+  user_id: string (UUID)
+  content: string (1-2000 chars, required)
+  archived: boolean
+
+  // Pro features
+  voice_url: string | null (Pro only)
+  voice_duration_seconds: number | null (1-300)
+  transcription_status: 'pending' | 'completed' | 'failed' | null
+
+  created_at: datetime
+  updated_at: datetime
+}
+```
+
+**Operations**:
+
+1. **Create Note** (POST `/api/v1/notes`)
+   - Input: `{ content }`
+   - Side effect: Increments `notes_created` stat (achievement tracking)
+   - Limit: 20 notes per user (free), unlimited (pro)
+
+2. **Convert to Task** (POST `/api/v1/notes/{id}/convert`)
+   - Parses note content for task metadata:
+     - Priority keywords: "urgent", "important" → high priority
+     - Duration hints: "30 min", "2 hours" → estimated_duration
+     - Date patterns: "tomorrow", "next Monday" → due_date (AI-powered, Pro only)
+   - Creates task with note content as description
+   - Marks note as archived (not deleted)
+   - Increments `notes_converted` achievement stat
+
+3. **Archive Note** (PATCH `/api/v1/notes/{id}`)
+   - Input: `{ archived: true }`
+   - Archived notes hidden from main view, accessible in settings
+
+**Voice Notes (Pro Feature)**:
+- User records audio (max 5 minutes)
+- Uploaded to backend, transcribed via Whisper API
+- Transcription appears as note content when `transcription_status: 'completed'`
+- Used for hands-free capture
+
+**Success Criteria**:
+- [ ] Note creation < 500ms (p95)
+- [ ] Conversion preserves all note content
+- [ ] AI parsing accuracy > 80% for common patterns (Pro)
+- [ ] Voice transcription accuracy > 90% (Pro)
+- [ ] Achievement "Note Master" unlocked after 100 conversions
+
+**Edge Cases**:
+- Empty note → validation error
+- Note conversion during network failure → queued locally, synced on reconnect
+- Voice upload timeout → retry with exponential backoff
+
+**Implementation Evidence**: [`src/lib/hooks/useNotes.ts`](frontend/src/lib/hooks/useNotes.ts), [`src/components/notes/NoteCard.tsx`](frontend/src/components/notes/)
+
+---
+
+### FR-006: Reminder System (Dual Notification)
+
+**What**: Browser + in-app notifications with relative/absolute timing
+
+**Why**: Users need timely prompts without constant app checking
+
+**Reminder Schema** (from [`src/lib/schemas/reminder.schema.ts`](frontend/src/lib/schemas/reminder.schema.ts)):
+```typescript
+{
+  id: string (UUID)
+  task_id: string (UUID, foreign key)
+  user_id: string (UUID)
+
+  // Timing
+  type: 'relative' | 'absolute'
+  offset_minutes: number | null (relative: -15, -30, -60, -1440)
+  scheduled_at: datetime | null (absolute: specific time)
+
+  // Delivery tracking
+  fired: boolean
+  fired_at: datetime | null
+
+  created_at: datetime
+  updated_at: datetime
+}
+```
+
+**Reminder Timing Options**:
+- **Relative** (offset from due_date):
+  - 15 minutes before
+  - 30 minutes before
+  - 1 hour before
+  - 1 day before
+- **Absolute**: User-specified date/time
+
+**Delivery Mechanism** (from [`public/service-worker.js`](frontend/public/service-worker.js)):
+
+1. **Service Worker Polling**:
+   - Runs every 60 seconds when app is open
+   - Fetches reminders from `/api/v1/reminders` (includes unfired only)
+   - Calculates trigger time: `due_date + offset_minutes * 60000`
+   - Fires reminders where `trigger_time <= now && fired === false`
+
+2. **Dual Notification**:
+   - **Browser notification**: `showNotification()` with `requireInteraction: true`
+   - **In-app toast**: `postMessage()` to all open tabs
+   - Both fired simultaneously (not fallback — both guaranteed)
+
+3. **Mark Delivered**:
+   - POST `/api/v1/reminders/{id}/fire`
+   - Sets `fired: true, fired_at: now()`
+   - Prevents duplicate notifications
+
+**Success Criteria**:
+- [ ] Reminders fire within 60-second window of trigger time
+- [ ] Both browser + in-app notification always sent
+- [ ] Notification persists if user not at computer (requireInteraction)
+- [ ] Click notification navigates to task detail
+- [ ] Fired reminders never re-trigger
+
+**Edge Cases**:
+- Browser closed → notifications missed (acceptable, user must open app)
+- Permission denied → only in-app toast shown
+- Multiple tabs open → toast shown in all tabs (intentional)
+- Task deleted → orphaned reminders gracefully handled (no notification)
+
+**Implementation Evidence**: [`public/service-worker.js`](frontend/public/service-worker.js), [`src/lib/hooks/useReminders.ts`](frontend/src/lib/hooks/useReminders.ts)
+
+---
+
+### FR-007: Recurring Tasks (RRule-based)
+
+**What**: RFC 5545 recurrence patterns with template-based instance generation
+
+**Why**: Daily standups, weekly reviews, monthly invoices — repeating work needs automation
+
+**Task Template Schema** (from [`src/lib/schemas/task.schema.ts`](frontend/src/lib/schemas/task.schema.ts)):
+```typescript
+{
+  id: string (UUID)
+  user_id: string (UUID)
+
+  // Template metadata
+  title: string (1-500 chars)
+  description: string (max 5000 chars)
+  priority: 'low' | 'medium' | 'high'
+  estimated_duration: number | null
+
+  // Recurrence
+  rrule: string (RFC 5545 RRULE format)
+  next_due: datetime | null (calculated field)
+  active: boolean (can be paused)
+
+  created_at: datetime
+  updated_at: datetime
+}
+```
+
+**RRule Examples**:
+- Daily at 9am: `FREQ=DAILY;BYHOUR=9;BYMINUTE=0`
+- Every Monday: `FREQ=WEEKLY;BYDAY=MO`
+- First of month: `FREQ=MONTHLY;BYMONTHDAY=1`
+- Weekdays only: `FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR`
+
+**Instance Generation** (completion-based):
+1. User completes recurring task instance
+2. Backend checks if instance is from template (`template_id != null`)
+3. Parses template's `rrule` to compute next occurrence
+4. Creates new task instance with:
+   - Same title, description, priority, duration
+   - `template_id` = original template
+   - `due_date` = next computed date
+   - Fresh UUID, `completed: false`
+5. Updates template's `next_due` field
+
+**Template Management**:
+- Edit template → updates future instances only (past instances unchanged)
+- Pause template → sets `active: false`, stops new instances
+- Delete template → orphans existing instances (they remain independent)
+
+**Success Criteria**:
+- [ ] RRule parsing accuracy 100% for supported patterns
+- [ ] New instance created within 1 minute of completion
+- [ ] Template edits don't affect historical instances
+- [ ] Paused templates don't generate instances
+- [ ] Complex patterns (e.g., "2nd Tuesday of month") supported
+
+**Edge Cases**:
+- Completing instance before previous → generates from completion time, not original due_date
+- Network failure during generation → queued, retried on reconnect
+- Invalid RRule → validation error on template creation
+
+**Implementation Evidence**: [`src/lib/utils/recurrence.ts`](frontend/src/lib/utils/recurrence.ts), [`src/components/recurrence/RecurrenceEditor.tsx`](frontend/src/components/recurrence/RecurrenceEditor.tsx)
+
+---
+
+### FR-008: Achievement System (Gamification)
+
+**What**: Milestone-based achievements that unlock perks (increased limits)
+
+**Why**: Positive reinforcement builds habits, perks reward commitment
+
+**Achievement Categories** (from [`src/lib/schemas/achievement.schema.ts`](frontend/src/lib/schemas/achievement.schema.ts)):
+1. **Task Milestones**: Complete 5, 25, 100, 500 tasks
+2. **Streak Milestones**: Maintain 7, 30, 100 day streaks
+3. **Focus Milestones**: Complete 10, 50, 200 focus sessions
+4. **Note Milestones**: Convert 10, 50, 200 notes to tasks
+
+**Achievement Structure**:
+```typescript
+{
+  id: string (code, e.g., "tasks_5")
+  name: string ("First Steps")
+  message: string ("You've completed your first 5 tasks!")
+  category: 'tasks' | 'streak' | 'focus' | 'notes'
+  threshold: number (e.g., 5)
+
+  // Perk details
+  perk_type: 'max_tasks' | 'max_notes' | 'daily_ai_credits' | null
+  perk_value: number | null (e.g., +10 tasks)
+}
+```
+
+**User Achievement State**:
+```typescript
+{
+  id: string (UUID)
+  user_id: string (UUID)
+
+  // Lifetime stats
+  lifetime_tasks_completed: number
+  current_streak: number
+  longest_streak: number
+  last_completion_date: string (YYYY-MM-DD)
+  focus_completions: number
+  notes_converted: number
+
+  // Unlocked achievements
+  unlocked_achievements: string[] (achievement IDs)
+
+  created_at: datetime
+  updated_at: datetime
+}
+```
+
+**Unlock Flow**:
+1. User completes action (task, focus session, note conversion)
+2. Backend increments relevant stat in `UserAchievementState`
+3. Backend checks all achievement definitions for threshold matches
+4. If threshold met and not already unlocked:
+   - Add achievement ID to `unlocked_achievements[]`
+   - Return `{ achievement_id, achievement_name, perk }`
+5. Frontend displays achievement unlock toast with animation
+6. Perk immediately applied to user's effective limits
+
+**Effective Limits Calculation**:
+```typescript
+base_limits = tier === 'free' ? { max_tasks: 50, max_notes: 20 } : { max_tasks: 1000, max_notes: 500 }
+
+unlocked_perks.forEach(achievement => {
+  if (achievement.perk_type === 'max_tasks') {
+    base_limits.max_tasks += achievement.perk_value
+  }
+  // ... same for max_notes, daily_ai_credits
+})
+
+return base_limits
+```
+
+**Streak Calculation** (with grace days):
+- **Grace period**: 24 hours after midnight (local timezone)
+- **Streak increment**: Complete any task → streak +1 if `last_completion_date` is yesterday
+- **Streak reset**: Miss grace period → `current_streak = 1`
+- **Longest streak**: Always preserved, never decremented
+
+**Success Criteria**:
+- [ ] Achievements unlock within 2 seconds of threshold
+- [ ] Perks apply immediately (no logout required)
+- [ ] Streak calculation respects user timezone
+- [ ] Grace period prevents accidental streak loss
+- [ ] Achievement toast displays with smooth animation
+
+**Edge Cases**:
+- Completing multiple tasks rapidly → only one unlock toast per achievement
+- Offline completion → stats synced on reconnect, achievements unlock then
+- Timezone change → streak calculation uses new timezone going forward
+
+**Implementation Evidence**: [`src/lib/hooks/useAchievements.ts`](frontend/src/lib/hooks/useAchievements.ts), [`src/components/achievements/AchievementCard.tsx`](frontend/src/components/achievements/)
+
+---
+
+### FR-009: AI-Powered Features (Pro Tier)
+
+**What**: AI-assisted task breakdown, priority suggestions, note parsing
+
+**Why**: Reduce cognitive load for task planning, accelerate capture-to-action
+
+**AI Capabilities**:
+
+1. **Subtask Generation** (POST `/api/v1/tasks/{id}/ai/subtasks`):
+   - Input: Task title + description
+   - Output: 3-7 subtask suggestions
+   - Model: GPT-4 (Anthropic fallback)
+   - Prompt engineering: "Break down this task into actionable subtasks (3-7 items)"
+   - Cost: 1 AI credit per generation
+
+2. **Priority Recommendation** (POST `/api/v1/tasks/{id}/ai/priority`):
+   - Input: Task details + user's current task list
+   - Output: `{ priority: 'high' | 'medium' | 'low', reasoning: string }`
+   - Factors: Deadlines, dependencies, user patterns
+   - Cost: 1 AI credit
+
+3. **Note Parsing** (POST `/api/v1/notes/{id}/parse`):
+   - Input: Note content
+   - Output: `{ title, description, due_date?, priority?, estimated_duration? }`
+   - Pattern recognition: Natural language dates, urgency keywords
+   - Example: "Call dentist tomorrow urgent" → { title: "Call dentist", due_date: tomorrow, priority: 'high' }
+   - Cost: 1 AI credit
+
+**AI Credit System**:
+- Free tier: 0 credits (AI disabled)
+- Pro tier: 100 credits/day (resets midnight UTC)
+- Credits tracked in `UserAchievementState.daily_ai_credits_used`
+- Perks can increase daily limit
+
+**AI Safety Guardrails** (per Constitution IV):
+- **AI cannot change task state** (no auto-completion)
+- **AI cannot delete tasks**
+- **AI suggestions are opt-in** (user must click "Generate subtasks")
+- **Undo available** (user can reject suggestions before saving)
+
+**Success Criteria**:
+- [ ] Subtask suggestions relevant > 80% of the time
+- [ ] Priority recommendations accurate within user's judgment
+- [ ] Note parsing success rate > 85%
+- [ ] AI latency < 3 seconds (p95)
+- [ ] Credits reset daily at midnight UTC
+
+**Edge Cases**:
+- Credit exhaustion → clear error message, upsell to higher tier
+- AI service down → graceful degradation, manual entry still works
+- Offensive input → content moderation, reject with error
+
+**Implementation Evidence**: [`src/components/tasks/AISubtasksGenerator.tsx`](frontend/src/components/tasks/AISubtasksGenerator.tsx), [`src/lib/hooks/useAI.ts`](frontend/src/lib/hooks/)
+
+---
+
+### FR-010: Command Palette (Power User Feature)
+
+**What**: Keyboard-driven global command launcher (Cmd+K / Ctrl+K)
+
+**Why**: Speed up navigation and actions for keyboard-centric users
+
+**Command Categories**:
+
+1. **Navigation**:
+   - "Go to Dashboard" → `/dashboard`
+   - "Go to Tasks" → `/dashboard/tasks`
+   - "Go to Notes" → `/dashboard/notes`
+   - "Go to Focus Mode" → `/dashboard/focus`
+   - "Go to Achievements" → `/dashboard/achievements`
+
+2. **Task Actions**:
+   - "New Task" → Opens new task modal
+   - "Search Tasks" → Fuzzy search with Fuse.js
+   - "Complete Task" → Lists incomplete tasks, marks selected
+
+3. **Quick Capture**:
+   - "New Note" → Opens quick note input
+   - "Start Focus" → Lists tasks, activates focus for selected
+
+**Command Palette State** (from [`src/lib/stores/command-palette.store.ts`](frontend/src/lib/stores/command-palette.store.ts)):
+```typescript
+{
+  isOpen: boolean
+  searchQuery: string
+  selectedIndex: number
+  filteredCommands: Command[]
+}
+```
+
+**Keyboard Shortcuts**:
+- `Cmd+K` / `Ctrl+K`: Open command palette
+- `Arrow Up/Down`: Navigate commands
+- `Enter`: Execute selected command
+- `Escape`: Close palette
+
+**Fuzzy Search**:
+- Powered by Fuse.js
+- Searches command names, aliases, categories
+- Example: "gota" matches "**Go** **t**o T**a**sks"
+- Threshold: 0.4 (balance precision/recall)
+
+**Success Criteria**:
+- [ ] Palette opens within 100ms of keypress
+- [ ] Search results update in real-time (< 50ms)
+- [ ] Keyboard navigation never breaks
+- [ ] Commands execute within 200ms
+- [ ] Palette accessible from all dashboard pages
+
+**Edge Cases**:
+- Typing in input field → Cmd+K still opens palette (global listener)
+- Command execution during network failure → queued locally
+- Multiple rapid Cmd+K presses → single open (debounced)
+
+**Implementation Evidence**: [`src/components/layout/CommandPalette.tsx`](frontend/src/components/layout/), [`src/lib/stores/command-palette.store.ts`](frontend/src/lib/stores/command-palette.store.ts)
+
+---
+
+## III. Non-Functional Requirements
+
+### NFR-001: Performance
+
+**Targets** (per Constitution X: Simplicity over scale):
+
+| Metric | Target | Measurement |
+|--------|--------|-------------|
+| Initial page load (LCP) | < 2.5s | Web Vitals |
+| Route transitions (Next.js) | < 500ms | Performance API |
+| API response time (p95) | < 2s | Backend monitoring |
+| Search latency (Fuse.js) | < 50ms | Client-side profiling |
+| Focus mode timer accuracy | ±1s | Comparison with system clock |
+
+**Optimization Strategies**:
+- **Code splitting**: Next.js App Router automatic splitting
+- **Image optimization**: `next/image` with AVIF/WebP
+- **Bundle analysis**: `@next/bundle-analyzer` (run via `pnpm analyze`)
+- **Lazy loading**: Radix UI components loaded on interaction
+- **Server caching**: TanStack Query with 5-minute stale time
+- **Debouncing**: Search input debounced 300ms
+
+**Success Criteria**:
+- [ ] Lighthouse score > 90 (Performance, Accessibility, Best Practices)
+- [ ] Bundle size < 500KB gzipped (main chunk)
+- [ ] No layout shifts (CLS < 0.1)
+- [ ] All interactions < 100ms to first visual feedback
+
+**Implementation Evidence**: [`package.json`](frontend/package.json) (`analyze` script), Web Vitals tracking in `_app.tsx`
+
+---
+
+### NFR-002: Security
+
+**Threat Model**:
+- **XSS**: Malicious input in task titles/descriptions
+- **CSRF**: Forged API requests
+- **Token theft**: Access token stolen from localStorage
+- **Clickjacking**: App embedded in malicious iframe
+
+**Mitigations**:
+
+1. **XSS Protection**:
+   - React automatic escaping (JSX)
+   - Content Security Policy (CSP) headers
+   - DOMPurify for user-generated HTML (if rich text added)
+
+2. **CSRF Protection**:
+   - Idempotency-Key header on all mutations (generated per request)
+   - SameSite cookies (when backend sets session cookies)
+
+3. **Token Security**:
+   - Short access token TTL (15 minutes)
+   - Refresh token rotation
+   - HttpOnly cookies for refresh tokens (future enhancement)
+   - Logout clears all tokens
+
+4. **Clickjacking Protection**:
+   - `X-Frame-Options: DENY` header
+   - CSP `frame-ancestors 'none'`
+
+**Secrets Management** (per Constitution IX):
+- All API keys in `.env.local` (never in code)
+- `NEXT_PUBLIC_API_URL` for backend endpoint
+- Environment validation on startup (blocks if missing required vars)
+
+**Success Criteria**:
+- [ ] OWASP Top 10 vulnerabilities addressed
+- [ ] Security headers score A+ on securityheaders.com
+- [ ] No secrets in Git history
+- [ ] Dependency vulnerability scan passes (npm audit)
+
+**Implementation Evidence**: [`src/lib/api/client.ts`](frontend/src/lib/api/client.ts) (Idempotency-Key), `next.config.js` (security headers)
+
+---
+
+### NFR-003: Accessibility (WCAG AA)
+
+**Standards**: WCAG 2.1 Level AA compliance
+
+**Requirements**:
+
+1. **Keyboard Navigation**:
+   - All interactive elements focusable
+   - Logical tab order
+   - Escape key exits modals/focus mode
+   - Shortcuts don't trap users
+
+2. **Screen Readers**:
+   - Semantic HTML (`<nav>`, `<main>`, `<article>`)
+   - ARIA labels on icon buttons
+   - Alt text on all images
+   - Live regions for toast notifications (`aria-live="polite"`)
+
+3. **Color Contrast**:
+   - Minimum 4.5:1 for text
+   - 3:1 for UI components
+   - Priority indicators use both color + icons
+
+4. **Motion Sensitivity**:
+   - `prefers-reduced-motion` support
+   - Animations disabled if user preference set
+   - Focus mode timer non-animated fallback
+
+**Radix UI Benefits**:
+- Built-in accessibility patterns
+- Focus management handled automatically
+- ARIA attributes correct by default
+
+**Success Criteria**:
+- [ ] Axe DevTools reports zero violations
+- [ ] VoiceOver/NVDA can navigate entire app
+- [ ] Keyboard-only users can complete all tasks
+- [ ] Color contrast passes WebAIM checker
+
+**Implementation Evidence**: [`src/lib/hooks/useReducedMotion.ts`](frontend/src/lib/hooks/useReducedMotion.ts), Radix UI components with built-in a11y
+
+---
+
+### NFR-004: Data Integrity (per Constitution III)
+
+**Guarantees**:
+
+1. **User data loss is unacceptable**:
+   - All mutations use optimistic locking (`version` field)
+   - Conflict resolution shows latest version, allows user to choose
+   - Soft delete with 30-day recovery window
+
+2. **Undo guarantee** (per Constitution III.4):
+   - Undo available until next mutation
+   - Toast notification with undo button
+   - Undo action queued locally, sent to backend
+
+3. **Dummy-first rule** (per Constitution III.3):
+   - MSW mocks used for all development
+   - No real user data in test suites
+   - Seed data generated via fixtures
+
+4. **Session durability**:
+   - Task edits autosaved every 5 seconds (debounced)
+   - Form state persisted in localStorage (survives refresh)
+   - Network failure queues mutations, syncs on reconnect
+
+**Success Criteria**:
+- [ ] Zero data loss incidents in production
+- [ ] Undo success rate 100% (when invoked before next mutation)
+- [ ] Conflict resolution UI tested with concurrent edits
+- [ ] All tests use dummy data (verified in CI)
+
+**Implementation Evidence**: [`src/lib/schemas/task.schema.ts`](frontend/src/lib/schemas/task.schema.ts) (`version` field), Zustand stores for local state persistence
+
+---
+
+### NFR-005: Reliability
+
+**Targets**:
+- **Uptime**: 99.5% (excludes planned maintenance)
+- **Error rate**: < 1% of requests
+- **Crash rate**: < 0.1% of sessions
+
+**Error Handling**:
+
+1. **API Errors**:
+   - All errors follow schema: `{ error: { code, message, details?, request_id? } }`
+   - User-friendly messages (no stack traces)
+   - Retry with exponential backoff for 5xx errors
+   - Circuit breaker pattern for degraded backend
+
+2. **Network Failures**:
+   - Offline indicator in UI
+   - Mutations queued in IndexedDB
+   - Sync on reconnect with conflict resolution
+   - TanStack Query retry logic (3 attempts)
+
+3. **Client-Side Crashes**:
+   - React Error Boundaries catch component errors
+   - Sentry integration for error tracking (production)
+   - Fallback UI with "Try Again" button
+
+**Graceful Degradation**:
+- AI features disabled if service down (manual entry still works)
+- Reminders fall back to in-app only if notifications blocked
+- Focus mode works offline (timer client-side)
+
+**Success Criteria**:
+- [ ] All API errors logged with request_id
+- [ ] Error boundaries prevent full-page crashes
+- [ ] Offline mode allows task viewing (cached data)
+- [ ] Network reconnect syncs queued actions
+
+**Implementation Evidence**: [`src/lib/api/client.ts`](frontend/src/lib/api/client.ts) (ApiError class), TanStack Query retry configuration
+
+---
+
+### NFR-006: Observability
+
+**Logging**:
+- **Development**: Console logs with component context
+- **Production**: Structured JSON logs to Sentry
+- **Minimum logged fields**: timestamp, level, message, user_id, request_id
+
+**Metrics** (Web Vitals):
+- LCP (Largest Contentful Paint)
+- FID (First Input Delay)
+- CLS (Cumulative Layout Shift)
+- Tracked via `reportWebVitals()` hook
+
+**Error Tracking**:
+- Sentry for frontend errors (React Error Boundaries)
+- Error context: user_id, route, component stack
+- Source maps uploaded to Sentry for production debugging
+
+**User Feedback**:
+- In-app feedback form (bottom-right widget)
+- Issue reporting to GitHub (pre-filled template)
+
+**Success Criteria**:
+- [ ] All errors captured with full context
+- [ ] Web Vitals tracked for 100% of users (sampled)
+- [ ] P95 API latency visualized in dashboard
+
+**Implementation Evidence**: Sentry setup in `_app.tsx`, Web Vitals hook
+
+---
+
+## IV. System Constraints
+
+### External Dependencies
+
+| Dependency | Purpose | Ownership | SLA |
+|------------|---------|-----------|-----|
+| Backend API | All data operations | Internal | 99.5% uptime |
+| Google OAuth | Authentication | Google | 99.9% uptime (per Google SLA) |
+| OpenAI API | AI features (Pro) | OpenAI | 99% uptime |
+| Vercel CDN | Hosting, edge functions | Vercel | 99.99% uptime |
+| Sentry | Error tracking | Sentry | 99.9% uptime |
+
+### Technology Stack
+
+**Fixed Dependencies** (cannot be changed without major refactor):
+- **Next.js 16.1.1**: App Router, React Server Components
+- **React 19.2.3**: Concurrent features, Suspense
+- **TypeScript 5**: Type safety, IntelliSense
+- **Tailwind CSS 4**: Utility-first styling
+- **Zod 4.3.5**: Schema validation
+
+**Replaceable Dependencies** (can be swapped):
+- **TanStack Query v5**: Could swap for SWR or Apollo Client
+- **Zustand 5**: Could swap for Redux Toolkit or Jotai
+- **Radix UI**: Could swap for Headless UI or React Aria
+- **Fuse.js 7**: Could swap for FlexSearch or MiniSearch
+- **Framer Motion 12**: Could swap for React Spring
+
+### Data Formats
+
+- **API**: JSON (Content-Type: application/json)
+- **Dates**: ISO 8601 datetime strings (UTC)
+- **UUIDs**: RFC 4122 v4
+- **RRule**: RFC 5545 recurrence format
+
+### Deployment Context
+
+- **Platform**: Vercel (serverless Next.js)
+- **Region**: Global edge network (automatic)
+- **Build**: Static Site Generation (SSG) for public pages, Server-Side Rendering (SSR) for dashboard
+- **Environment variables**: Injected via Vercel dashboard
+
+### Browser Support
+
+**Minimum Versions**:
+- Chrome 90+
+- Firefox 88+
+- Safari 14+
+- Edge 90+
+
+**Progressive Enhancement**:
+- Service Worker (notifications) → fallback to in-app only
+- Web Crypto API (UUID generation) → fallback to Math.random polyfill
+- IndexedDB (offline queue) → fallback to memory queue
+
+---
+
+## V. Non-Goals & Out of Scope
+
+### Explicitly Excluded Features
+
+**Why these are excluded**: Scope control, focus on core value prop
+
+1. **Multi-user collaboration**:
+   - No shared tasks, projects, or teams
+   - Perpetua Flow is single-user productivity tool, not project management
+   - Rationale: Adds massive complexity (permissions, conflict resolution, real-time sync)
+
+2. **Calendar integration**:
+   - No sync with Google Calendar, Outlook, etc.
+   - Rationale: Different mental models (time-blocking vs task lists)
+   - Workaround: Users can manually copy tasks to calendar
+
+3. **File attachments**:
+   - No uploading documents, images (except voice notes for Pro)
+   - Rationale: Storage costs, security scanning, file management UI
+   - Workaround: Users can add links to Dropbox/Drive
+
+4. **Custom fields**:
+   - No user-defined metadata (e.g., "Client Name", "Project Code")
+   - Rationale: Scope creep toward project management, reduces UX simplicity
+   - Workaround: Use task description or tags (future feature)
+
+5. **Mobile apps (native)**:
+   - Web-only (Progressive Web App installable)
+   - Rationale: Development cost, maintenance burden (3 codebases)
+   - Mobile web experience optimized via responsive design
+
+6. **Email integration**:
+   - No "email to task" functionality
+   - Rationale: Requires email server infrastructure, spam handling
+   - Workaround: Users manually copy email content to notes
+
+### Planned Future Enhancements (Not in MVP)
+
+**Backlog** (prioritized by user demand):
+1. Tags/labels for tasks (color-coded, filterable)
+2. Task dependencies ("Block" → Task B depends on Task A)
+3. Eisenhower Matrix view (Urgent/Important quadrant)
+4. Export/import (JSON, CSV for data portability)
+5. Dark mode toggle (currently dark-only)
+6. Custom keyboard shortcuts
+7. Pomodoro timer integration (focus mode enhancement)
+
+---
+
+## VI. Success Criteria & Acceptance Tests
+
+### System-Wide Success Criteria
+
+**Functional**:
+- [ ] User can complete end-to-end flow: Sign in → Create task → Complete task → View streak in < 2 minutes
+- [ ] All CRUD operations (tasks, subtasks, notes) work offline (queued, synced on reconnect)
+- [ ] AI features (Pro) provide value > 80% of the time (measured by user acceptance rate)
+- [ ] Achievement unlocks celebrate progress without being annoying
+
+**Non-Functional**:
+- [ ] Page load < 2.5s on 3G network
+- [ ] Zero critical security vulnerabilities (OWASP Top 10)
+- [ ] 99.5% uptime (measured monthly)
+- [ ] < 0.1% client-side crash rate
+
+**User Experience**:
+- [ ] Net Promoter Score (NPS) > 50
+- [ ] Task completion rate (tasks created → completed) > 70%
+- [ ] Focus mode usage > 30% of active users
+- [ ] User retention: 50% of users active after 30 days
+
+---
+
+### Critical User Journeys (Acceptance Tests)
+
+#### Journey 1: First-Time User Onboarding
+
+**Scenario**: New user discovers value in < 5 minutes
+
+**Given**: User has Google account, lands on homepage
+
+**When**:
+1. Clicks "Sign in with Google"
+2. Authorizes Google OAuth
+3. Redirected to `/dashboard`
+4. Sees onboarding tour (Driver.js)
+5. Creates first task via modal
+6. Marks task complete
+7. Sees achievement unlock: "First Steps" (5 tasks milestone)
+
+**Then**:
+- User understands core workflow
+- Feels sense of accomplishment (gamification)
+- No confusion or dead ends
+
+**Edge Cases**:
+- OAuth failure → clear error, "Try Again" button
+- Onboarding tour dismissed → can restart from settings
+
+---
+
+#### Journey 2: Power User Daily Workflow
+
+**Scenario**: Experienced user completes daily review in < 2 minutes
+
+**Given**: User has 20 active tasks, 3 notes, 7-day streak
+
+**When**:
+1. Opens app (already logged in)
+2. Presses `Cmd+K` to open command palette
+3. Types "focus" → Selects "Start Focus Mode"
+4. Completes focused task in 30 minutes
+5. Exits focus mode
+6. Creates 2 quick notes via sidebar
+7. Converts 1 note to task
+8. Reviews task list, marks 3 complete
+9. Sees streak increment to 8 days
+
+**Then**:
+- All actions keyboard-driven (no mouse needed)
+- Task list up-to-date
+- Streak preserved (grace period)
+
+**Edge Cases**:
+- Network interruption during focus → time tracked locally, synced on reconnect
+- Missed task → grace period prevents streak reset
+
+---
+
+#### Journey 3: AI-Assisted Task Planning (Pro)
+
+**Scenario**: Pro user leverages AI to break down complex task
+
+**Given**: User has Pro subscription, 50 AI credits remaining
+
+**When**:
+1. Creates task: "Plan Q1 marketing campaign"
+2. Clicks "Generate Subtasks" (AI)
+3. AI returns 5 subtasks:
+   - Define target audience
+   - Create content calendar
+   - Design ad creatives
+   - Set up analytics tracking
+   - Schedule posts
+4. User reviews, accepts 4, edits 1
+5. Saves task with subtasks
+6. AI credits decremented by 1
+
+**Then**:
+- Complex task broken into actionable steps
+- User time saved (no manual brainstorming)
+- AI credit balance accurate
+
+**Edge Cases**:
+- AI service down → error message, fallback to manual entry
+- Credits exhausted → upsell modal, AI button disabled
+
+---
+
+#### Journey 4: Recurring Task Automation
+
+**Scenario**: User sets up weekly standup recurring task
+
+**Given**: User wants "Weekly standup notes" every Monday at 9am
+
+**When**:
+1. Creates task template
+2. Opens recurrence editor
+3. Selects "Weekly" preset
+4. Picks "Monday" from day selector
+5. Sets time: 09:00
+6. Saves template (active)
+7. Completes first instance on Monday
+8. New instance auto-created for next Monday
+
+**Then**:
+- Template active, generates instances indefinitely
+- Completion triggers next instance creation
+- No manual recreation needed
+
+**Edge Cases**:
+- Completing instance early (Friday) → next instance still Monday (not Friday+7 days)
+- Pausing template → stops future instances
+
+---
+
+#### Journey 5: Focus Mode Deep Work
+
+**Scenario**: User completes 2-hour task in distraction-free mode
+
+**Given**: User has task "Write project proposal" (estimated: 120 minutes)
+
+**When**:
+1. Clicks focus icon on task card
+2. Enters full-screen focus mode
+3. Countdown starts at 2:00:00
+4. Works for 90 minutes
+5. Pauses timer (break)
+6. Resumes for 30 minutes
+7. Marks task complete before timer ends
+8. Exits focus mode
+
+**Then**:
+- Focus time recorded: 120 minutes (cumulative)
+- Achievement "Focus Master" progress updated
+- Task marked complete
+- Returned to task list
+
+**Edge Cases**:
+- Browser tab closed → focus time saved, session ended
+- Task deleted by another device → graceful exit with time saved
+
+---
+
+## VII. Known Gaps & Technical Debt
+
+### P0: Critical Gaps (Must fix before public launch)
+
+**Gap 1: Missing Token Refresh in Service Worker**
+
+- **Issue**: Service Worker cannot access localStorage to get auth token
+- **Evidence**: [`public/service-worker.js:28`](frontend/public/service-worker.js#L28) comment `// TODO: Get auth token`
+- **Impact**: Reminder polling fails for authenticated users (403 Unauthorized)
+- **Recommendation**: Use IndexedDB for token storage, accessible from SW and main thread
+- **Effort**: Medium (2-3 days)
+
+**Gap 2: No Error Boundary Around Main App**
+
+- **Issue**: Unhandled component errors crash entire app (white screen)
+- **Evidence**: No `ErrorBoundary` wrapper in `_app.tsx`
+- **Impact**: Poor UX, user must manually refresh
+- **Recommendation**: Add React Error Boundary with fallback UI ("Something went wrong" + reload button)
+- **Effort**: Low (1 day)
+
+**Gap 3: Optimistic Locking Not Fully Implemented**
+
+- **Issue**: Frontend sends `version` field, but conflict resolution UI incomplete
+- **Evidence**: [`src/lib/schemas/task.schema.ts:108`](frontend/src/lib/schemas/task.schema.ts#L108) requires version, but no conflict modal
+- **Impact**: Concurrent edits silently fail (user confusion)
+- **Recommendation**: Add conflict resolution modal showing diff, allow user to choose version
+- **Effort**: Medium (2-3 days)
+
+---
+
+### P1: Important Gaps (Should fix within 3 months)
+
+**Gap 4: Incomplete Accessibility Testing**
+
+- **Issue**: No automated a11y tests in CI pipeline
+- **Evidence**: No `@axe-core/react` integration
+- **Impact**: WCAG violations may slip through
+- **Recommendation**: Add axe-core to Jest tests, run on every commit
+- **Effort**: Low (1-2 days)
+
+**Gap 5: No Rate Limiting on Client**
+
+- **Issue**: User can spam API with rapid mutations
+- **Evidence**: No debouncing on task creation, subtask toggles
+- **Impact**: Backend strain, potential abuse
+- **Recommendation**: Add client-side rate limiting (max 10 mutations/second)
+- **Effort**: Low (1 day)
+
+**Gap 6: Missing Analytics Events**
+
+- **Issue**: No tracking for user actions (task creation, focus mode usage)
+- **Evidence**: No analytics service integration
+- **Impact**: Cannot measure feature usage, optimize UX
+- **Recommendation**: Add Mixpanel or Plausible events for key actions
+- **Effort**: Medium (2 days)
+
+---
+
+### P2: Nice-to-Have Improvements
+
+**Gap 7: No Dark Mode Toggle**
+
+- **Issue**: App is dark-only, no light mode option
+- **Evidence**: Tailwind config only has dark theme
+- **Impact**: Some users prefer light mode (accessibility issue for photosensitivity)
+- **Recommendation**: Add theme toggle in settings, persist in localStorage
+- **Effort**: Medium (3-4 days including redesign)
+
+**Gap 8: Command Palette Could Be Smarter**
+
+- **Issue**: Command palette doesn't learn from user behavior
+- **Evidence**: No frecency (frequency + recency) algorithm
+- **Impact**: Frequently used commands not prioritized
+- **Recommendation**: Track command usage, sort by frecency
+- **Effort**: Low (1-2 days)
+
+**Gap 9: No Bulk Operations**
+
+- **Issue**: Cannot select multiple tasks and perform batch actions
+- **Evidence**: No multi-select UI
+- **Impact**: Tedious to delete/archive multiple tasks
+- **Recommendation**: Add checkbox multi-select mode with "Delete Selected" button
+- **Effort**: Medium (2-3 days)
+
+---
+
+## VIII. Regeneration Strategy
+
+### Option 1: Specification-First Rebuild (Recommended for Major Refactor)
+
+**When to use**: Technology shift (e.g., React → Svelte), architecture overhaul
+
+**Process**:
+1. Use this `spec.md` as blueprint
+2. Apply extracted skills from `intelligence-object.md`
+3. Implement with modern best practices (fill gaps from Section VII)
+4. Test-driven development using acceptance criteria from Section VI
+5. Deploy alongside existing app, gradual traffic shift
+
+**Timeline**: 6-8 months (team of 3 developers)
+
+**Benefits**:
+- Clean slate, no legacy code baggage
+- Opportunity to fix architectural mistakes
+- Modern dependencies, better performance
+
+**Risks**:
+- Feature parity takes time
+- User disruption if not seamless migration
+
+---
+
+### Option 2: Incremental Refactoring (Recommended for Continuous Improvement)
+
+**When to use**: Ongoing development, no major tech shift needed
+
+**Process** (Strangler Pattern):
+1. Identify module to refactor (e.g., focus mode)
+2. Write spec for that module (reference this doc)
+3. Build new implementation alongside old
+4. Feature flag to control traffic split
+5. A/B test new vs old
+6. Deprecate old code when new proven
+
+**Timeline**: Continuous, one module per sprint
+
+**Benefits**:
+- Zero downtime
+- Gradual risk mitigation
+- Can revert instantly if issues
+
+**Risks**:
+- Code duplication during transition
+- Complexity of maintaining two versions
+
+---
+
+## IX. Appendices
+
+### Appendix A: API Contract Reference
+
+**Full API documentation**: `specs/002-perpetua-frontend/contracts/API.md`
+
+**Key endpoints implemented in frontend**:
+
+| Endpoint | Method | Schema Reference | Hook |
+|----------|--------|------------------|------|
+| `/auth/google/callback` | POST | [`auth.schema.ts`](frontend/src/lib/schemas/auth.schema.ts) | [`useAuth.ts`](frontend/src/lib/hooks/useAuth.ts) |
+| `/users/me` | GET | [`user.schema.ts`](frontend/src/lib/schemas/user.schema.ts) | [`useAuth.ts`](frontend/src/lib/hooks/useAuth.ts) |
+| `/tasks` | GET | [`task.schema.ts`](frontend/src/lib/schemas/task.schema.ts) | [`useTasks.ts`](frontend/src/lib/hooks/useTasks.ts) |
+| `/tasks` | POST | [`task.schema.ts`](frontend/src/lib/schemas/task.schema.ts) | [`useTasks.ts`](frontend/src/lib/hooks/useTasks.ts) |
+| `/tasks/{id}` | GET | [`task.schema.ts`](frontend/src/lib/schemas/task.schema.ts) | [`useTasks.ts`](frontend/src/lib/hooks/useTasks.ts) |
+| `/tasks/{id}` | PATCH | [`task.schema.ts`](frontend/src/lib/schemas/task.schema.ts) | [`useTasks.ts`](frontend/src/lib/hooks/useTasks.ts) |
+| `/tasks/{id}` | DELETE | [`task.schema.ts`](frontend/src/lib/schemas/task.schema.ts) | [`useTasks.ts`](frontend/src/lib/hooks/useTasks.ts) |
+| `/tasks/{id}/force-complete` | POST | [`task.schema.ts`](frontend/src/lib/schemas/task.schema.ts) | [`useTasks.ts`](frontend/src/lib/hooks/useTasks.ts) |
+| `/tasks/{task_id}/subtasks` | GET/POST | [`subtask.schema.ts`](frontend/src/lib/schemas/subtask.schema.ts) | [`useSubtasks.ts`](frontend/src/lib/hooks/useSubtasks.ts) |
+| `/notes` | GET/POST | [`note.schema.ts`](frontend/src/lib/schemas/note.schema.ts) | [`useNotes.ts`](frontend/src/lib/hooks/useNotes.ts) |
+| `/achievements/me` | GET | [`achievement.schema.ts`](frontend/src/lib/schemas/achievement.schema.ts) | [`useAchievements.ts`](frontend/src/lib/hooks/useAchievements.ts) |
+| `/reminders` | GET | [`reminder.schema.ts`](frontend/src/lib/schemas/reminder.schema.ts) | [`useReminders.ts`](frontend/src/lib/hooks/useReminders.ts) |
+| `/reminders/{id}/fire` | POST | [`reminder.schema.ts`](frontend/src/lib/schemas/reminder.schema.ts) | Service Worker |
+
+---
+
+### Appendix B: Data Model Diagram
+
+**Full data model**: `specs/002-perpetua-frontend/data-model.md`
+
+**Entity relationships** (implemented in frontend schemas):
+
+```
+User (1)
+  ├─→ Tasks (*) [user_id]
+  │     ├─→ Subtasks (*) [task_id]
+  │     ├─→ Reminders (*) [task_id]
+  │     └─→ TaskTemplate (0..1) [template_id]
+  ├─→ Notes (*) [user_id]
+  ├─→ UserAchievementState (1) [user_id]
+  └─→ CreditDetail (*) [user_id]
+
+TaskTemplate (1)
+  └─→ Tasks (*) [template_id] (recurring instances)
+
+AchievementDefinition (*)
+  └─→ UserAchievementState.unlocked_achievements (*) [achievement_id]
+```
+
+---
+
+### Appendix C: Technology Decision Log
+
+**Key technology choices and rationale**:
+
+1. **Next.js 16 over Create React App**:
+   - **Rationale**: App Router SSR for SEO (public pages), API routes for BFF pattern, built-in optimization
+   - **Trade-off**: Steeper learning curve vs CRA simplicity
+   - **Status**: Accepted
+
+2. **TanStack Query over Redux**:
+   - **Rationale**: Server state management built-in, automatic cache invalidation, better DX
+   - **Trade-off**: Less community resources vs Redux
+   - **Status**: Accepted
+
+3. **Zustand over Redux Toolkit (client state)**:
+   - **Rationale**: Minimal boilerplate, no providers, TypeScript-first
+   - **Trade-off**: Smaller ecosystem vs Redux DevTools maturity
+   - **Status**: Accepted
+
+4. **Zod over Yup**:
+   - **Rationale**: TypeScript-native, schema = type (no duplication), better inference
+   - **Trade-off**: Less mature ecosystem
+   - **Status**: Accepted
+
+5. **MSW over JSON Server**:
+   - **Rationale**: Intercepts at network level (works with fetch/axios), browser + Node.js, realistic latency simulation
+   - **Trade-off**: More complex setup
+   - **Status**: Accepted
+
+6. **Radix UI over Headless UI**:
+   - **Rationale**: More components, better accessibility out-of-box, active development
+   - **Trade-off**: Slightly larger bundle
+   - **Status**: Accepted
+
+7. **Tailwind CSS 4 over CSS Modules**:
+   - **Rationale**: Utility-first rapid prototyping, design system via config, tree-shaking removes unused styles
+   - **Trade-off**: Verbose class names, learning curve
+   - **Status**: Accepted
+
+---
+
+### Appendix D: Testing Strategy
+
+**Coverage target**: 80% for core logic and API interactions
+
+**Test Types**:
+
+1. **Unit Tests** (Jest + React Testing Library):
+   - Schema validation (Zod parse success/failure)
+   - Utility functions (date formatting, recurrence parsing)
+   - Store actions (Zustand state transitions)
+   - Component logic (without rendering)
+
+2. **Integration Tests** (React Testing Library):
+   - User interactions (click, type, submit)
+   - API hooks (MSW mocked responses)
+   - Route transitions (Next.js routing)
+
+3. **E2E Tests** (Playwright - future):
+   - Critical user journeys (Section VI)
+   - Cross-browser compatibility
+   - Auth flows with real Google OAuth
+
+**Example Test** (from [`src/lib/schemas/task.schema.test.ts`](frontend/tests/) — should exist):
+```typescript
+describe('TaskSchema', () => {
+  it('validates complete task', () => {
+    const task = {
+      id: '123e4567-e89b-12d3-a456-426614174000',
+      user_id: '123e4567-e89b-12d3-a456-426614174001',
+      template_id: null,
+      title: 'Test task',
+      description: '',
+      priority: 'medium',
+      due_date: null,
+      estimated_duration: null,
+      focus_time_seconds: 0,
+      completed: false,
+      completed_at: null,
+      completed_by: null,
+      hidden: false,
+      archived: false,
+      subtask_count: 0,
+      subtask_completed_count: 0,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      version: 1,
+    };
+    expect(() => TaskSchema.parse(task)).not.toThrow();
+  });
+
+  it('rejects invalid title length', () => {
+    const task = { /* ... */, title: 'x'.repeat(501) };
+    expect(() => TaskSchema.parse(task)).toThrow();
   });
 });
 ```
 
-#### Critical Test Cases
+---
 
-Each user story MUST have corresponding tests:
+## X. Conclusion & Next Steps
 
-##### User Story 1 - Create and Manage Tasks (P1)
+This specification represents the **authoritative source of truth** for the Perpetua Flow frontend application. All implementation, tests, and runtime behavior must align with this document (per Constitution I).
 
-- `TaskForm` component renders all input fields
-- Submitting form with valid data creates task
-- Sub-task progress calculates correctly (33% for 1/3 complete)
-- Hidden tasks are excluded from default view
-- Orphaned sub-tasks are prevented with error message
+**For New Features**:
+1. Update this spec.md FIRST (before writing code)
+2. Get spec reviewed and approved
+3. Implement feature per spec
+4. Test against acceptance criteria
+5. Mark spec section as "Implemented"
 
-##### User Story 2 - Focus Mode (P2)
+**For Bug Fixes**:
+1. Determine if spec is wrong or implementation is wrong
+2. If spec wrong: Update spec, then fix implementation
+3. If implementation wrong: Fix implementation to match spec
 
-- Target icon activates Focus Mode
-- Sidebar hides and other tasks disappear
-- Countdown timer displays and counts down
-- Manual exit restores normal view
-- Auto-exit on task completion triggers achievement feedback
+**For Hotfixes** (Production only, per Constitution I.2):
+1. Apply hotfix to protect users/data
+2. Update spec immediately afterward
+3. Hotfix incomplete until spec updated
 
-##### User Story 3 - AI Quick Notes (P2)
+**Version Control**:
+- Spec version: 1.0 (initial reverse-engineered)
+- Next version: 1.1 (when features added)
+- Major version: 2.0 (if breaking changes to data model or API)
 
-- Voice recording indicator appears during recording
-- AI conversion drawer opens with pre-filled fields (MSW mocked response)
-- User can edit AI-parsed fields before confirming
-- Recording auto-stops after 5 minutes
+---
 
-##### User Story 4 - AI Sub-tasks (P3)
-
-- Generate button is disabled during streaming
-- Confirmation prompt appears if sub-tasks exist
-- Partial output preserved on AI failure
-- Streaming completes and sub-tasks are added
-
-##### User Story 5 - Achievements (P3)
-
-- Metrics update correctly on task completion
-- Shimmer animation triggers at milestones
-- Consistency streak increments daily
-- Completion ratio calculates accurately (75% for 15/20)
-
-##### User Story 6 - Onboarding (P3)
-
-- Walkthrough auto-starts on first login
-- User can complete all walkthrough steps
-- Tutorial task is created and marked non-deletable
-- Replay tutorial works from Settings
-
-##### User Story 7 - Global Search (P2)
-
-- Search results are grouped by entity type
-- Clicking result navigates to correct page
-- "No results found" appears for empty queries
-
-##### User Story 8 - Dashboard Layout (P1)
-
-- Sidebar collapse persists in localStorage
-- Route navigation highlights active menu item
-- Focus Mode hides sidebar completely
-
-#### Edge Case Tests
-
-All edge cases MUST have explicit tests:
-
-- Sub-task without parent task shows error
-- Microphone permission denied shows error message
-- AI timeout preserves partial output
-- AI rate limit shows error and disables features
-- localStorage quota exceeded shows warning
-- Malformed voice transcription allows manual edit
-- Dark mode CSS failure falls back to minimal theme
-- Optimistic update conflict reverts to server state
-
-#### Test Naming Convention
-
-Tests MUST follow this naming pattern:
-
-```text
-[Component/Feature] - [User Action] - [Expected Outcome]
-```
-
-Examples:
-
-- `TaskForm - submits valid data - creates new task`
-- `FocusMode - countdown reaches zero - shows alert`
-- `GlobalSearch - searches for "budget" - groups results by type`
-
-#### MSW Mock Handlers
-
-All API endpoints MUST have MSW handlers:
-
-- `POST /api/tasks` - Create task (201 response)
-- `PATCH /api/tasks/:id` - Update task (200 response)
-- `DELETE /api/tasks/:id` - Soft-delete task (204 response)
-- `POST /api/tasks/:id/sub-tasks` - Add sub-task (201 response)
-- `POST /api/notes` - Create note (201 response)
-- `POST /api/ai/parse-note` - AI note parsing (200 with structured response, simulated 2s delay)
-- `POST /api/ai/generate-sub-tasks` - AI sub-task generation (SSE stream simulation)
-- `GET /api/search` - Global search (200 with grouped results)
-- `GET /api/achievements` - Fetch metrics (200 response)
-
-#### Test Execution Requirements
-
-1. **Pre-commit Hook**: All tests MUST pass before commit
-2. **CI Pipeline**: Tests run on every push and PR
-3. **Coverage Threshold**: Minimum 80% line coverage for core features
-4. **Performance**: Test suite MUST complete in under 2 minutes
-5. **Isolation**: Each test MUST be independent (no shared state)
-
-#### Testing Best Practices
-
-1. **Query Priority** (React Testing Library):
-   - Use `getByRole` for accessibility testing
-   - Use `getByLabelText` for form fields
-   - Use `getByText` as last resort
-   - Avoid `getByTestId` unless necessary
-
-2. **Async Testing**:
-   - Always use `waitFor` for async state changes
-   - Use `findBy*` queries for elements that appear asynchronously
-   - Set reasonable timeouts (default 1000ms)
-
-3. **User-Centric Testing**:
-   - Test behavior, not implementation
-   - Simulate real user interactions (click, type, navigate)
-   - Avoid testing internal state directly
-
-4. **Accessibility Testing**:
-   - Every interactive element MUST have accessible name
-   - Test keyboard navigation (Tab, Enter, Escape)
-   - Verify ARIA attributes are correct
-
-#### TDD Workflow (Red-Green-Refactor)
-
-1. **RED**: Write failing test for new feature
-2. **GREEN**: Write minimal code to pass test
-3. **REFACTOR**: Improve code while keeping tests green
-4. **REPEAT**: Add next test case
-
-Example TDD cycle for task creation:
-
-```typescript
-// RED: Test fails (component doesn't exist yet)
-test('TaskForm - submits valid data - creates new task', async () => {
-  render(<TaskForm onSubmit={mockSubmit} />);
-  // ... test implementation
-});
-
-// GREEN: Implement TaskForm to pass test
-export function TaskForm({ onSubmit }) {
-  // ... minimal implementation
-}
-
-// REFACTOR: Improve TaskForm code quality
-export function TaskForm({ onSubmit }) {
-  // ... refactored with better structure
-}
-```
-
-### Testing Anti-Patterns (AVOID)
-
-❌ Testing implementation details (internal state, private methods)
-❌ Snapshot testing for dynamic content
-❌ Testing third-party libraries (Framer Motion, Radix UI)
-❌ Writing tests after implementation (violates TDD)
-❌ Using `act()` directly (use RTL's async utilities instead)
-❌ Testing CSS styles (test behavior, not appearance)
-
-### Testing Documentation
-
-Each test file MUST include:
-
-1. **File header**: Brief description of what's being tested
-2. **Setup/teardown**: Clear `beforeEach`/`afterEach` blocks
-3. **Test grouping**: Use `describe` blocks for logical grouping
-4. **Comments**: Explain complex assertions or edge cases
-
-## Dependencies
-
-- **Next.js App Router**: Framework choice is specified; routing and server component capabilities are required
-- **TanStack Query**: State management for server-like data (with MSW)
-- **Zustand**: State management for client UI state
-- **Mock Service Worker (MSW)**: Simulates backend during development
-- **Zod**: Schema validation for data contracts
-- **Framer Motion**: Animation library for transitions and interactions
-- **Radix UI**: Headless UI components (Popover confirmed; others likely for accessibility)
-- **driver.js**: Interactive walkthrough library for onboarding
-- **React Testing Library**: Testing framework for component tests (TDD requirement)
-- **Jest**: Test runner and assertion library
-- **@testing-library/jest-dom**: Custom matchers for DOM assertions
-- **@testing-library/user-event**: User interaction simulation
-- **AI API Service**: External or internal service for sub-task generation and note parsing (contract TBD in planning phase)
-- **Speech-to-Text API**: Web Speech API or cloud provider (Google Cloud Speech, Azure, etc.)
-- **Web Audio API**: For voice recording waveform visualization
-
-## Out of Scope (Non-Goals)
-
-The following are explicitly excluded from this feature:
-
-1. **Time Tracking**: No automatic or manual time tracking; duration is estimation only
-2. **Infinite Task Nesting**: Sub-tasks cannot have their own sub-tasks (one level maximum)
-3. **Light Mode**: No light theme or theme toggle
-4. **AI Auto-Actions**: No AI-initiated actions without user confirmation
-5. **Backend Assumptions**: No backend-specific implementation details beyond API shape compatibility
-6. **Team Collaboration**: No multi-user features, sharing, or real-time collaboration
-7. **Mobile Native Apps**: No iOS/Android native applications (web-only)
-8. **Offline Mode**: No persistent offline functionality (MSW simulates network conditions for testing only)
-9. **Data Export/Import**: No bulk export or import features
-10. **Integrations**: No third-party integrations (calendar, email, Slack, etc.)
-11. **Customizable Metrics**: Metrics are fixed and versioned; users cannot define custom metrics
-12. **Workflow Automation**: No if-then rules or automated task routing
-13. **Advanced Search Filters**: No complex search operators or saved searches
-14. **Sub-task Dependencies**: No dependency management between sub-tasks
-15. **Task Templates**: No reusable task templates or task cloning
-16. **Workflows Feature**: No workflow creation, management, or visualization (removed from navigation; reserved for future release)
-17. **Activity Log Feature**: No historical activity tracking or timeline view (removed from navigation; reserved for future release)
-18. **Task Unarchiving**: Archived tasks cannot be moved back to active state (immutable completed state)
+**Specification Version**: 1.0.0
+**Last Updated**: 2026-02-18
+**Status**: ✅ Complete (Reverse Engineered from Codebase)
