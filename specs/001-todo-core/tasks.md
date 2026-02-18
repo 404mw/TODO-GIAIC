@@ -96,16 +96,16 @@ Single project structure as defined in plan.md:
 
 ### Tests for User Story 2 (TDD - Write FIRST, Ensure FAIL)
 
-- [ ] T028 [P] [US2] Add test_get_task_id() to tests/test_cli.py for valid ID, invalid ID (not found), non-numeric input
-- [ ] T029 [P] [US2] Add test_complete_task_flow() to tests/test_cli.py for marking incomplete task complete, already complete task, invalid task ID
+- [X] T028 [P] [US2] Add test_get_task_id() to tests/test_cli.py for valid ID, invalid ID (not found), non-numeric input
+- [X] T029 [P] [US2] Add test_complete_task_flow() to tests/test_cli.py for marking incomplete task complete, already complete task, invalid task ID
 
 ### Implementation for User Story 2
 
-- [ ] T030 [P] [US2] Implement get_task_id() function in src/todo_core/cli.py (prompt for ID, validate numeric, check task exists in store, retry on error)
-- [ ] T031 [US2] Implement complete_task() function in src/todo_core/cli.py (get task ID, get task from store, check if already complete, call task.mark_complete(), display success)
-- [ ] T032 [US2] Add menu option 3 handler in src/todo_core/main.py main() loop to call complete_task()
-- [ ] T033 [US2] Run pytest for test_cli.py User Story 2 tests - ensure all tests PASS
-- [ ] T034 [US2] Manual integration test: Run `uv run todo`, create task, complete it, verify status and completion timestamp
+- [X] T030 [P] [US2] Implement get_task_id() function in src/todo_core/cli.py (prompt for ID, validate numeric, check task exists in store, retry on error)
+- [X] T031 [US2] Implement complete_task() function in src/todo_core/cli.py (get task ID, get task from store, check if already complete, call task.mark_complete(), display success)
+- [X] T032 [US2] Add menu option 3 handler in src/todo_core/main.py main() loop to call complete_task()
+- [X] T033 [US2] Run pytest for test_cli.py User Story 2 tests - ensure all tests PASS
+- [X] T034 [US2] Manual integration test: Run `uv run todo`, create task, complete it, verify status and completion timestamp
 
 **Checkpoint**: At this point, User Stories 1 AND 2 should both work independently
 
@@ -119,14 +119,14 @@ Single project structure as defined in plan.md:
 
 ### Tests for User Story 3 (TDD - Write FIRST, Ensure FAIL)
 
-- [ ] T035 [P] [US3] Add test_update_task_flow() to tests/test_cli.py for updating title (valid, empty rejection, 200 char limit), updating description (valid, optional, 1000 char limit), invalid task ID
+- [X] T035 [P] [US3] Add test_update_task_flow() to tests/test_cli.py for updating title (valid, empty rejection, 200 char limit), updating description (valid, optional, 1000 char limit), invalid task ID
 
 ### Implementation for User Story 3
 
-- [ ] T036 [US3] Implement update_task() function in src/todo_core/cli.py (get task ID, get task from store, prompt for title or description choice, get new value, call task.update_title() or task.update_description(), display success)
-- [ ] T037 [US3] Add menu option 4 handler in src/todo_core/main.py main() loop to call update_task()
-- [ ] T038 [US3] Run pytest for test_cli.py User Story 3 tests - ensure all tests PASS
-- [ ] T039 [US3] Manual integration test: Run `uv run todo`, create task, update title, update description, verify changes
+- [X] T036 [US3] Implement update_task() function in src/todo_core/cli.py (get task ID, get task from store, prompt for title or description choice, get new value, call task.update_title() or task.update_description(), display success)
+- [X] T037 [US3] Add menu option 4 handler in src/todo_core/main.py main() loop to call update_task()
+- [X] T038 [US3] Run pytest for test_cli.py User Story 3 tests - ensure all tests PASS
+- [X] T039 [US3] Manual integration test: Run `uv run todo`, create task, update title, update description, verify changes
 
 **Checkpoint**: At this point, User Stories 1, 2, AND 3 should all work independently
 
@@ -140,14 +140,14 @@ Single project structure as defined in plan.md:
 
 ### Tests for User Story 4 (TDD - Write FIRST, Ensure FAIL)
 
-- [ ] T040 [P] [US4] Add test_delete_task_flow() to tests/test_cli.py for deleting existing task (success), invalid task ID (error), verify task removed from list
+- [X] T040 [P] [US4] Add test_delete_task_flow() to tests/test_cli.py for deleting existing task (success), invalid task ID (error), verify task removed from list
 
 ### Implementation for User Story 4
 
-- [ ] T041 [US4] Implement delete_task() function in src/todo_core/cli.py (get task ID, get task from store, confirm deletion with yes/no, call store.delete_task(), display success)
-- [ ] T042 [US4] Add menu option 5 handler in src/todo_core/main.py main() loop to call delete_task()
-- [ ] T043 [US4] Run pytest for test_cli.py User Story 4 tests - ensure all tests PASS
-- [ ] T044 [US4] Manual integration test: Run `uv run todo`, create task, delete it, verify removal from list
+- [X] T041 [US4] Implement delete_task() function in src/todo_core/cli.py (get task ID, get task from store, confirm deletion with yes/no, call store.delete_task(), display success)
+- [X] T042 [US4] Add menu option 5 handler in src/todo_core/main.py main() loop to call delete_task()
+- [X] T043 [US4] Run pytest for test_cli.py User Story 4 tests - ensure all tests PASS
+- [X] T044 [US4] Manual integration test: Run `uv run todo`, create task, delete it, verify removal from list
 
 **Checkpoint**: All user stories should now be independently functional
 
@@ -157,16 +157,16 @@ Single project structure as defined in plan.md:
 
 **Purpose**: Improvements that affect multiple user stories and final validation
 
-- [ ] T045 [P] Add project scripts entry point in pyproject.toml: `[project.scripts] todo = "todo_core.main:main"`
-- [ ] T046 [P] Create README.md at repository root with quick start instructions (link to quickstart.md)
-- [ ] T047 [P] Add comprehensive docstrings to all functions in src/todo_core/models.py
-- [ ] T048 [P] Add comprehensive docstrings to all functions in src/todo_core/storage.py
-- [ ] T049 [P] Add comprehensive docstrings to all functions in src/todo_core/cli.py
-- [ ] T050 Run full pytest suite with coverage: `uv run pytest --cov=src` - ensure 100% coverage on models.py and storage.py
-- [ ] T051 Validate quickstart.md instructions: Follow setup steps from scratch in clean environment
-- [ ] T052 Performance validation: Create 1000 tasks via script, verify list operation completes in <2 seconds (SC-006)
-- [ ] T053 Edge case validation: Test empty title rejection, 200 char title limit, 1000 char description limit, special characters, unicode/emoji support
-- [ ] T054 Final integration test: Complete full CRUD cycle (create, list, complete, update, delete) for single task within 2 minutes (SC-002)
+- [X] T045 [P] Add project scripts entry point in pyproject.toml: `[project.scripts] todo = "todo_core.main:main"`
+- [X] T046 [P] Create README.md at repository root with quick start instructions (link to quickstart.md)
+- [X] T047 [P] Add comprehensive docstrings to all functions in src/todo_core/models.py
+- [X] T048 [P] Add comprehensive docstrings to all functions in src/todo_core/storage.py
+- [X] T049 [P] Add comprehensive docstrings to all functions in src/todo_core/cli.py
+- [X] T050 Run full pytest suite with coverage: `uv run pytest --cov=src` - ensure 100% coverage on models.py and storage.py
+- [X] T051 Validate quickstart.md instructions: Follow setup steps from scratch in clean environment
+- [X] T052 Performance validation: Create 1000 tasks via script, verify list operation completes in <2 seconds (SC-006)
+- [X] T053 Edge case validation: Test empty title rejection, 200 char title limit, 1000 char description limit, special characters, unicode/emoji support
+- [X] T054 Final integration test: Complete full CRUD cycle (create, list, complete, update, delete) for single task within 2 minutes (SC-002)
 
 ---
 
