@@ -13,16 +13,25 @@ const NoteResponseSchema = z.object({
 });
 
 // Query hooks
-export function useNotes(options?: { taskId?: string; enabled?: boolean }) {
-  const taskId = options?.taskId;
+
+/**
+ * T125 — Notes are standalone entities (UPDATE-02).
+ * Queries GET /api/v1/notes — no taskId param.
+ * archived=true for archived notes.
+ */
+export function useNotes(options?: { archived?: boolean; enabled?: boolean }) {
+  const params = new URLSearchParams();
+  if (options?.archived) params.set('archived', 'true');
+  const queryString = params.toString();
+
   return useQuery({
-    queryKey: taskId ? ['notes', 'task', taskId] : ['notes'],
+    queryKey: ['notes', options],
     queryFn: () =>
       apiClient.get(
-        taskId ? `/tasks/${taskId}/notes` : '/notes',
+        `/notes${queryString ? `?${queryString}` : ''}`,
         NoteListResponseSchema
       ),
-    enabled: options?.enabled ?? true, // Default to enabled
+    enabled: options?.enabled ?? true,
   });
 }
 
@@ -35,6 +44,10 @@ export function useNote(noteId: string) {
 }
 
 // Mutation hooks
+
+/**
+ * T125 — Create note: POST /api/v1/notes (standalone, no taskId).
+ */
 export function useCreateNote() {
   const queryClient = useQueryClient();
 
@@ -47,12 +60,15 @@ export function useCreateNote() {
   });
 }
 
+/**
+ * T125 — Update note: PATCH /api/v1/notes/${noteId} (not PUT).
+ */
 export function useUpdateNote() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: ({ id, ...note }: Partial<Note> & { id: string }) =>
-      apiClient.put(`/notes/${id}`, note, NoteResponseSchema),
+      apiClient.patch(`/notes/${id}`, note, NoteResponseSchema),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['notes'] });
       queryClient.invalidateQueries({ queryKey: ['notes', data.data.id] });
@@ -77,7 +93,7 @@ export function useArchiveNote() {
 
   return useMutation({
     mutationFn: ({ id }: { id: string }) =>
-      apiClient.put(`/notes/${id}`, { archived: true }, NoteResponseSchema),
+      apiClient.patch(`/notes/${id}`, { archived: true }, NoteResponseSchema),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['notes'] });
       queryClient.invalidateQueries({ queryKey: ['notes', data.data.id] });

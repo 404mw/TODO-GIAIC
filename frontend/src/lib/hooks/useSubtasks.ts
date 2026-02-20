@@ -13,11 +13,11 @@ const SubtaskResponseSchema = z.object({
 });
 
 // Query hooks
-export function useSubtasks(taskId: string) {
+export function useSubtasks(taskId: string, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ['subtasks', taskId],
     queryFn: () => apiClient.get(`/tasks/${taskId}/subtasks`, SubtaskListResponseSchema),
-    enabled: !!taskId,
+    enabled: (options?.enabled ?? true) && !!taskId,
   });
 }
 
@@ -29,8 +29,8 @@ export function useCreateSubtask() {
     mutationFn: ({ taskId, ...subtask }: Partial<Subtask> & { taskId: string }) =>
       apiClient.post(`/tasks/${taskId}/subtasks`, subtask, SubtaskResponseSchema),
     onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['subtasks', variables.task_id] });
-      queryClient.invalidateQueries({ queryKey: ['tasks', variables.task_id] });
+      queryClient.invalidateQueries({ queryKey: ['subtasks', variables.taskId] });
+      queryClient.invalidateQueries({ queryKey: ['tasks', variables.taskId] });
     },
   });
 }
@@ -42,8 +42,8 @@ export function useUpdateSubtask() {
     mutationFn: ({ id, taskId, ...subtask }: Partial<Subtask> & { id: string; taskId: string }) =>
       apiClient.put(`/subtasks/${id}`, subtask, SubtaskResponseSchema),
     onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['subtasks', variables.task_id] });
-      queryClient.invalidateQueries({ queryKey: ['tasks', variables.task_id] });
+      queryClient.invalidateQueries({ queryKey: ['subtasks', variables.taskId] });
+      queryClient.invalidateQueries({ queryKey: ['tasks', variables.taskId] });
     },
   });
 }

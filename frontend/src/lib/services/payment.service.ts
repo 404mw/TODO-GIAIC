@@ -7,7 +7,7 @@
 
 import { apiClient } from '@/lib/api/client'
 import { z } from 'zod'
-import { CheckoutSessionResponseSchema } from '@/lib/schemas/subscription.schema'
+import { SubscriptionResponseSchema } from '@/lib/schemas/subscription.schema'
 
 /**
  * Payment types
@@ -37,59 +37,14 @@ export interface PaymentSession {
  */
 export const paymentService = {
   /**
-   * Create checkout session for Pro subscription
-   * Redirects user to Checkout.com hosted payment page
+   * Upgrade to Pro subscription — calls POST /subscription/upgrade
    */
-  async createSubscriptionSession(): Promise<PaymentSession> {
-    const response = await apiClient.post(
-      '/subscription/checkout',
+  async upgradeSubscription(): Promise<void> {
+    await apiClient.post(
+      '/subscription/upgrade',
       {},
-      z.object({ data: CheckoutSessionResponseSchema })
+      z.object({ data: SubscriptionResponseSchema })
     )
-    return response.data
-  },
-
-  /**
-   * Purchase additional AI credits (Pro tier only)
-   * Note: Uses /subscription/purchase-credits endpoint
-   *
-   * @param amount - Number of credits to purchase (1-500)
-   * @returns Payment session for credit purchase
-   */
-  async purchaseCredits(amount: number): Promise<{ success: boolean; message: string }> {
-    if (amount < 1 || amount > 500) {
-      throw new Error('Credit amount must be between 1 and 500')
-    }
-
-    // For now, we'll use the direct purchase endpoint
-    // In a real implementation, this would create a checkout session
-    // and redirect to Checkout.com for payment
-    const response = await apiClient.post(
-      '/subscription/purchase-credits',
-      { amount },
-      z.object({
-        data: z.object({
-          success: z.boolean(),
-          credits_purchased: z.number(),
-          new_balance: z.number(),
-        }),
-      })
-    )
-
-    return {
-      success: response.data.success,
-      message: `Successfully purchased ${response.data.credits_purchased} credits`,
-    }
-  },
-
-  /**
-   * Subscribe to Pro plan
-   * Creates checkout session and redirects to Checkout.com
-   *
-   * @returns Payment session with checkout URL
-   */
-  async subscribeToPro(): Promise<PaymentSession> {
-    return this.createSubscriptionSession()
   },
 
   /**

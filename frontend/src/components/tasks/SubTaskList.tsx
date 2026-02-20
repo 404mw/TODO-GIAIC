@@ -87,6 +87,7 @@ export function SubTaskList({ taskId, subtasks }: SubtaskListProps) {
             onClick={() => handleToggleComplete(subtask)}
             disabled={updateSubtask.isPending}
             className="flex-shrink-0"
+            aria-label={subtask.completed ? `Mark "${subtask.title}" incomplete` : `Mark "${subtask.title}" complete`}
           >
             <div
               className={[
@@ -131,6 +132,7 @@ export function SubTaskList({ taskId, subtasks }: SubtaskListProps) {
             onClick={() => handleDelete(subtask.id)}
             disabled={deletingId === subtask.id}
             className="opacity-0 transition-opacity group-hover:opacity-100"
+            aria-label={`Delete subtask "${subtask.title}"`}
           >
             <svg
               className="h-4 w-4 text-gray-400 hover:text-red-500"

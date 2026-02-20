@@ -1,7 +1,7 @@
 # Perpetua Flow Frontend - Implementation Plan
 
-**Version**: 1.0 (Reverse Engineered from Implementation)
-**Date**: 2026-02-18
+**Version**: 1.5.0
+**Date**: 2026-02-20
 **Source**: `g:\Hackathons\GIAIC_Hackathons\02-TODO\frontend`
 **Related**: [`spec.md`](./spec.md), [`constitution.md`](../../.specify/memory/constitution.md)
 
@@ -110,11 +110,17 @@ This document captures the architectural decisions, design patterns, and impleme
 - **Protected Routes** ([`src/app/dashboard/`](frontend/src/app/dashboard/)):
   - `/dashboard` → Main dashboard (task list view)
   - `/dashboard/tasks` → Task management views
+  - `/dashboard/tasks/new` → New task creation page (T048)
+  - `/dashboard/tasks/completed` → Completed tasks view (T053)
   - `/dashboard/tasks/[id]` → Task detail (dynamic route)
+  - `/dashboard/tasks/[id]/edit` → Task edit page (T052)
   - `/dashboard/focus` → Focus mode (full-screen)
   - `/dashboard/notes` → Quick notes view
   - `/dashboard/achievements` → Achievement progress
+  - `/dashboard/notifications` → Notifications list (FR-011, T128)
   - `/dashboard/settings` → User settings
+  - `/dashboard/settings/hidden-tasks` → Hidden tasks management (T118)
+  - `/dashboard/settings/archived-notes` → Archived notes management (T076)
   - `/dashboard/profile` → User profile
 
 **Dependencies**: → Presentation Layer, → AuthContext
@@ -205,20 +211,24 @@ This document captures the architectural decisions, design patterns, and impleme
   - `useTasks(filters?)` → List tasks with optional filters
   - `useTask(taskId)` → Single task detail
   - `useCreateTask()` → Mutation for task creation
-  - `useUpdateTask()` → Mutation for task updates
+  - `useUpdateTask()` → Mutation for task updates — **`version` field MUST always be in the payload** (optimistic locking; backend returns 400/409 without it)
   - `useDeleteTask()` → Mutation for soft delete
-  - `useCompleteTask()` → Mutation for force completion
+  - `useForceCompleteTask()` → Mutation for completion — calls `POST /tasks/{id}/force-complete` with body `{ version: number }`; response is `{ data: { task, unlocked_achievements[], streak } }` — **no `useCompleteTask` or `useAutoCompleteTask`; those endpoints do not exist**
 
 - **`useSubtasks.ts`** ([`src/lib/hooks/useSubtasks.ts`](frontend/src/lib/hooks/useSubtasks.ts)):
-  - `useSubtasks(taskId)` → List subtasks for task
-  - `useCreateSubtask()` → Mutation for subtask creation
-  - `useUpdateSubtask()` → Mutation for subtask toggle
+  - `useSubtasks(taskId, options?: { enabled?: boolean })` → List subtasks — **`enabled` MUST be forwarded to `useQuery`; caller passes `{ enabled: isExpanded }` so collapsed cards never fire a network request**
+  - `useCreateSubtask()` → Mutation; `onSuccess` invalidates `['subtasks', variables.taskId]` — **camelCase `taskId`, not `task_id`**
+  - `useUpdateSubtask()` → Same invalidation rule as above
   - `useDeleteSubtask()` → Mutation for subtask deletion
 
 - **`useNotes.ts`** ([`src/lib/hooks/useNotes.ts`](frontend/src/lib/hooks/useNotes.ts)):
-  - `useNotes(filters?)` → List notes
-  - `useCreateNote()` → Mutation for note creation
-  - `useConvertNote()` → Mutation for note-to-task conversion
+  > **v1.2 architecture (UPDATE-02):** Notes are user-owned standalone entities — not nested under tasks.
+  - `useNotes()` → Queries `GET /api/v1/notes` — returns all notes for the authenticated user (excludes archived by default); pass `{ archived: true }` to include archived
+  - `useCreateNote()` → Mutates `POST /api/v1/notes` — input `{ content }`; no `task_id`; note is owned by authenticated user
+  - `useUpdateNote()` → Mutates `PATCH /api/v1/notes/{noteId}` — **PATCH, not PUT** (405 otherwise)
+  - `useDeleteNote()` → Mutation: `DELETE /api/v1/notes/{noteId}` — hard delete
+  - `useArchiveNote()` → Mutation: `PATCH /api/v1/notes/{noteId}` with `{ archived: true }`
+  - `useConvertNote()` → Mutation: `POST /api/v1/notes/{id}/convert` — creates task from note content, marks note archived
 
 - **`useAchievements.ts`** ([`src/lib/hooks/useAchievements.ts`](frontend/src/lib/hooks/useAchievements.ts)):
   - `useAchievements()` → Achievement stats and progress
@@ -257,11 +267,16 @@ This document captures the architectural decisions, design patterns, and impleme
     isActive: boolean
     currentTaskId: string | null
     startTime: Date | null
-    activate: (taskId) => void
+    pausedAt: Date | null          // set on pause(), cleared on resume()
+    elapsedSeconds: number        // accumulates only while not paused
+    activate: (taskId: string) => void
     deactivate: () => void
+    pause: () => void             // sets pausedAt = now
+    resume: () => void            // accumulates gap, clears pausedAt
   }
   ```
-  - Used by: `TaskCard` (activate), `FocusTimer` (deactivate)
+  - `elapsedSeconds` is written to `localStorage` (`focus_elapsed_seconds_${taskId}`) every second tick and restored on mount if `currentTaskId` matches (FR-004 crash-recovery requirement)
+  - Used by: `TaskCard` (activate → navigate to `/dashboard/focus`), `FocusTimer` (pause/resume/deactivate), `FocusTaskView` (read elapsedSeconds on completion)
 
 - **`command-palette.store.ts`** ([`src/lib/stores/command-palette.store.ts`](frontend/src/lib/stores/command-palette.store.ts)):
   ```typescript
@@ -342,12 +357,13 @@ export const apiClient = {
 
 **Key Features**:
 
-1. **Auth Token Injection**:
+1. **Auth Token Injection** *(current — see Security Note below)*:
    ```typescript
    headers: {
      Authorization: `Bearer ${localStorage.getItem('auth_token')}`
    }
    ```
+   > ⚠️ **Security Note (S-01):** Storing tokens in `localStorage` exposes them to XSS. Target architecture is HttpOnly cookies set by the backend (`Set-Cookie: access_token=…; HttpOnly; Secure; SameSite=Strict`). When migrated, this header injection is removed and the browser sends cookies automatically with `credentials: 'include'`. See Section XI.
 
 2. **Idempotency Key** (POST/PUT/PATCH/DELETE):
    ```typescript
@@ -378,7 +394,8 @@ export const apiClient = {
 
 ```
 common.schema.ts       → Shared types (Priority, CompletedBy, UserTier)
-task.schema.ts         → Task, TaskDetail, CreateTaskRequest, UpdateTaskRequest
+task.schema.ts         → Task, TaskDetail, CreateTaskRequest, UpdateTaskRequest (version required),
+                          ForceCompleteResponseSchema ({ data: { task, unlocked_achievements[], streak } })
 subtask.schema.ts      → Subtask, CreateSubtaskRequest, UpdateSubtaskRequest
 note.schema.ts         → Note, CreateNoteRequest, UpdateNoteRequest
 reminder.schema.ts     → Reminder, CreateReminderRequest
@@ -387,6 +404,9 @@ user.schema.ts         → User, UpdateUserRequest
 auth.schema.ts         → AuthResponse, RefreshTokenRequest
 error.schema.ts        → ApiError schema
 response.schema.ts     → DataResponse[T], PaginatedResponse[T] wrappers
+notification.schema.ts → NotificationSchema (id, user_id, title, message, read, task_id|null, created_at, updated_at);
+                          DataResponseSchema(NotificationSchema); PaginatedResponseSchema(NotificationSchema)
+                          — used by useNotifications.ts (T092), /dashboard/notifications page (T128), mark-as-read (T129)
 ```
 
 **Dependencies**: None (bottom layer, pure functions)
@@ -423,12 +443,14 @@ response.schema.ts     → DataResponse[T], PaginatedResponse[T] wrappers
 }
 ```
 
-**Token Refresh Logic**:
+**Token Refresh Logic** *(current — localStorage-based)*:
 1. On mount, check `localStorage` for `auth_token`
 2. If exists, fetch `/users/me` to validate
 3. If 401 Unauthorized, try refresh with `refresh_token`
 4. If refresh succeeds, update tokens and retry
 5. If refresh fails, clear tokens and redirect to `/login`
+
+> ⚠️ **Security Note (S-01, S-03):** Tokens in `localStorage` are vulnerable to XSS. Target: HttpOnly cookies set by backend. Also, `console.log` statements in this file log auth events in production — must be removed or guarded with `process.env.NODE_ENV === 'development'`. See Section XI.
 
 **Evidence**: [`src/lib/contexts/AuthContext.tsx`](frontend/src/lib/contexts/AuthContext.tsx)
 
@@ -623,21 +645,25 @@ const task = await apiClient.get<Task>('/tasks/123', TaskSchema)
 ```typescript
 // Component
 const { togglePending, hasPending } = usePendingCompletionsStore()
-const completeTask = useCompleteTask()
+const forceCompleteTask = useForceCompleteTask() // POST /tasks/{id}/force-complete
 
-function handleComplete(taskId: string) {
+function handleComplete(task: Task) {
   // 1. Optimistic update (instant green background)
-  togglePending(taskId)
+  togglePending(task.id)
 
-  // 2. API call (async)
-  completeTask.mutate(taskId, {
-    onSuccess: () => {
+  // 2. API call (async) — version required for optimistic locking
+  forceCompleteTask.mutate({ taskId: task.id, version: task.version }, {
+    onSuccess: (data) => {
       // 3. Clear optimistic state (API succeeded)
-      togglePending(taskId)
+      togglePending(task.id)
+      // 4. Show achievement toast if any unlocked
+      if (data.data.unlocked_achievements.length > 0) {
+        triggerAchievementToast(data.data.unlocked_achievements)
+      }
     },
     onError: () => {
-      // 4. Rollback optimistic state (API failed)
-      togglePending(taskId)
+      // 5. Rollback optimistic state (API failed)
+      togglePending(task.id)
       toast('Failed to complete task', { type: 'error' })
     },
   })
@@ -725,6 +751,48 @@ navigator.serviceWorker.addEventListener('message', (event) => {
 
 ---
 
+### Pattern 7: Lazy Query Pattern (Conditional Fetching)
+
+**Location**: Any query hook where data is only needed on user interaction
+
+**Purpose**: Prevent N×API-request floods when multiple components mount. The canonical case is `TaskCard` — with 25 cards rendered, calling `useSubtasks(task.id)` unconditionally fires 25 simultaneous background requests.
+
+**Structure**:
+```typescript
+// Hook: accept an enabled flag, forward to useQuery
+export function useSubtasks(taskId: string, options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: ['subtasks', taskId],
+    queryFn: () => apiClient.get(`/tasks/${taskId}/subtasks`, SubtasksListSchema),
+    enabled: options?.enabled ?? true,  // ← CRITICAL: default true preserves detail-page behaviour
+  })
+}
+
+// Caller: only fetch when the card is expanded
+function TaskCard({ task }: { task: Task }) {
+  const [isExpanded, setIsExpanded] = useState(false)
+
+  // Zero network requests until user expands the card
+  const { data: subtasks } = useSubtasks(task.id, { enabled: isExpanded })
+
+  // Show aggregate from task object (no extra call)
+  const progressText = `${task.subtask_completed_count}/${task.subtask_count}`
+
+  return (/* ... */)
+}
+```
+
+**Benefits**:
+- Zero wasted requests for collapsed cards
+- Aggregate counts (`task.subtask_count`) show instantly from the tasks list payload
+- Exact same hook API — caller opts in with `{ enabled }`, no refactoring elsewhere
+
+**When to apply**: Any hook used inside a list component where the child data is only needed on expansion/hover/click (subtasks, reminders, note previews)
+
+**Contraindications**: Detail pages (single task view) — `enabled` should default to `true` there
+
+---
+
 ## V. Data Flow Patterns
 
 ### 5.1 Request Flow (User Action → API → UI Update)
@@ -736,24 +804,25 @@ navigator.serviceWorker.addEventListener('message', (event) => {
    └→ Component: <TaskCard task={task} />
 
 2. Event handler calls mutation hook
-   └→ const completeTask = useCompleteTask()
-   └→ completeTask.mutate(task.id)
+   └→ const forceComplete = useForceCompleteTask()
+   └→ forceComplete.mutate({ taskId: task.id, version: task.version })
 
-3. Mutation hook calls API client
-   └→ apiClient.post(`/tasks/${task.id}/force-complete`, {}, schema)
+3. Mutation hook calls API client with version
+   └→ apiClient.post(`/tasks/${task.id}/force-complete`, { version: task.version }, ForceCompleteResponseSchema)
 
 4. API client adds auth + idempotency
    └→ Headers: { Authorization: "Bearer ...", "Idempotency-Key": "uuid" }
 
 5. Request sent to backend (or MSW in dev)
-   └→ POST /api/v1/tasks/{id}/force-complete
+   └→ POST /api/v1/tasks/{id}/force-complete  body: { version: 3 }
 
-6. Response validated with Zod
-   └→ TaskForceCompleteResponseSchema.parse(response)
+6. Response validated with Zod → ForceCompleteResponseSchema
+   └→ { data: { task: {...}, unlocked_achievements: [...], streak: 4 } }
 
 7. Mutation onSuccess callback
    └→ queryClient.invalidateQueries(['tasks'])
    └→ queryClient.invalidateQueries(['tasks', task.id])
+   └→ if (data.data.unlocked_achievements.length > 0) → show AchievementUnlockToast
 
 8. TanStack Query refetches invalidated queries
    └→ useTasks() hook re-runs
@@ -761,7 +830,7 @@ navigator.serviceWorker.addEventListener('message', (event) => {
 
 9. Components re-render with fresh data
    └→ TaskCard shows completed state
-   └→ AchievementToast shows unlocked achievements
+   └→ AchievementUnlockToast shows unlocked achievement names + perks
 ```
 
 ---
@@ -1075,10 +1144,9 @@ navigator.serviceWorker.addEventListener('message', (event) => {
 - Show diff between user's changes and server state
 - Allow user to choose: Keep mine, Take theirs, Merge manually
 
-**2. Service Worker Token Management** (P0 from spec.md Section VII)
-- Move auth token to IndexedDB (accessible from SW and main thread)
-- Implement token refresh in SW
-- Handle 401 Unauthorized gracefully
+**2. ~~Service Worker Token Management~~** (P0 from spec.md Section VII — **RESOLVED T110**)
+- T110 moved auth token to IndexedDB (`frontend/src/lib/utils/token-storage.ts`), accessible from both SW and main thread.
+- **Pending:** T134 (HttpOnly cookie migration) may supersede IndexedDB storage; validate token flow after T134 completes.
 
 **3. Comprehensive E2E Tests** (P1)
 - Add Playwright test suite for critical journeys
@@ -1110,9 +1178,11 @@ navigator.serviceWorker.addEventListener('message', (event) => {
 - **Compliance**:
   - Soft delete with 30-day recovery (spec.md FR-002)
   - Undo guarantee via optimistic updates (spec.md NFR-004)
-  - MSW used for all dev/test (no real data)
-- **Evidence**: Pending completions store, soft delete endpoints
-- **Status**: Fully compliant
+  - MSW used for dev tooling; tests use `jest.fn()` mocks (no real data in either)
+  - Autosave (NFR-004): T167–T168 (debounced 5s autosave); form-state persistence: T169–T170 — added in Phase 14 per sp.analyze remediation (2026-02-20)
+- **Evidence**: Pending completions store, soft delete endpoints, T167–T170 (NFR-004 gap tasks)
+- **Note**: NFR-004 autosave and form-state persistence had zero task coverage prior to v1.3 plan update; remediated.
+- **Status**: Fully compliant (after T167–T170 added)
 
 ### ✅ IV. AI Agent Governance
 - **Compliance**:
@@ -1123,8 +1193,10 @@ navigator.serviceWorker.addEventListener('message', (event) => {
 - **Status**: Fully compliant
 
 ### ✅ V. AI Logging & Auditability
-- **Compliance**: Not applicable (no AI actions logged — AI only suggests, user executes)
-- **Status**: N/A
+- **Compliance**: FR-009 (spec v1.2) mandates structured AI interaction logging per Constitution §V: every call to `useGenerateSubtasks`, `useGetPriorityRecommendation`, and `useParseNote` logs `{ entity_id, user_id, action_type, credits_used, timestamp }` as a Sentry breadcrumb (`Sentry.addBreadcrumb`) and via the structured logger (`logger.info`). The `entity_id` is the `task_id` for subtask/priority calls and the `note_id` for note-parsing calls.
+- **Evidence**: T160 (`useAI.ts` `onSuccess` callbacks); T138 (structured logger utility from Phase 15)
+- **Note**: Prior v1.1 plan incorrectly marked this N/A — corrected in v1.3 per sp.analyze remediation (2026-02-20)
+- **Status**: ✅ Fully compliant — spec FR-009 AI Logging Requirement added in v1.2; T160 implements it
 
 ### ✅ VI. API Design Rules
 - **Compliance**:
@@ -1142,21 +1214,32 @@ navigator.serviceWorker.addEventListener('message', (event) => {
 - **Evidence**: Schema-first API design pattern
 - **Status**: Fully compliant
 
-### ✅ VIII. Testing Doctrine
+### ⚠️ VIII. Testing Doctrine
 - **Compliance**:
   - Jest + React Testing Library (spec.md Appendix D)
   - Coverage target: 80% (spec.md Appendix D)
-  - Dummy data via MSW fixtures
-- **Evidence**: Test strategy in spec.md
-- **Status**: Compliant (though coverage may need improvement)
+  - Dummy data via MSW fixtures (opt-in dev tooling; tests use `jest.fn()` mocks directly)
+- **Evidence**: Test strategy in spec.md Appendix D; Phase 16 (T139–T156)
+- **Status**: Partially compliant — V1 tests exist and pass but are not mapped to spec FRs or task IDs. Applies to Phases 1–13 only. Phase 14+ tasks follow TDD (RED test before GREEN implementation) per Constitution §VIII — Phase 14 bug-fix tests (T161–T166) are co-located before their paired implementation tasks in Phase 14.
+- **Deviation**: Documented per spec.md §X.5 (Constitution §I.2 reverse-engineering exception for initial build).
 
 ### ✅ IX. Secrets & Configuration
 - **Compliance**:
   - All secrets in `.env.local` (spec.md NFR-002)
   - No hardcoded API URLs (uses `NEXT_PUBLIC_API_URL`)
   - No secrets in Git history (verified)
+  - AI credit limits via env vars (`FREE_TIER_AI_CREDITS`, `PRO_TIER_AI_CREDITS`, `AI_CREDIT_RESET_HOUR`) per spec FR-009 §IX.4
 - **Evidence**: Environment variable usage in API client
 - **Status**: Fully compliant
+
+### ⚠️ Accessibility (NFR-003) — Added spec v1.2
+- **Compliance**: WCAG 2.1 Level AA target; `jest-axe` integration (T157); ARIA labels audit (T158); keyboard-only navigation test (T159)
+- **Evidence**: T157–T159 reclassified to Phase 14 per sp.analyze remediation (2026-02-20); Radix UI components have built-in a11y patterns (structural foundation)
+- **Status**: ⚠️ Partially compliant — Radix UI provides structural a11y; T157–T159 are open ([ ]) and must complete before NFR-003 is considered satisfied. Compliance cannot be claimed until axe passes CI and keyboard-only navigation is integration-tested.
+
+### ℹ️ Offline-First Architecture — Scope Clarification (spec v1.2)
+- **Status**: **DEFERRED** — spec §V Non-Goals #7 explicitly defers IndexedDB mutation queue and background sync as an 8–10 week effort outside the current sprint. Current reliability scope: Error Boundary (T111), TanStack Query retry (T039). NFR-005 offline criterion marked `[DEFERRED]` in spec.
+- **Note**: NFR-004 autosave (T167–T168) is in scope and covers the ≤5-second data-loss window on crash; full offline sync is out of scope.
 
 ### ✅ X. Infrastructure Philosophy
 - **Compliance**: Simplicity over scale (Next.js on Vercel, no microservices)
@@ -1188,12 +1271,140 @@ This plan documents the **architectural DNA** of the Perpetua Flow frontend — 
 4. A/B test, measure, deprecate old
 
 **Version Control**:
-- Plan version: 1.0 (initial reverse-engineered)
-- Next version: 1.1 (when architecture changes)
-- Major version: 2.0 (if tech stack changes)
+- Plan version: 1.5.0 (sp.analyze remediation v6 — version table corrected from 1.4.0 to 1.5.0, duplicate 1.4.0 entry removed, "Next version" note made conditional, 2026-02-20)
+- Previous version: 1.4.0 (sp.analyze remediation v4 — header version synced, NFR-003 compliance corrected to ⚠️, version log updated)
+- Previous version: 1.3.0 (AI Logging §V corrected, NFR-003 a11y added, offline scope note, NFR-004 autosave gap, §3B store definition completed, 2026-02-20)
+- Previous version: 1.2.0 (standalone notes architecture, TDD deviation documented, 6 new routes added, SW token gap resolved)
+- Previous version: 1.1.0 (FINDINGS.md corrections incorporated, 2026-02-18)
+- Previous version: 1.0.0 (initial reverse-engineered, 2026-02-18)
+- Next version: 1.6.0 — bump ONLY when BOTH conditions are verified: (1) T134 HttpOnly cookie migration merged and confirmed; (2) all Phase 14 open (`[ ]`) tasks closed. Do not bump while Phase 14 tasks remain open.
+- Major version: 2.0.0 (if tech stack changes)
 
 ---
 
-**Plan Version**: 1.0.0
-**Last Updated**: 2026-02-18
-**Status**: ✅ Complete (Reverse Engineered from Codebase)
+## XI. Known Defects & Architectural Corrections
+
+> This section documents API contract violations found by cross-referencing the implementation against `API.md` v1.0.0. Each entry records **what was built**, **what is correct**, and the **architectural rule** it violates. The corresponding fix tasks are in `tasks.md` Phase 14.
+
+---
+
+### XI.1 API Contract Violations (404 on Every Call)
+
+These are not bugs in logic — the endpoints simply do not exist. Every call returns 404.
+
+| # | What the code calls | What API.md specifies | Key difference | tasks.md ref |
+|---|---|---|---|---|
+| C-01 | `POST /tasks/{id}/complete` | `POST /tasks/{id}/force-complete` + `{ version }` body | Wrong path, missing body | T123 |
+| C-02 | `POST /tasks/{id}/auto-complete` | **Does not exist** | Phantom endpoint | T123 |
+| C-05 | `PUT /notes/{id}` | `PATCH /notes/{note_id}` | Wrong HTTP method (405) | T125 |
+| C-06 | `POST /subscription/checkout` | `POST /subscription/upgrade` | Wrong path | T127 |
+| C-07 | `POST /subscription/purchase-credits` | **Does not exist** | Phantom endpoint | T127 |
+| C-08 | `PATCH /notifications/{id}` `{read:true}` | `PATCH /notifications/{id}/read` | Action encoded in path, no body | T129 |
+
+> **Architecture note (UPDATE-02):** C-03 (`POST /notes`) and C-04 (`GET /notes`) have been removed from this table. Notes have been redesigned as standalone user-owned entities at `/api/v1/notes` (FR-005 v1.2). The code's use of these standalone endpoints was architecturally correct — not a violation. T125 scope is reduced to the PATCH method fix only (C-05).
+
+**Architectural rule violated (Constitution §VI.1):** *"Each API endpoint must serve exactly one purpose and must be documented."* Calling undocumented endpoints is a defect by definition.
+
+---
+
+### XI.2 Missing Version Field on Task Mutations
+
+**Problem:** `PATCH /tasks/{id}` requires a `version` field for optimistic locking. The implementation omits it on `toggleCompleted`, `toggleHidden`, and inline-edit saves in `TaskDetailView.tsx`. Backend returns 400 or 409 on every call.
+
+**Correct pattern** (applies to every `updateTask.mutateAsync` call):
+```typescript
+await updateTask.mutateAsync({
+  id: task.id,
+  completed: !task.completed,
+  version: task.version,  // ← always required
+})
+```
+
+**Architectural rule:** Optimistic locking (version field) is a data-integrity guarantee — violating it means concurrent edits silently overwrite each other. See Constitution §III.1 (user data loss is unacceptable).
+
+**tasks.md ref:** T124
+
+---
+
+### XI.3 Unconditional Subtask Fetch (Request Flood)
+
+**Problem:** `TaskCard.tsx` calls `useSubtasks(task.id)` unconditionally. With 25 tasks on a page, this fires 25 simultaneous `GET /tasks/{id}/subtasks` requests on every render.
+
+**Correct pattern:** See Pattern 7 above — `useSubtasks(task.id, { enabled: isExpanded })`.
+
+**Architectural rule:** Queries should be scoped to the data that is actually visible. Fetching hidden data is wasted bandwidth and degrades the experience for users on slow connections.
+
+**tasks.md ref:** T122
+
+---
+
+### XI.4 Cache Invalidation Key Mismatch
+
+**Problem:** In `useSubtasks.ts`, `onSuccess` callbacks use `variables.task_id` (snake_case) to invalidate cache. The mutation is called with `variables.taskId` (camelCase). `task_id` evaluates to `undefined`, so `['subtasks', undefined]` is invalidated — the wrong key. The original stale query persists alongside the fresh refetch.
+
+**Correct pattern:**
+```typescript
+queryClient.invalidateQueries({ queryKey: ['subtasks', variables.taskId] })
+queryClient.invalidateQueries({ queryKey: ['tasks',    variables.taskId] })
+```
+
+**Architectural rule (Pattern 1):** Centralized query key management must be consistent. A typo in a key string invalidates the wrong cache entry silently.
+
+**tasks.md ref:** T130
+
+---
+
+### XI.5 Wired-But-Commented Reminder API
+
+**Problem:** `TaskDetailView.tsx:117–153` — the `handleAddReminder` and `handleDeleteReminder` functions show success toasts but have the actual API calls commented out. Reminders appear to be saved but nothing reaches the backend.
+
+**Correct pattern:** Import `useCreateReminder` / `useDeleteReminder` and call `.mutateAsync()`. Show success toast only after the promise resolves; show error toast on rejection.
+
+**Architectural rule (Constitution §I.3):** *"The specification must define system states and transitions."* Showing a success state without a state transition is a phantom state — it violates data integrity.
+
+**tasks.md ref:** T126
+
+---
+
+### XI.6 Missing Route: `/dashboard/notifications`
+
+**Problem:** `NotificationDropdown.tsx:209` links to `/dashboard/notifications` but no `page.tsx` exists at that path. The link always 404s.
+
+**Fix:** Create `frontend/src/app/dashboard/notifications/page.tsx` using the already-implemented `useNotifications()` hook.
+
+**tasks.md ref:** T128
+
+---
+
+### XI.7 Security: Tokens in `localStorage`
+
+**Risk level:** High (full account takeover via XSS)
+
+**Current:** `auth_token` and `refresh_token` are stored in `localStorage`. Any JavaScript running on the page — including injected third-party scripts — can read them synchronously.
+
+**Target architecture:**
+- Backend sets `Set-Cookie: access_token=…; HttpOnly; Secure; SameSite=Strict`
+- `apiClient` switches to `credentials: 'include'` (removes manual Authorization header)
+- Service Worker reads token from IndexedDB (per T110) since it cannot read HttpOnly cookies
+
+**CSRF implication (S-02):** Moving to cookies requires adding CSRF protection (double-submit cookie or SameSite=Strict is sufficient for same-origin requests).
+
+**tasks.md ref:** T134
+
+---
+
+### XI.8 Production `console.log` Statements
+
+**Problem:** `AuthContext.tsx` and `payment.service.ts` contain unguarded `console.log` calls that emit auth events and payment data in the production browser console.
+
+**Fix:** Remove or guard with `if (process.env.NODE_ENV === 'development')`.
+
+**Architectural rule (Constitution §IX.3):** *"Secrets must never be exposed to the UI or client-side code."* Console output in production is observable to anyone with DevTools open.
+
+**tasks.md ref:** T135
+
+---
+
+**Plan Version**: 1.5.0
+**Last Updated**: 2026-02-20
+**Status**: ✅ Updated (v1.5 — sp.analyze remediation v5: notification.schema.ts added to Layer 4 schema list (L4), stale "Next version" line corrected (L1))

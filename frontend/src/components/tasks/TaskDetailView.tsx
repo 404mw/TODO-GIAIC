@@ -7,6 +7,7 @@ import { format } from 'date-fns'
 import type { Task } from '@/lib/schemas/task.schema'
 import { useUpdateTask, useDeleteTask } from '@/lib/hooks/useTasks'
 import { useSubtasks } from '@/lib/hooks/useSubtasks'
+import { useCreateReminder, useDeleteReminder } from '@/lib/hooks/useReminders'
 import { useToast } from '@/lib/hooks/useToast'
 import { useNewTaskModalStore } from '@/lib/stores/new-task-modal.store'
 import { useFocusStore } from '@/lib/stores/useFocusStore'
@@ -25,6 +26,8 @@ export function TaskDetailView({ task }: TaskDetailViewProps) {
   const { toast } = useToast()
   const updateTask = useUpdateTask()
   const deleteTask = useDeleteTask()
+  const createReminder = useCreateReminder()
+  const deleteReminder = useDeleteReminder()
   const subtasksQuery = useSubtasks(task.id)
   const subtasks = subtasksQuery?.data?.data || []
   const subtasksLoading = subtasksQuery?.isLoading || false
@@ -116,8 +119,7 @@ export function TaskDetailView({ task }: TaskDetailViewProps) {
 
   const handleAddReminder = async (reminder: ReminderCreate) => {
     try {
-      // Call your API to create reminder
-      // await createReminder(reminder)
+      await createReminder.mutateAsync({ task_id: task.id, ...reminder })
 
       toast({
         title: 'Reminder added',
@@ -135,8 +137,7 @@ export function TaskDetailView({ task }: TaskDetailViewProps) {
 
   const handleDeleteReminder = async (reminderId: string) => {
     try {
-      // Call your API to delete reminder
-      // await deleteReminder(reminderId)
+      await deleteReminder.mutateAsync(reminderId)
 
       toast({
         title: 'Reminder deleted',

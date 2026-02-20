@@ -36,7 +36,7 @@ export function TaskCard({ task, showProgress = false }: TaskCardProps) {
   const { activate: activateFocusMode } = useFocusModeStore()
   const { togglePending, hasPending } = usePendingCompletionsStore()
   const [isExpanded, setIsExpanded] = useState(false)
-  const subtasksQuery = useSubtasks(task.id)
+  const subtasksQuery = useSubtasks(task.id, { enabled: isExpanded })
   const subtasks = subtasksQuery?.data?.data || []
   const cardRef = useRef<HTMLDivElement>(null)
 

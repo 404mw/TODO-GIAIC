@@ -100,6 +100,7 @@ export function NoteCard({ note, onEdit }: NoteCardProps) {
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
+            aria-hidden="true"
           >
             <path
               strokeLinecap="round"
@@ -109,6 +110,12 @@ export function NoteCard({ note, onEdit }: NoteCardProps) {
             />
           </svg>
           <span>Voice note ({note.voice_duration_seconds}s)</span>
+          <audio
+            src={note.voice_url}
+            controls
+            aria-label="Voice note playback"
+            className="h-8 w-full max-w-xs"
+          />
         </div>
       )}
 

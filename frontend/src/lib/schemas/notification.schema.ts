@@ -1,28 +1,38 @@
 import { z } from 'zod';
-import { NotificationTypeSchema } from './common.schema';
+import { DataResponseSchema, PaginatedResponseSchema } from './response.schema';
 
 /**
  * Notification schema matching backend Notification model.
- * Per data-model.md Entity 13
+ * Per API.md FR-011 / FR-013 (T171)
+ *
+ * Fields align with backend API contract used by /notifications endpoints.
  */
 export const NotificationSchema = z.object({
   id: z.string().uuid(),
   user_id: z.string().uuid(),
 
-  // Notification content
-  type: NotificationTypeSchema,
-  title: z.string().max(100),
-  body: z.string().max(500),
-  action_url: z.string().nullable(),
+  // Notification content (API.md contract)
+  title: z.string(),
+  message: z.string(),
 
-  // Read status (FR-057)
+  // Read status
   read: z.boolean().default(false),
-  read_at: z.string().datetime().nullable(),
+
+  // Related task (nullable — notification may not be task-related)
+  task_id: z.string().nullable(),
 
   // Timestamps
   created_at: z.string().datetime(),
   updated_at: z.string().datetime(),
 });
+
+/**
+ * Notification response wrappers per API.md
+ * Used by useNotifications (T092), /dashboard/notifications page (T128),
+ * and mark-as-read hook (T129).
+ */
+export const NotificationResponseSchema = DataResponseSchema(NotificationSchema);
+export const NotificationListResponseSchema = PaginatedResponseSchema(NotificationSchema);
 
 /**
  * Push Subscription schema matching backend PushSubscription model.
@@ -54,15 +64,7 @@ export const CreatePushSubscriptionRequestSchema = PushSubscriptionSchema.pick({
   auth_key: true,
 });
 
-/**
- * Request schema for marking notification as read
- */
-export const MarkNotificationReadRequestSchema = z.object({
-  read: z.boolean(),
-});
-
 // Type exports
 export type Notification = z.infer<typeof NotificationSchema>;
 export type PushSubscription = z.infer<typeof PushSubscriptionSchema>;
 export type CreatePushSubscriptionRequest = z.infer<typeof CreatePushSubscriptionRequestSchema>;
-export type MarkNotificationReadRequest = z.infer<typeof MarkNotificationReadRequestSchema>;

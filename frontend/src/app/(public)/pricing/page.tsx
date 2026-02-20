@@ -18,7 +18,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
-import { useCreateCheckoutSession } from '@/lib/hooks/useSubscription'
+import { useUpgradeSubscription } from '@/lib/hooks/useSubscription'
 import { Loader2, ChevronDown } from 'lucide-react'
 
 const PLANS = [
@@ -135,7 +135,7 @@ const FAQS = [
 export default function PricingPage() {
   const shouldReduceMotion = useReducedMotion()
   const router = useRouter()
-  const createCheckoutSession = useCreateCheckoutSession()
+  const createCheckoutSession = useUpgradeSubscription()
   const [upgrading, setUpgrading] = useState(false)
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null)
 

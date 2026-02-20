@@ -1,9 +1,10 @@
 # Perpetua Flow Frontend - Specification
 
-**Version**: 1.0 (Reverse Engineered from Implementation)
+**Version**: 1.6.0 (sp.analyze Remediation v6 — H4 actor_type added to AI log schema, L1 §IX subsection refs fixed, M3 jest-axe reference corrected, M4 ConflictResolutionModal added to NFR-007, M1 NFR-005 ownership separation, M2 analytics/feedback formally deferred to Non-Goals §7–8)
 **Date**: 2026-02-18
 **Source**: `g:\Hackathons\GIAIC_Hackathons\02-TODO\frontend`
 **Constitution**: `.specify/memory/constitution.md` v1.0.0
+**Changelog**: v1.1 — Captured 12 API-contract and UX bugs from FINDINGS.md as enforceable requirements (FR-001 security, FR-002 completion/version, FR-003 subtask loading, FR-005 notes endpoints, FR-006 reminder wiring, FR-011 notifications page, FR-012 subscription endpoint, FR-013 mark-as-read endpoint; NFR-002 token security, NFR-007 responsive modals)
 
 ---
 
@@ -67,15 +68,23 @@ Perpetua Flow is **not just another task manager** — it's a **habit-building p
 - User profile (email, name, avatar)
 
 **Side Effects**:
-- Token storage in `localStorage`
+- Token storage in **HttpOnly cookies** (MUST NOT be stored in `localStorage` — see FR-001 Security Constraint below)
 - User session creation in backend
 - Redirect to dashboard on success
 
+**FR-001 Security Constraint**:
+- Access and refresh tokens MUST be stored in HttpOnly cookies, not `localStorage`
+- `localStorage` is accessible to any JavaScript on the page; an XSS vulnerability exposes all tokens stored there, enabling full account takeover
+- HttpOnly cookies are inaccessible to JavaScript, preventing token theft via XSS
+- This is a **critical security requirement** — `localStorage` token storage is NOT acceptable in production
+
 **Success Criteria**:
 - [ ] User can authenticate with Google account
+- [ ] Tokens are stored in HttpOnly cookies, not accessible to JavaScript
 - [ ] Tokens refresh automatically before expiration
-- [ ] Logout clears all session data
+- [ ] Logout clears all session data (cookies revoked)
 - [ ] Failed auth redirects to login with error message
+- [ ] No auth-related data is logged to the browser console in production
 
 **Edge Cases**:
 - Token expiration during active session → silent refresh
@@ -138,9 +147,10 @@ Perpetua Flow is **not just another task manager** — it's a **habit-building p
    - Limit: 50 tasks per user (free tier), upgradable via achievements
 
 2. **Update Task** (PATCH `/api/v1/tasks/{id}`)
-   - Input: Partial task + `version` (required for optimistic locking)
+   - Input: Partial task + `version` (required for optimistic locking — **MUST always be included**)
    - Output: Updated task with incremented version
    - Conflict handling: If version mismatch, return 409 with latest version
+   - **Version Constraint**: The `version` field MUST be included in every `PATCH /tasks/{id}` call without exception. Omitting it causes a 400 or 409 error from the backend. This applies to all partial updates including toggling `completed`, `hidden`, and any other field.
 
 3. **Delete Task** (DELETE `/api/v1/tasks/{id}`)
    - Soft delete: Sets `hidden: true`
@@ -148,13 +158,18 @@ Perpetua Flow is **not just another task manager** — it's a **habit-building p
    - Recovery window: 30 days, then permanent deletion
 
 4. **Complete Task** (POST `/api/v1/tasks/{id}/force-complete`)
+   - **Sole completion endpoint** — no `/complete` or `/auto-complete` endpoints exist; the ONLY valid task completion call is `POST /api/v1/tasks/{id}/force-complete`
+   - Input: `{ version: number }` — the current task version MUST be sent in the request body
    - Marks task as complete with `completed_by: 'force'`
    - Updates achievement stats (streak, lifetime count)
-   - Returns: `{ task, unlocked_achievements[], streak }`
+   - Returns: `{ data: { task, unlocked_achievements[], streak } }` (note: response is wrapped under `data` key)
    - Triggers: Achievement unlock checks, streak calculation
 
 **Success Criteria**:
 - [ ] Tasks persist across sessions
+- [ ] Every `PATCH /tasks/{id}` request includes the `version` field — missing version MUST be treated as a bug
+- [ ] Task completion MUST use `POST /tasks/{id}/force-complete` with `{ version }` body; calls to `/complete` or `/auto-complete` are invalid
+- [ ] Completion response schema `{ data: { task, unlocked_achievements[], streak } }` is parsed correctly
 - [ ] Optimistic locking prevents concurrent edit conflicts
 - [ ] Deleted tasks recoverable for 30 days
 - [ ] Completion triggers achievement system
@@ -208,8 +223,19 @@ Perpetua Flow is **not just another task manager** — it's a **habit-building p
 - Shown in task card and detail view
 - Real-time update on subtask toggle
 
+**Deferred Fetch Requirement**:
+- Subtask data MUST only be fetched when the task card is expanded/open, not on initial render
+- Fetching subtasks unconditionally for every task card in a list causes one background request per card, flooding the API (e.g., 25 tasks = 25 simultaneous requests)
+- The query hook MUST accept an `enabled` option and forward it to the underlying data-fetching layer; the task card MUST pass `enabled: isExpanded`
+
+**Cache Invalidation Requirement**:
+- After creating or updating a subtask, cache invalidation MUST reference the `taskId` key using **camelCase** (e.g., `['subtasks', taskId]`)
+- Using the snake_case variant `task_id` resolves to `undefined` at the call site, causing invalidation of the wrong cache entry and leaving stale data visible alongside fresh data
+
 **Success Criteria**:
 - [ ] Subtask creation respects 10-per-task limit
+- [ ] Subtask data is NOT fetched for collapsed task cards — only fetched when a card is expanded
+- [ ] After subtask creation/update, cache for the correct parent task is invalidated (using camelCase `taskId`)
 - [ ] Progress bar updates immediately on subtask toggle
 - [ ] Parent task shows aggregated progress in list view
 - [ ] Deleting parent task cascades to subtasks
@@ -261,7 +287,7 @@ Perpetua Flow is **not just another task manager** — it's a **habit-building p
 **Success Criteria**:
 - [ ] Focus mode blocks navigation away (confirmation dialog)
 - [ ] Timer accuracy within 1 second
-- [ ] Focus time persisted even if browser crashes
+- [ ] Focus time recoverable on browser reload — elapsed seconds written to `localStorage` every second tick and restored on mount if `currentTaskId` matches
 - [ ] Escape key always exits (no trap)
 - [ ] Achievement "Focus Master" unlocked after 50 focus completions
 
@@ -285,6 +311,7 @@ Perpetua Flow is **not just another task manager** — it's a **habit-building p
 {
   id: string (UUID)
   user_id: string (UUID)
+  // No task_id — notes are user-owned standalone entities, not nested under tasks
   content: string (1-2000 chars, required)
   archived: boolean
 
@@ -298,14 +325,36 @@ Perpetua Flow is **not just another task manager** — it's a **habit-building p
 }
 ```
 
+**API Endpoint Constraints**:
+- Notes are **user-owned standalone entities** — they are NOT nested under tasks
+- All CRUD operations use the top-level `/api/v1/notes` resource
+- Update operations MUST use `PATCH`, not `PUT` — the API does not expose a `PUT /notes/{id}` endpoint
+
 **Operations**:
 
 1. **Create Note** (POST `/api/v1/notes`)
    - Input: `{ content }`
+   - Note is created for the authenticated user; no task context needed
    - Side effect: Increments `notes_created` stat (achievement tracking)
    - Limit: 20 notes per user (free), unlimited (pro)
 
-2. **Convert to Task** (POST `/api/v1/notes/{id}/convert`)
+2. **List Notes** (GET `/api/v1/notes`)
+   - Returns all notes for the authenticated user (excludes archived by default)
+   - Query params: `?archived=true` to include archived notes
+   - Ordered: reverse-chronological (`created_at DESC`)
+
+3. **Update Note** (PATCH `/api/v1/notes/{note_id}`)
+   - Input: `{ content? }`
+   - HTTP method MUST be `PATCH` — `PUT /notes/{id}` does not exist
+
+4. **Delete Note** (DELETE `/api/v1/notes/{note_id}`)
+   - Hard delete
+
+5. **Archive Note** (PATCH `/api/v1/notes/{note_id}`)
+   - Input: `{ archived: true }`
+   - Archived notes hidden from main view, accessible in settings
+
+6. **Convert to Task** (POST `/api/v1/notes/{id}/convert`)
    - Parses note content for task metadata:
      - Priority keywords: "urgent", "important" → high priority
      - Duration hints: "30 min", "2 hours" → estimated_duration
@@ -314,10 +363,6 @@ Perpetua Flow is **not just another task manager** — it's a **habit-building p
    - Marks note as archived (not deleted)
    - Increments `notes_converted` achievement stat
 
-3. **Archive Note** (PATCH `/api/v1/notes/{id}`)
-   - Input: `{ archived: true }`
-   - Archived notes hidden from main view, accessible in settings
-
 **Voice Notes (Pro Feature)**:
 - User records audio (max 5 minutes)
 - Uploaded to backend, transcribed via Whisper API
@@ -325,6 +370,9 @@ Perpetua Flow is **not just another task manager** — it's a **habit-building p
 - Used for hands-free capture
 
 **Success Criteria**:
+- [ ] Note creation calls `POST /api/v1/notes` — task-scoped endpoints MUST NOT be used
+- [ ] Note list calls `GET /api/v1/notes` — returns notes for authenticated user
+- [ ] Note updates use `PATCH /api/v1/notes/{note_id}` — `PUT` method MUST NOT be used
 - [ ] Note creation < 500ms (p95)
 - [ ] Conversion preserves all note content
 - [ ] AI parsing accuracy > 80% for common patterns (Pro)
@@ -374,6 +422,19 @@ Perpetua Flow is **not just another task manager** — it's a **habit-building p
   - 1 hour before
   - 1 day before
 - **Absolute**: User-specified date/time
+
+**Reminder CRUD Operations**:
+- **Create Reminder** (POST `/api/v1/tasks/{task_id}/reminders`)
+  - Input: `{ type, offset_minutes? | scheduled_at? }`
+  - MUST call the real API — stub implementations that show success toasts without making API calls are NOT acceptable
+- **Delete Reminder** (DELETE `/api/v1/reminders/{reminder_id}`)
+  - MUST call the real API — stub implementations are NOT acceptable
+- Both operations MUST provide appropriate error feedback if the API call fails
+
+**Reminder CRUD Success Criteria**:
+- [ ] Creating a reminder calls `POST /api/v1/tasks/{task_id}/reminders` — placeholder/stub implementations are invalid
+- [ ] Deleting a reminder calls `DELETE /api/v1/reminders/{reminder_id}` — placeholder/stub implementations are invalid
+- [ ] Both operations show error feedback on API failure, not false-positive success toasts
 
 **Delivery Mechanism** (from [`public/service-worker.js`](frontend/public/service-worker.js)):
 
@@ -462,7 +523,7 @@ Perpetua Flow is **not just another task manager** — it's a **habit-building p
 
 **Success Criteria**:
 - [ ] RRule parsing accuracy 100% for supported patterns
-- [ ] New instance created within 1 minute of completion
+- [ ] New instance appears in task list within 1 minute of completion (backend generates instance on force-complete; frontend surfaces it via `['tasks']` query invalidation in T098 — timing SLA is backend-owned)
 - [ ] Template edits don't affect historical instances
 - [ ] Paused templates don't generate instances
 - [ ] Complex patterns (e.g., "2nd Tuesday of month") supported
@@ -471,6 +532,7 @@ Perpetua Flow is **not just another task manager** — it's a **habit-building p
 - Completing instance before previous → generates from completion time, not original due_date
 - Network failure during generation → queued, retried on reconnect
 - Invalid RRule → validation error on template creation
+- Backend fails to generate next instance → if force-complete succeeds but no new recurring task appears after 2 `['tasks']` poll cycles (~30s), frontend shows informational toast: "Next recurrence will appear shortly." No blocking error; silent retry on next poll.
 
 **Implementation Evidence**: [`src/lib/utils/recurrence.ts`](frontend/src/lib/utils/recurrence.ts), [`src/components/recurrence/RecurrenceEditor.tsx`](frontend/src/components/recurrence/RecurrenceEditor.tsx)
 
@@ -582,19 +644,24 @@ return base_limits
 1. **Subtask Generation** (POST `/api/v1/tasks/{id}/ai/subtasks`):
    - Input: Task title + description
    - Output: 3-7 subtask suggestions
-   - Model: GPT-4 (Anthropic fallback)
+   - SDK: OpenAI Agents SDK
+   - Model: Configured via `AI_MODEL_ID` environment variable. No default is hardcoded — the deployer selects the model. No fallback provider.
    - Prompt engineering: "Break down this task into actionable subtasks (3-7 items)"
    - Cost: 1 AI credit per generation
 
 2. **Priority Recommendation** (POST `/api/v1/tasks/{id}/ai/priority`):
    - Input: Task details + user's current task list
    - Output: `{ priority: 'high' | 'medium' | 'low', reasoning: string }`
+   - SDK: OpenAI Agents SDK
+   - Model: Configured via `AI_MODEL_ID` environment variable. No default is hardcoded. No fallback provider.
    - Factors: Deadlines, dependencies, user patterns
    - Cost: 1 AI credit
 
 3. **Note Parsing** (POST `/api/v1/notes/{id}/parse`):
    - Input: Note content
    - Output: `{ title, description, due_date?, priority?, estimated_duration? }`
+   - SDK: OpenAI Agents SDK
+   - Model: Configured via `AI_MODEL_ID` environment variable. No default is hardcoded. No fallback provider.
    - Pattern recognition: Natural language dates, urgency keywords
    - Example: "Call dentist tomorrow urgent" → { title: "Call dentist", due_date: tomorrow, priority: 'high' }
    - Cost: 1 AI credit
@@ -604,6 +671,31 @@ return base_limits
 - Pro tier: 100 credits/day (resets midnight UTC)
 - Credits tracked in `UserAchievementState.daily_ai_credits_used`
 - Perks can increase daily limit
+
+**Credit limit configuration** (Constitution §IX — AI limits must be configurable via env):
+AI credit limits MUST be set via environment variables — no hardcoded defaults in code:
+- `FREE_TIER_AI_CREDITS` — daily credits for free tier users
+- `PRO_TIER_AI_CREDITS` — daily credits for pro tier users
+- `AI_CREDIT_RESET_HOUR` — UTC hour for daily credit reset
+
+The values referenced in this spec (0 and 100) are illustrative examples; production values are determined by the deployment environment.
+
+**Env-absent failure behavior** (Constitution §IX — environment validation is mandatory):
+If `FREE_TIER_AI_CREDITS`, `PRO_TIER_AI_CREDITS`, or `AI_CREDIT_RESET_HOUR` are absent at startup, the environment validator MUST block startup and emit a clear error message. The application MUST NOT start with missing AI credit configuration. This prevents silent fail-open behavior where all users could receive unlimited AI credits.
+
+**AI Logging Requirement (Constitution §V)**:
+- Every AI interaction MUST be logged as a structured event: `{ entity_id, user_id, action_type, actor_type, credits_used, timestamp }`
+- `entity_id` is the `task_id` for `subtask_generation` and `priority_recommendation` calls; it is the `note_id` for `note_parsing` calls
+- `action_type` is one of: `subtask_generation` | `priority_recommendation` | `note_parsing`
+- `actor_type: 'ai'` — constant for all AI interaction logs; satisfies Constitution §V.2 "actor identity (user or AI)" requirement by explicitly declaring the AI as the acting entity
+- Delivered as a Sentry breadcrumb (`Sentry.addBreadcrumb`) and to the structured logger (T138/T160)
+- Logs are append-only and must never be modified or deleted (Constitution §V.3)
+
+> **Constitution §V alignment note**: The constitution §V.2 uses the phrase "task ID" to describe the mandatory logged entity identifier. In this context, `entity_id` is the correct abstraction — it equals `task_id` for task-scoped AI actions and `note_id` for note-scoped AI actions. Both map to the same constitutional intent: "the entity being operated on." The `entity_id` field satisfies constitution §V.2 fully.
+
+**AI Logging Success Criteria**:
+- [ ] Every call to an AI endpoint logs the event before the response is returned to the UI
+- [ ] Log contains `entity_id` (task_id for subtask/priority calls; note_id for note-parsing), `user_id`, `action_type`, `actor_type: 'ai'`, `credits_used`, and ISO timestamp
 
 **AI Safety Guardrails** (per Constitution IV):
 - **AI cannot change task state** (no auto-completion)
@@ -689,6 +781,75 @@ return base_limits
 
 ---
 
+### FR-011: Notifications Full-Page View
+
+**What**: A dedicated `/dashboard/notifications` page showing the user's full notification history
+
+**Why**: The notification dropdown links to this page; without it, "View all" clicks produce a 404. Users need a place to review older notifications not visible in the dropdown.
+
+**Route**: `/dashboard/notifications`
+
+**Operations**:
+- **List Notifications** (GET `/api/v1/notifications`)
+  - Renders all user notifications in reverse-chronological order
+  - Reuses the existing `useNotifications()` hook and notification display components
+
+**Success Criteria**:
+- [ ] Route `/dashboard/notifications` MUST exist and render without a 404
+- [ ] Page displays all notifications for the authenticated user
+- [ ] Loading state shown while notifications are fetched
+- [ ] Empty state shown when there are no notifications
+- [ ] "View all" links in the notification dropdown navigate to this page successfully
+
+**Implementation Evidence**: [`src/components/layout/NotificationDropdown.tsx`](frontend/src/components/layout/NotificationDropdown.tsx) (links to this route), [`src/lib/hooks/useNotifications.ts`](frontend/src/lib/hooks/useNotifications.ts)
+
+---
+
+### FR-012: Subscription Upgrade
+
+**What**: Allow users to upgrade their subscription from Free to Pro
+
+**Why**: Revenue-generating feature; must call the correct backend endpoint
+
+**Operations**:
+- **Upgrade** (POST `/api/v1/subscription/upgrade`)
+  - MUST call `/subscription/upgrade` — the endpoint `/subscription/checkout` does NOT exist and returns 404
+  - MUST NOT call the non-existent `/subscription/purchase-credits` endpoint
+  - On success: show confirmation and redirect user to dashboard
+  - On failure: show actionable error message
+
+**Success Criteria**:
+- [ ] Subscription upgrade calls `POST /api/v1/subscription/upgrade`
+- [ ] Calls to `/subscription/checkout` MUST NOT exist in the codebase
+- [ ] Calls to `/subscription/purchase-credits` MUST NOT exist in the codebase
+- [ ] User sees confirmation of successful upgrade
+- [ ] User sees clear error message on upgrade failure
+
+**Implementation Evidence**: [`src/lib/hooks/useSubscription.ts`](frontend/src/lib/hooks/useSubscription.ts), [`src/services/payment.service.ts`](frontend/src/services/payment.service.ts)
+
+---
+
+### FR-013: Mark Notification as Read
+
+**What**: Mark individual notifications as read
+
+**Why**: Correct API endpoint is required; the wrong path always returns 404
+
+**Operations**:
+- **Mark as Read** (PATCH `/api/v1/notifications/{notification_id}/read`)
+  - MUST call `/notifications/{id}/read` as the path — the `/read` suffix is part of the resource path, not a body field
+  - MUST NOT call `PATCH /notifications/{id}` with `{ read: true }` in the body — that endpoint variant does not exist
+  - No request body needed; the read action is expressed in the URL
+
+**Success Criteria**:
+- [ ] Mark-as-read calls `PATCH /api/v1/notifications/{id}/read`
+- [ ] `PATCH /notifications/{id}` with a `{ read: true }` body MUST NOT be used
+- [ ] Notification read state updates immediately in the UI after successful call
+
+**Implementation Evidence**: [`src/lib/hooks/useNotifications.ts`](frontend/src/lib/hooks/useNotifications.ts)
+
+---
+
 ## III. Non-Functional Requirements
 
 ### NFR-001: Performance
@@ -743,8 +904,9 @@ return base_limits
 3. **Token Security**:
    - Short access token TTL (15 minutes)
    - Refresh token rotation
-   - HttpOnly cookies for refresh tokens (future enhancement)
-   - Logout clears all tokens
+   - **HttpOnly cookies for ALL tokens** (both access and refresh) — storing tokens in `localStorage` is NOT acceptable (see FR-001 Security Constraint)
+   - `localStorage` token storage is classified as a critical vulnerability — any JavaScript running on the page (XSS, supply chain attack) can read localStorage and steal tokens
+   - Logout clears all token cookies
 
 4. **Clickjacking Protection**:
    - `X-Frame-Options: DENY` header
@@ -755,11 +917,17 @@ return base_limits
 - `NEXT_PUBLIC_API_URL` for backend endpoint
 - Environment validation on startup (blocks if missing required vars)
 
+**Production Logging Constraint**:
+- Auth events, token values, payment data, and any personally identifiable information MUST NOT be logged to the browser console in production
+- `console.log` calls containing auth or payment context MUST be guarded by `process.env.NODE_ENV === 'development'` or removed entirely
+
 **Success Criteria**:
 - [ ] OWASP Top 10 vulnerabilities addressed
+- [ ] Tokens stored in HttpOnly cookies, never in `localStorage` or `sessionStorage`
 - [ ] Security headers score A+ on securityheaders.com
 - [ ] No secrets in Git history
 - [ ] Dependency vulnerability scan passes (npm audit)
+- [ ] No auth or payment data logged to browser console in production
 
 **Implementation Evidence**: [`src/lib/api/client.ts`](frontend/src/lib/api/client.ts) (Idempotency-Key), `next.config.js` (security headers)
 
@@ -845,9 +1013,9 @@ return base_limits
 ### NFR-005: Reliability
 
 **Targets**:
-- **Uptime**: 99.5% (excludes planned maintenance)
-- **Error rate**: < 1% of requests
-- **Crash rate**: < 0.1% of sessions
+- **Uptime**: 99.5% (excludes planned maintenance) — **backend-owned; frontend cannot independently verify**
+- **Error rate**: < 1% of requests — **backend-owned; frontend contributes via TanStack Query retry (T039) and error boundary (T111)**
+- **Crash rate**: < 0.1% of sessions — **frontend-owned; measured via Sentry (T136)**
 
 **Error Handling**:
 
@@ -874,10 +1042,19 @@ return base_limits
 - Focus mode works offline (timer client-side)
 
 **Success Criteria**:
-- [ ] All API errors logged with request_id
-- [ ] Error boundaries prevent full-page crashes
-- [ ] Offline mode allows task viewing (cached data)
-- [ ] Network reconnect syncs queued actions
+
+*Frontend-owned (verifiable by frontend alone):*
+- [ ] Error boundaries prevent full-page crashes (T111)
+- [ ] Client-side crash rate < 0.1% of sessions — measured via Sentry (T136)
+- [ ] All API errors surfaced to user with actionable message; `request_id` logged for backend correlation (T111, T039)
+- [ ] Offline mode allows task viewing (cached data via TanStack Query)
+- [ ] TanStack Query retries up to 3 times on 5xx before showing error state (T039)
+
+*Backend-dependent (frontend cannot independently verify):*
+- [ ] Uptime 99.5% — backend SLA; frontend shows degraded state when backend unreachable
+- [ ] Server error rate < 1% — backend metric; frontend contributes by not issuing unnecessary requests (T114 rate limiter)
+- [ ] ~~Network reconnect syncs queued actions~~ **[DEFERRED — see §V Non-Goals #7: IndexedDB mutation queue is an 8–10 week effort, out of current sprint scope]**
+- [ ] ~~Circuit breaker for degraded backend~~ **[DEFERRED — same future sprint as IndexedDB mutation queue; §V Non-Goals #7]**
 
 **Implementation Evidence**: [`src/lib/api/client.ts`](frontend/src/lib/api/client.ts) (ApiError class), TanStack Query retry configuration
 
@@ -901,16 +1078,47 @@ return base_limits
 - Error context: user_id, route, component stack
 - Source maps uploaded to Sentry for production debugging
 
-**User Feedback**:
-- In-app feedback form (bottom-right widget)
-- Issue reporting to GitHub (pre-filled template)
+**User Feedback** *(deferred — see §V Non-Goals #8)*:
+- ~~In-app feedback form (bottom-right widget)~~ **[DEFERRED — no task in current sprint; see §V Non-Goals #8]**
+- ~~Issue reporting to GitHub (pre-filled template)~~ **[DEFERRED — same sprint as analytics]**
 
 **Success Criteria**:
 - [ ] All errors captured with full context
 - [ ] Web Vitals tracked for 100% of users (sampled)
-- [ ] P95 API latency visualized in dashboard
+- [ ] ~~P95 API latency visualized in dashboard~~ **[OUT OF SCOPE current sprint — T137 covers metric collection; visualization deferred to future analytics phase]**
 
 **Implementation Evidence**: Sentry setup in `_app.tsx`, Web Vitals hook
+
+---
+
+### NFR-007: Responsive Modal Dialogs
+
+**What**: All modal dialogs must be fully usable on narrow viewports (below 480 px wide)
+
+**Why**: Mobile users cannot interact with modals that overflow their screen or hide content behind fixed-width containers
+
+**Affected Components**:
+- Task creation modal (`NewTaskModal`)
+- Completion confirmation bar / dialog (`PendingCompletionsBar`)
+- Conflict resolution modal (`ConflictResolutionModal` — T112) — side-by-side diff UI must not overflow on narrow viewports
+- Any other dialog triggered from dashboard pages
+
+**Requirements**:
+
+1. **Width**: Dialog width MUST adapt to viewport — no fixed minimum width that causes horizontal overflow on screens < 480 px
+2. **Height**: Dialogs MUST NOT require vertical scrolling caused by layout overflow; internal sections may scroll, but the dialog shell must fit within viewport height (`max-height: 85dvh` or equivalent)
+3. **Advanced/Optional Sections**: Content-heavy sections (e.g., recurrence editor) that cause overflow on mobile MUST be hidden behind a collapsible "Advanced options" toggle on small screens; they MAY be visible by default on larger screens
+4. **Button Layout**: When action buttons + content text cannot fit side-by-side below 480 px, they MUST wrap vertically (column layout) rather than overflow or truncate
+5. **Touch Targets**: All interactive elements within modals MUST have a minimum tap target of 44 × 44 px
+
+**Success Criteria**:
+- [ ] Task creation modal fully usable on 375 px wide viewport (iPhone SE size) — no horizontal overflow, all inputs and buttons reachable
+- [ ] Completion confirmation bar text and action buttons visible without horizontal scrolling on 375 px width
+- [ ] Advanced recurrence options collapse on mobile and expand on demand without layout breakage
+- [ ] `ConflictResolutionModal` side-by-side diff readable on 375 px viewport — columns stack vertically on mobile; all three action buttons ("Keep mine", "Take theirs", "Cancel") reachable without horizontal scroll
+- [ ] No modal requires pinch-to-zoom to interact with its contents
+
+**Implementation Evidence**: [`src/components/tasks/NewTaskModal.tsx`](frontend/src/components/tasks/NewTaskModal.tsx), [`src/components/layout/PendingCompletionsBar.tsx`](frontend/src/components/layout/PendingCompletionsBar.tsx)
 
 ---
 
@@ -1007,6 +1215,25 @@ return base_limits
    - Rationale: Requires email server infrastructure, spam handling
    - Workaround: Users manually copy email content to notes
 
+7. **Analytics event tracking (deferred)**:
+   - No Mixpanel, Plausible, or custom analytics event instrumentation in current sprint
+   - Rationale: Requires analytics provider selection, privacy policy updates, and GDPR consent flow — an independent workstream
+   - Current scope: Web Vitals (T137) and Sentry error tracking (T136) only
+   - Future: Add analytics as a separate sprint when provider is selected
+
+8. **In-app feedback widget (deferred)**:
+   - No in-app feedback form or GitHub issue pre-fill widget in current sprint
+   - Rationale: Low-priority UX feature; requires third-party widget or custom implementation
+   - Workaround: Users can open GitHub issues directly
+   - Note: NFR-006 "User Feedback" section references this; it is deferred pending analytics sprint
+
+9. **Offline-first mutation queue (deferred — not in current sprint)**:
+   - NFR-005 describes IndexedDB mutation queuing and background sync on reconnect
+   - This is an 8–10 week effort (see plan.md §VIII "Implement Offline-First Architecture")
+   - Current sprint reliability scope: Error Boundary (T111), TanStack Query retry (3 attempts, exponential backoff)
+   - Not a blocker for MVP launch; deferred to a future sprint
+   - Circuit breaker pattern deferred to the same future sprint
+
 ### Planned Future Enhancements (Not in MVP)
 
 **Backlog** (prioritized by user demand):
@@ -1026,7 +1253,7 @@ return base_limits
 
 **Functional**:
 - [ ] User can complete end-to-end flow: Sign in → Create task → Complete task → View streak in < 2 minutes
-- [ ] All CRUD operations (tasks, subtasks, notes) work offline (queued, synced on reconnect)
+- [ ] ~~All CRUD operations (tasks, subtasks, notes) work offline (queued, synced on reconnect)~~ **[DEFERRED — see §V Non-Goals #7; offline mutation queue deferred to future sprint. Current scope: error boundary, TanStack Query retry (3 attempts), autosave via T167–T168]**
 - [ ] AI features (Pro) provide value > 80% of the time (measured by user acceptance rate)
 - [ ] Achievement unlocks celebrate progress without being annoying
 
@@ -1059,7 +1286,8 @@ return base_limits
 4. Sees onboarding tour (Driver.js)
 5. Creates first task via modal
 6. Marks task complete
-7. Sees achievement unlock: "First Steps" (5 tasks milestone)
+7. Sees streak increment to Day 1 and achievement progress indicator
+   (Note: "First Steps" milestone requires 5 tasks — not reachable in a single session)
 
 **Then**:
 - User understands core workflow
@@ -1189,43 +1417,59 @@ return base_limits
 
 ### P0: Critical Gaps (Must fix before public launch)
 
-**Gap 1: Missing Token Refresh in Service Worker**
+> **Implementation Status Note (v1.2)**: Phases 1–13 are declared "structurally complete" under the reverse-engineering methodology — code exists for all tasks but acceptance criteria have not been formally verified. Known defects are captured in Phase 14 (Bug Fix Sprint). Per Constitution §I.2, this is a documented exception. Phase 14 MUST be completed before any phase is considered production-ready. The `[X]` markers on Phases 1–13 tasks mean *code exists*, not *acceptance criteria pass*.
 
-- **Issue**: Service Worker cannot access localStorage to get auth token
-- **Evidence**: [`public/service-worker.js:28`](frontend/public/service-worker.js#L28) comment `// TODO: Get auth token`
-- **Impact**: Reminder polling fails for authenticated users (403 Unauthorized)
-- **Recommendation**: Use IndexedDB for token storage, accessible from SW and main thread
-- **Effort**: Medium (2-3 days)
+~~**Gap 1: Missing Token Refresh in Service Worker**~~ — **RESOLVED (T110)**
 
-**Gap 2: No Error Boundary Around Main App**
+- **Resolution**: T110 moved auth token to IndexedDB (`frontend/src/lib/utils/token-storage.ts`), accessible from both SW and main thread.
+- **Pending verification**: T134 (HttpOnly cookie migration) may supersede IndexedDB storage; validate token flow after T134 completes.
 
-- **Issue**: Unhandled component errors crash entire app (white screen)
-- **Evidence**: No `ErrorBoundary` wrapper in `_app.tsx`
-- **Impact**: Poor UX, user must manually refresh
-- **Recommendation**: Add React Error Boundary with fallback UI ("Something went wrong" + reload button)
-- **Effort**: Low (1 day)
+~~**Gap 2: No Error Boundary Around Main App**~~ — **RESOLVED (T111)**
 
-**Gap 3: Optimistic Locking Not Fully Implemented**
+- **Resolution**: T111 added `frontend/src/components/errors/ErrorBoundary.tsx` wrapping the root layout, providing fallback UI with "Something went wrong" + Reload button.
+- ~~**Issue**: Unhandled component errors crash entire app (white screen)~~
+- ~~**Evidence**: No `ErrorBoundary` wrapper in `_app.tsx`~~
 
-- **Issue**: Frontend sends `version` field, but conflict resolution UI incomplete
-- **Evidence**: [`src/lib/schemas/task.schema.ts:108`](frontend/src/lib/schemas/task.schema.ts#L108) requires version, but no conflict modal
-- **Impact**: Concurrent edits silently fail (user confusion)
-- **Recommendation**: Add conflict resolution modal showing diff, allow user to choose version
-- **Effort**: Medium (2-3 days)
+**Gap 3: Optimistic Locking Not Fully Implemented (Partially Spec-Corrected in v1.1)**
+
+- **Issue A (Spec corrected)**: Frontend `updateTask` calls omit the `version` field; also `useCompleteTask` calls a non-existent `/complete` endpoint instead of `/force-complete`. These are now enforceable requirements in FR-002.
+- **Issue B (Open — T112 not built)**: Conflict resolution UI is not yet implemented — `frontend/src/components/tasks/ConflictResolutionModal.tsx` does not exist. When a 409 is returned, there is no modal offering the user a choice between their version and the server version. **T112 was incorrectly marked `[X]` in tasks.md; file confirmed absent; corrected to `[ ]` per sp.analyze remediation (2026-02-20).**
+- **Evidence**: [`src/lib/schemas/task.schema.ts:108`](frontend/src/lib/schemas/task.schema.ts#L108) requires version; FR-002 now mandates it; `ConflictResolutionModal.tsx` file confirmed absent; T124 references T112 as a dependency that must be built first
+- **Impact**: Concurrent edits from multiple devices will silently return 409 without user guidance
+- **Recommendation**: Build T112 (`ConflictResolutionModal`) component first; T124 wires it to 409 responses from `useUpdateTask`
+- **Effort**: Medium (2–3 days for T112) + Low (1 day for T124 integration)
+
+**Gap 4: API Contract Violations (Spec-Corrected in v1.1)**
+
+The following API mismatches were identified from code analysis and captured as requirements in this spec update. They are listed here for tracking:
+
+| Bug | Endpoint Mismatch | Spec Section | Status |
+|-----|------------------|--------------|--------|
+| BUG-06A | `/tasks/{id}/complete` → `/tasks/{id}/force-complete` + `{version}` | FR-002 | Requirement added |
+| BUG-06B | `PATCH /tasks/{id}` without `version` | FR-002 | Requirement strengthened |
+| BUG-06C | Reminder API calls stubbed/commented-out | FR-006 | Requirement added |
+| BUG-05 | `/dashboard/notifications` route missing | FR-011 | FR added |
+| BUG-08 | `/subscription/checkout` → `/subscription/upgrade` | FR-012 | FR added |
+| NOTIF | `PATCH /notifications/{id}` → `PATCH /notifications/{id}/read` | FR-013 | FR added |
+| BUG-01A | `useSubtasks` unconditionally fetches for every card | FR-003 | Requirement added |
+| BUG-02 | Cache invalidation uses `task_id` (undefined) not `taskId` | FR-003 | Requirement added |
+| S-01 | Tokens in `localStorage` | FR-001 / NFR-002 | Requirement added |
+| S-03 | `console.log` of auth/payment events in production | NFR-002 | Requirement added |
+| BUG-03/04 | Modals not responsive below 480 px | NFR-007 | NFR added |
 
 ---
 
 ### P1: Important Gaps (Should fix within 3 months)
 
-**Gap 4: Incomplete Accessibility Testing**
+**Gap 5: Incomplete Accessibility Testing**
 
 - **Issue**: No automated a11y tests in CI pipeline
-- **Evidence**: No `@axe-core/react` integration
+- **Evidence**: No `jest-axe` integration (note: `@axe-core/react` is a dev-mode overlay; `jest-axe` is the correct test-assertion library for CI — see tasks.md T157)
 - **Impact**: WCAG violations may slip through
-- **Recommendation**: Add axe-core to Jest tests, run on every commit
+- **Recommendation**: Add `jest-axe` to Jest tests (T157), run on every commit; optionally add `@axe-core/react` as dev-mode overlay for interactive a11y debugging
 - **Effort**: Low (1-2 days)
 
-**Gap 5: No Rate Limiting on Client**
+**Gap 6: No Rate Limiting on Client**
 
 - **Issue**: User can spam API with rapid mutations
 - **Evidence**: No debouncing on task creation, subtask toggles
@@ -1233,7 +1477,7 @@ return base_limits
 - **Recommendation**: Add client-side rate limiting (max 10 mutations/second)
 - **Effort**: Low (1 day)
 
-**Gap 6: Missing Analytics Events**
+**Gap 7: Missing Analytics Events**
 
 - **Issue**: No tracking for user actions (task creation, focus mode usage)
 - **Evidence**: No analytics service integration
@@ -1245,7 +1489,7 @@ return base_limits
 
 ### P2: Nice-to-Have Improvements
 
-**Gap 7: No Dark Mode Toggle**
+**Gap 8: No Dark Mode Toggle**
 
 - **Issue**: App is dark-only, no light mode option
 - **Evidence**: Tailwind config only has dark theme
@@ -1253,7 +1497,7 @@ return base_limits
 - **Recommendation**: Add theme toggle in settings, persist in localStorage
 - **Effort**: Medium (3-4 days including redesign)
 
-**Gap 8: Command Palette Could Be Smarter**
+**Gap 9: Command Palette Could Be Smarter**
 
 - **Issue**: Command palette doesn't learn from user behavior
 - **Evidence**: No frecency (frequency + recency) algorithm
@@ -1261,7 +1505,7 @@ return base_limits
 - **Recommendation**: Track command usage, sort by frecency
 - **Effort**: Low (1-2 days)
 
-**Gap 9: No Bulk Operations**
+**Gap 10: No Bulk Operations**
 
 - **Issue**: Cannot select multiple tasks and perform batch actions
 - **Evidence**: No multi-select UI
@@ -1272,6 +1516,8 @@ return base_limits
 ---
 
 ## VIII. Regeneration Strategy
+
+> **See also**: `specs/002-perpetua-frontend/plan.md §VII` for the full architectural regeneration guide with module-level detail, feature flags, and timeline estimates. This section is a summary. If plan.md §VII and spec.md §VIII diverge, the plan.md version is authoritative for architectural guidance; spec.md is authoritative for requirements.
 
 ### Option 1: Specification-First Rebuild (Recommended for Major Refactor)
 
@@ -1326,7 +1572,7 @@ return base_limits
 
 ### Appendix A: API Contract Reference
 
-**Full API documentation**: `specs/002-perpetua-frontend/contracts/API.md`
+**Full API documentation**: `specs/002-perpetua-frontend/API.md`
 
 **Key endpoints implemented in frontend**:
 
@@ -1342,9 +1588,22 @@ return base_limits
 | `/tasks/{id}/force-complete` | POST | [`task.schema.ts`](frontend/src/lib/schemas/task.schema.ts) | [`useTasks.ts`](frontend/src/lib/hooks/useTasks.ts) |
 | `/tasks/{task_id}/subtasks` | GET/POST | [`subtask.schema.ts`](frontend/src/lib/schemas/subtask.schema.ts) | [`useSubtasks.ts`](frontend/src/lib/hooks/useSubtasks.ts) |
 | `/notes` | GET/POST | [`note.schema.ts`](frontend/src/lib/schemas/note.schema.ts) | [`useNotes.ts`](frontend/src/lib/hooks/useNotes.ts) |
+| `/notes/{note_id}` | PATCH/DELETE | [`note.schema.ts`](frontend/src/lib/schemas/note.schema.ts) | [`useNotes.ts`](frontend/src/lib/hooks/useNotes.ts) |
+| `/tasks/{task_id}/reminders` | POST | [`reminder.schema.ts`](frontend/src/lib/schemas/reminder.schema.ts) | [`useReminders.ts`](frontend/src/lib/hooks/useReminders.ts) |
+| `/reminders/{reminder_id}` | DELETE | [`reminder.schema.ts`](frontend/src/lib/schemas/reminder.schema.ts) | [`useReminders.ts`](frontend/src/lib/hooks/useReminders.ts) |
 | `/achievements/me` | GET | [`achievement.schema.ts`](frontend/src/lib/schemas/achievement.schema.ts) | [`useAchievements.ts`](frontend/src/lib/hooks/useAchievements.ts) |
 | `/reminders` | GET | [`reminder.schema.ts`](frontend/src/lib/schemas/reminder.schema.ts) | [`useReminders.ts`](frontend/src/lib/hooks/useReminders.ts) |
 | `/reminders/{id}/fire` | POST | [`reminder.schema.ts`](frontend/src/lib/schemas/reminder.schema.ts) | Service Worker |
+| `/notifications` | GET | notification.schema.ts | [`useNotifications.ts`](frontend/src/lib/hooks/useNotifications.ts) |
+| `/notifications/{id}/read` | PATCH | notification.schema.ts | [`useNotifications.ts`](frontend/src/lib/hooks/useNotifications.ts) |
+| `/subscription/upgrade` | POST | subscription.schema.ts | [`useSubscription.ts`](frontend/src/lib/hooks/useSubscription.ts) |
+| `/templates` | GET | [`task.schema.ts`](frontend/src/lib/schemas/task.schema.ts) (`TaskTemplateSchema`) | [`useTaskTemplates.ts`](frontend/src/lib/hooks/useTaskTemplates.ts) |
+| `/templates` | POST | [`task.schema.ts`](frontend/src/lib/schemas/task.schema.ts) (`TaskTemplateSchema`) | [`useTaskTemplates.ts`](frontend/src/lib/hooks/useTaskTemplates.ts) |
+| `/templates/{id}/instantiate` | POST | [`task.schema.ts`](frontend/src/lib/schemas/task.schema.ts) (`TaskSchema`) | [`useTaskTemplates.ts`](frontend/src/lib/hooks/useTaskTemplates.ts) |
+| `/templates/{id}` | PATCH | [`task.schema.ts`](frontend/src/lib/schemas/task.schema.ts) (`TaskTemplateSchema`) | [`useTaskTemplates.ts`](frontend/src/lib/hooks/useTaskTemplates.ts) |
+| `/templates/{id}` | DELETE | — | [`useTaskTemplates.ts`](frontend/src/lib/hooks/useTaskTemplates.ts) |
+
+> **Template endpoint note**: `GET /templates`, `POST /templates`, and `POST /templates/{id}/instantiate` are confirmed in `specs/002-perpetua-frontend/API.md`. `PATCH /templates/{id}` and `DELETE /templates/{id}` are required by FR-007 (edit and delete template operations) but are not yet present in API.md — these must be confirmed with the backend team and added to API.md before T097/T099 implementation. **Correction**: T099 in tasks.md incorrectly referenced `GET /api/v1/task-templates`; the correct path per API.md is `GET /api/v1/templates` (see tasks.md T099 remediation in v1.5.0).
 
 ---
 
@@ -1415,6 +1674,8 @@ AchievementDefinition (*)
 ---
 
 ### Appendix D: Testing Strategy
+
+> **V1 Test Status Note**: The V1 test suite (Jest + React Testing Library) was written during initial development and passes. Tests are not yet formally mapped to spec acceptance criteria or task IDs. Mapping will be completed incrementally via `/sp.tasks` as each feature area is re-specified. Coverage target of 80% applies to the mapped set.
 
 **Coverage target**: 80% for core logic and API interactions
 
@@ -1494,13 +1755,26 @@ This specification represents the **authoritative source of truth** for the Perp
 2. Update spec immediately afterward
 3. Hotfix incomplete until spec updated
 
+**Deviation Record (Constitution §I.2 — Reverse-Engineering Exception)**
+
+The initial implementation (Phases 1–13) was produced by reverse-engineering existing production code, not test-first development. Tests were written during the V1 build and **pass**, but are not mapped to spec FRs or task IDs. This is a documented deviation from Constitution §VIII.
+
+- **Reason**: Codebase already existed; reverse engineering required capturing behavior before documenting.
+- **Test status**: V1 test suite passes. Mapping to spec requirements will be completed via `/sp.specify` and `/sp.tasks` commands as each phase is revisited.
+- **Remediation**: All Phase 14+ tasks are written test-first per Constitution §VIII. V1 test-to-spec mapping is tracked as an ongoing documentation task.
+- **Status**: Partially remediated — tests exist, documentation in progress.
+
 **Version Control**:
-- Spec version: 1.0 (initial reverse-engineered)
-- Next version: 1.1 (when features added)
-- Major version: 2.0 (if breaking changes to data model or API)
+- Spec version: 1.6.0 (sp.analyze remediations v6 — H4 actor_type AI log field, L1 §IX subsection refs, M3 jest-axe correction, M4 ConflictResolutionModal NFR-007, M1 NFR-005 ownership, M2 analytics/feedback Non-Goals — 2026-02-20)
+- Previous version: 1.5.0 (sp.analyze remediations v5 — H1 template endpoints in Appendix A + T099 path fix, M3 FR-009 env-absent startup block, M6 entity_id constitution note, L3 §VIII cross-ref, L5 FR-007 recurring edge case — 2026-02-20)
+- Previous version: 1.4.0 (sp.analyze remediations v4 — C3 Gap 3 T112 status corrected, H3 entity_id AI logging, M5 circuit-breaker [DEFERRED], L2 FR-007 backend qualifier, L3 NFR-006 P95 deferred — 2026-02-20)
+- Previous version: 1.2.0 (a11y coverage, AI logging, offline scope, focus crash fix — 2026-02-20)
+- Previous version: 1.1.0 (bug-analysis requirements captured, 2026-02-18)
+- Previous version: 1.0.0 (initial reverse-engineered, 2026-02-17)
+- Major version: 2.0 (if breaking changes to data model or API contract)
 
 ---
 
-**Specification Version**: 1.0.0
-**Last Updated**: 2026-02-18
-**Status**: ✅ Complete (Reverse Engineered from Codebase)
+**Specification Version**: 1.6.0
+**Last Updated**: 2026-02-20
+**Status**: ✅ Updated — v1.6 applies sp.analyze remediation v6: actor_type field added to AI log format (H4/FR-009), Constitution §IX subsection refs corrected (L1), jest-axe reference corrected in Gap 5 (M3), ConflictResolutionModal added to NFR-007 affected components + acceptance criteria (M4), NFR-005 reliability ownership separated between frontend/backend (M1), analytics events and in-app feedback formally deferred to Non-Goals §7–8 with NFR-006 updated (M2)

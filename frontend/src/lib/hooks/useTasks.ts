@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api/client';
-import { TaskSchema, type Task } from '@/lib/schemas/task.schema';
+import { TaskSchema, TaskForceCompleteResponseSchema, type Task } from '@/lib/schemas/task.schema';
 import { z } from 'zod';
 
 // Response schemas
@@ -10,10 +10,6 @@ const TaskListResponseSchema = z.object({
 
 const TaskResponseSchema = z.object({
   data: TaskSchema,
-});
-
-const TaskCompletionResponseSchema = z.object({
-  task: TaskSchema,
 });
 
 // Query hooks
@@ -26,7 +22,7 @@ export function useTasks(filters?: { completed?: boolean; priority?: string; ena
   return useQuery({
     queryKey: ['tasks', filters],
     queryFn: () => apiClient.get(`/tasks${queryString ? `?${queryString}` : ''}`, TaskListResponseSchema),
-    enabled: filters?.enabled ?? true, // Default to enabled
+    enabled: filters?.enabled ?? true,
   });
 }
 
@@ -56,7 +52,7 @@ export function useUpdateTask() {
 
   return useMutation({
     mutationFn: ({ id, ...task }: Partial<Task> & { id: string }) =>
-      apiClient.put(`/tasks/${id}`, task, TaskResponseSchema),
+      apiClient.patch(`/tasks/${id}`, task, TaskResponseSchema),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       queryClient.invalidateQueries({ queryKey: ['tasks', data.data.id] });
@@ -76,28 +72,20 @@ export function useDeleteTask() {
   });
 }
 
-export function useCompleteTask() {
+/**
+ * T123 — Fix force-complete: uses POST /tasks/{id}/force-complete with { version } body.
+ * Replaces useCompleteTask and useAutoCompleteTask (non-existent endpoints).
+ * Response parsed against TaskForceCompleteResponseSchema: { data: { task, unlocked_achievements[], streak } }
+ */
+export function useForceCompleteTask() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (taskId: string) =>
-      apiClient.post(`/tasks/${taskId}/complete`, {}, TaskCompletionResponseSchema),
+    mutationFn: ({ taskId, version }: { taskId: string; version: number }) =>
+      apiClient.post(`/tasks/${taskId}/force-complete`, { version }, TaskForceCompleteResponseSchema),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['tasks', data.task.id] });
-    },
-  });
-}
-
-export function useAutoCompleteTask() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (taskId: string) =>
-      apiClient.post(`/tasks/${taskId}/auto-complete`, {}, TaskCompletionResponseSchema),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['tasks', data.task.id] });
+      queryClient.invalidateQueries({ queryKey: ['tasks', data.data.task.id] });
     },
   });
 }
