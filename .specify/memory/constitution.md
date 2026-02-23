@@ -86,6 +86,19 @@ Follow-up TODOs: None
    - Undo is valid until the next mutation occurs.
    - Undo is not best-effort; it is a contractual guarantee.
 
+   **Ratified Exception — AI-confirmed mutations (2026-02-22):**
+   - Undo is **not guaranteed** for mutations executed via `POST /api/v1/ai/confirm-action`
+     (`complete_task`, `create_subtasks`, `update_task` action types).
+   - Rationale: the confirm-action flow already requires explicit user confirmation before
+     any mutation is executed; this gate replaces the undo guarantee for this narrow case.
+   - Mitigations: (a) mutations are logged in the activity log with `actor="ai"` for
+     full auditability; (b) users can manually reverse any AI-confirmed mutation via normal
+     CRUD endpoints; (c) deletion operations remain covered by the tombstone recovery
+     system (FR-013) regardless.
+   - Scope: this exception applies **only** to `POST /api/v1/ai/confirm-action`. All other
+     mutations retain the full undo guarantee.
+   - Reference: `specs/003-perpetua-backend/spec.md` Gap 5; PHR-060.
+
 ---
 
 ## IV. AI Agent Governance
@@ -246,4 +259,4 @@ Any change to this constitution must be deliberate, documented, and justified.
 
 ---
 
-**Version**: 1.0.0 | **Ratified**: 2026-01-03 | **Last Amended**: 2026-01-03
+**Version**: 1.1.0 | **Ratified**: 2026-01-03 | **Last Amended**: 2026-02-22

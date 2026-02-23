@@ -8,6 +8,8 @@ from datetime import datetime, UTC
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
+from fastapi import BackgroundTasks
+
 from src.api.notes import (
     list_notes,
     create_note,
@@ -20,6 +22,7 @@ from src.services.note_service import (
     NoteArchivedError,
     NoteLimitExceededError,
     NoteNotFoundError,
+    VoiceNoteInsufficientCreditsError,
     VoiceNoteProRequiredError,
 )
 from src.services.ai_service import (
@@ -135,7 +138,8 @@ class TestCreateNote:
         mock_resp_cls.model_validate.return_value = MagicMock()
 
         result = await create_note(
-            data=MagicMock(), current_user=mock_user,
+            data=MagicMock(), background_tasks=BackgroundTasks(),
+            current_user=mock_user,
             note_service=mock_note_service, idempotency_key="key-1",
         )
 
@@ -147,7 +151,8 @@ class TestCreateNote:
 
         with pytest.raises(ForbiddenError):
             await create_note(
-                data=MagicMock(), current_user=mock_user,
+                data=MagicMock(), background_tasks=BackgroundTasks(),
+                current_user=mock_user,
                 note_service=mock_note_service, idempotency_key="key-1",
             )
 
@@ -157,7 +162,21 @@ class TestCreateNote:
 
         with pytest.raises(LimitExceededError):
             await create_note(
-                data=MagicMock(), current_user=mock_user,
+                data=MagicMock(), background_tasks=BackgroundTasks(),
+                current_user=mock_user,
+                note_service=mock_note_service, idempotency_key="key-1",
+            )
+
+    @pytest.mark.asyncio
+    async def test_insufficient_credits(self, mock_user, mock_note_service):
+        mock_note_service.create_note.side_effect = VoiceNoteInsufficientCreditsError(
+            "Insufficient credits: requested 5, available 0"
+        )
+
+        with pytest.raises(HTTPInsufficientCreditsError):
+            await create_note(
+                data=MagicMock(), background_tasks=BackgroundTasks(),
+                current_user=mock_user,
                 note_service=mock_note_service, idempotency_key="key-1",
             )
 
@@ -245,15 +264,23 @@ class TestUpdateNote:
 class TestDeleteNote:
     @pytest.mark.asyncio
     async def test_success(self, mock_user, mock_note_service):
-        mock_note_service.delete_note.return_value = None
+        note_id = uuid4()
+        tombstone = MagicMock()
+        tombstone.id = uuid4()
+        mock_note_service.delete_note.return_value = tombstone
 
-        # delete_note returns None (204 No Content)
+        # delete_note returns 200 with deleted_id and tombstone_id (FR-012 v1.2)
         result = await delete_note(
-            note_id=uuid4(), current_user=mock_user,
+            note_id=note_id, current_user=mock_user,
             note_service=mock_note_service,
         )
 
-        assert result is None
+        assert result.status_code == 200
+        body = result.body
+        import json
+        data = json.loads(body)
+        assert data["deleted_id"] == str(note_id)
+        assert data["tombstone_id"] == str(tombstone.id)
 
     @pytest.mark.asyncio
     async def test_not_found(self, mock_user, mock_note_service):

@@ -272,6 +272,20 @@ class Settings(BaseSettings):
     pro_desc_max_length: int = Field(default=2000, ge=100)
 
     # ==========================================================================
+    # AI REQUEST LIMITS (Constitution IX.4 — configurable via .env)
+    # ==========================================================================
+    ai_task_warning_threshold: int = Field(
+        default=5,
+        ge=1,
+        description="AI requests per task per session before warning user (FR-035)",
+    )
+    ai_task_block_threshold: int = Field(
+        default=10,
+        ge=1,
+        description="AI requests per task per session before blocking (FR-035)",
+    )
+
+    # ==========================================================================
     # FEATURE FLAGS
     # ==========================================================================
     enable_voice_transcription: bool = Field(

@@ -514,3 +514,51 @@ async def delete_task(
             recoverable_until=recoverable_until,
         )
     )
+
+
+# ---------------------------------------------------------------------------
+# Deprecated task-scoped note endpoints (v1.2 migration — FR-012)
+# Notes are now standalone user entities. These routes return 410 Gone so
+# clients know to update to POST/GET /api/v1/notes.
+# ---------------------------------------------------------------------------
+
+@router.post(
+    "/{task_id}/notes",
+    status_code=status.HTTP_410_GONE,
+    summary="[DEPRECATED] Create task note",
+    description=(
+        "This endpoint was removed in v1.2. Notes are now standalone user entities. "
+        "Use `POST /api/v1/notes` instead."
+    ),
+    include_in_schema=True,
+)
+async def create_task_note_gone(task_id: UUID) -> None:
+    """Return 410 Gone for deprecated POST /tasks/{task_id}/notes."""
+    raise HTTPException(
+        status_code=status.HTTP_410_GONE,
+        detail={
+            "code": ErrorCode.ENDPOINT_GONE,
+            "message": "This endpoint was removed in v1.2. Use POST /api/v1/notes instead.",
+        },
+    )
+
+
+@router.get(
+    "/{task_id}/notes",
+    status_code=status.HTTP_410_GONE,
+    summary="[DEPRECATED] List task notes",
+    description=(
+        "This endpoint was removed in v1.2. Notes are now standalone user entities. "
+        "Use `GET /api/v1/notes` instead."
+    ),
+    include_in_schema=True,
+)
+async def list_task_notes_gone(task_id: UUID) -> None:
+    """Return 410 Gone for deprecated GET /tasks/{task_id}/notes."""
+    raise HTTPException(
+        status_code=status.HTTP_410_GONE,
+        detail={
+            "code": ErrorCode.ENDPOINT_GONE,
+            "message": "This endpoint was removed in v1.2. Use GET /api/v1/notes instead.",
+        },
+    )

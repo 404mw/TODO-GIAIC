@@ -1,8 +1,8 @@
 # Perpetua Flow Backend Implementation Plan
 
-**Version**: 1.0 (Reverse Engineered)
-**Date**: 2026-02-17
-**Source**: `/backend` codebase analysis
+**Version**: 1.2 (Updated — Notes Standalone Redesign)
+**Date**: 2026-02-23
+**Source**: `specs/003-perpetua-backend/spec.md` v1.2 + REMEDIATIONS-003-v3.md
 
 ---
 
@@ -145,7 +145,7 @@ The system separates concerns into distinct layers (API → Services → Models 
 - **Tasks** ([src/api/tasks.py](../src/api/tasks.py)) → Task CRUD, force-complete
 - **Subtasks** ([src/api/subtasks.py](../src/api/subtasks.py)) → Subtask CRUD
 - **Templates** ([src/api/templates.py](../src/api/templates.py)) → Task templates
-- **Notes** ([src/api/notes.py](../src/api/notes.py)) → Task notes
+- **Notes** ([src/api/notes.py](../src/api/notes.py)) → Standalone user notes (v1.2; 6 endpoints; deprecated `POST/GET /tasks/{id}/notes` return 410 Gone)
 - **Reminders** ([src/api/reminders.py](../src/api/reminders.py)) → Task reminders
 - **AI** ([src/api/ai.py](../src/api/ai.py)) → Chat, subtask generation, transcription
 - **Credits** ([src/api/credits.py](../src/api/credits.py)) → Credit balance, history
@@ -193,8 +193,11 @@ async def create_task(
 - OpenAI chat integration with context injection
 - Subtask generation with tier-based limits
 - Deepgram transcription (Pro only)
+- Note-to-task conversion suggestions (FR-012 convert endpoint; returns `TaskSuggestionResponse`, no auto-create)
 - Credit deduction and balance checking
-- AI request rate limiting (10/session)
+- AI request rate limiting (per-task per-session; `AI_TASK_BLOCK_THRESHOLD` from `.env`)
+- `_task_request_counters` dict: **in-memory only** — not safe for multi-instance deployments
+  (Task 4.3a will replace with DB-backed `AISessionCounter` table)
 
 #### CreditService ([src/services/credit_service.py](../src/services/credit_service.py))
 - Multi-tier credit management (daily, subscription, purchased, kickstart)
@@ -214,6 +217,15 @@ async def create_task(
 - JWT token generation (access + refresh)
 - Token refresh with rotation
 - Session management
+
+#### NoteService ([src/services/note_service.py](../src/services/note_service.py))
+- Standalone note CRUD (user-owned, not task-scoped)
+- Tier-based note limit enforcement (Free: 20 base + perks, Pro: 50 base + perks)
+- Archived flag management (content locked on archived notes; unarchive always permitted)
+- Voice note creation: credit deduction at create time (`ceil(duration/60)*5`)
+- Async background transcription dispatch (Deepgram NOVA2); `transcription_status` → pending → completed/failed
+- Tombstone creation on delete (7-day recovery; snapshot excludes task_id)
+- Note convert stub: delegates to AIService; increments `notes_converted` stat
 
 **Service Pattern**:
 ```python
@@ -303,8 +315,8 @@ class TaskInstance(VersionedModel, table=True):
     # Relationships
     user: "User" = Relationship(back_populates="tasks")
     subtasks: list["Subtask"] = Relationship(back_populates="task")
-    notes: list["Note"] = Relationship(back_populates="task")
     reminders: list["Reminder"] = Relationship(back_populates="task")
+    # Note: `notes` relationship removed in v1.2 — Notes are standalone user entities (FR-012)
 ```
 
 **Pattern**: SQLModel = Pydantic + SQLAlchemy
@@ -325,7 +337,7 @@ class TaskInstance(VersionedModel, table=True):
 - `users`: User accounts
 - `task_instances`: Tasks
 - `subtasks`: Task subtasks
-- `notes`: Task notes
+- `notes`: Standalone user notes (v1.2 — no task_id FK; user_id only)
 - `reminders`: Task reminders
 - `credits`: Credit transactions
 - `user_achievements`: Unlocked achievements
@@ -559,8 +571,9 @@ async def delete_task(self, task_id: UUID, user_id: UUID) -> DeletionTombstone:
     snapshot = {
         "task": task.model_dump(),
         "subtasks": [s.model_dump() for s in task.subtasks],
-        "notes": [n.model_dump() for n in task.notes],
         "reminders": [r.model_dump() for r in task.reminders],
+        # Note: notes not included in v1.2 — Notes are standalone user entities with
+        # their own tombstone lifecycle (DELETE /api/v1/notes/{id} creates separate tombstone)
     }
 
     # Create tombstone
@@ -787,7 +800,53 @@ async def deduct_credits(self, user_id: UUID, amount: int, category: str):
       ↓ UPDATE reminders SET fired = TRUE WHERE id = reminder_id
 ```
 
-**Note**: This flow is designed but not implemented in current codebase.
+**Note**: Reminder delivery is designed but not implemented in current codebase (Gap 2).
+
+---
+
+### Background Job Flow (Daily Reset + Notification Pruning) - *Implemented (Task 6.2)*
+
+Runs at **UTC midnight** (co-located single scheduled job):
+
+```
+1. Scheduler triggers UTC midnight job
+   ↓
+2. Daily credit reset
+   ↓ CreditService.reset_daily_credits(all_users)
+   → Zero out `type="daily"` credits; grant fresh daily allocation (10 base + perks)
+
+3. AI session counter cleanup (Task 4.3a — pending implementation)
+   ↓ DELETE FROM ai_session_counters WHERE expires_at < NOW()
+
+4. Notification pruning (FR-016, mandatory — not optional)
+   ↓ DELETE FROM notifications WHERE created_at < NOW() - INTERVAL '30 days'
+```
+
+**Constraint**: notification pruning is mandatory (MUST, not MAY) per FR-016.
+
+---
+
+### Background Job Flow (Monthly Subscription Renewal) - *Task 4.2a — pending*
+
+Runs at **end of each billing period** (aligned with `Subscription.current_period_end`):
+
+```
+1. Scheduler triggers at period end for each Pro subscription
+   ↓
+2. Read current subscription credit balance
+   ↓ CreditService.get_balance(user_id).subscription
+
+3. Compute carryover
+   ↓ carryover = min(current_sub_balance, 50)
+
+4. Zero out old subscription credits
+   ↓ CreditService.zero_subscription_credits(user_id)
+
+5. Grant carryover + fresh 50 credits
+   ↓ CreditService.grant_credits(user_id, carryover + 50, type="subscription")
+```
+
+**File**: `src/services/credit_service.py` → `renew_subscription_credits(user_id)`
 
 ---
 
@@ -999,6 +1058,30 @@ async def deduct_credits(self, user_id: UUID, amount: int, category: str):
 
 ---
 
+### Module: Note Management ([src/services/note_service.py](../src/services/note_service.py))
+
+**Purpose**: Standalone user-owned notes with voice support and AI conversion (FR-012 v1.2)
+
+**Key Functions**:
+- `create_note()`: Create with tier limit check; deduct voice credits at create time
+- `list_notes()`: Paginated list filtered by `archived` flag (or all if not supplied)
+- `get_note()`: Fetch by ID regardless of archived status
+- `update_note()`: Update content (blocked for archived notes) or toggle `archived`
+- `delete_note()`: Hard delete + create tombstone (no task_id in snapshot)
+- `convert_note()`: Call AIService; increment `notes_converted` stat; return suggestion only
+
+**Dependencies**: AIService (convert), CreditService (voice credits), AchievementService (notes_converted)
+
+**Complexity**: Medium (voice credit logic, archived content guard, standalone tombstone)
+
+**Schema Notes**:
+- `NoteCreate`: `content` min_length=0 when `voice_url` present; min_length=1 otherwise
+- `NoteUpdate`: `content` optional; `archived` optional bool
+- `NoteResponse`: includes `transcription_status` (null | pending | completed | failed)
+- `TaskSuggestionResponse` (convert): `title`, `description`, `priority`, `suggested_subtasks`, `credits_used`, `credits_remaining`, `ai_request_warning`
+
+---
+
 ### Module: Achievement System ([src/services/achievement_service.py](../src/services/achievement_service.py))
 
 **Purpose**: Gamification with perks
@@ -1056,7 +1139,7 @@ async def deduct_credits(self, user_id: UUID, amount: int, category: str):
 
 **Quality Gates**:
 - All functional requirements tested (acceptance tests)
-- Performance targets met (p95 < 200ms)
+- Performance targets met (p95 < 200ms single-instance; multi-instance pending Task 4.3a + Task 7.4 scalability tests)
 - Security audit passed (OWASP Top 10)
 - Documentation complete (API docs, runbooks)
 
@@ -1298,7 +1381,7 @@ This implementation plan represents a **production-grade, scalable, and maintain
 - **Achievement perks**: Free tier expansion through engagement
 
 **Production Readiness**:
-- ✅ 1044 tests (843 unit, 201 integration, 150 contract)
+- ✅ 1044 tests (843 unit + 201 integration; ~150 schemathesis contract tests are a subset of the 201 integration tests, not a separate category)
 - ✅ Health checks for Kubernetes liveness/readiness probes
 - ✅ Structured logging with request ID propagation
 - ✅ Prometheus metrics for observability

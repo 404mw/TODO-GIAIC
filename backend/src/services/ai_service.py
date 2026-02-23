@@ -183,10 +183,6 @@ class AIService:
     - Credit balance management
     """
 
-    # Per-task request limits (FR-035)
-    AI_TASK_WARNING_THRESHOLD = 5
-    AI_TASK_BLOCK_THRESHOLD = 10
-
     def __init__(self, session: AsyncSession, settings: Settings):
         """Initialize AI service.
 
@@ -241,14 +237,14 @@ class AIService:
         if task_id and session_id:
             request_count = self._task_request_counters[session_id][task_id]
 
-            if request_count >= self.AI_TASK_BLOCK_THRESHOLD:
+            if request_count >= self.settings.ai_task_block_threshold:
                 raise AITaskLimitExceededError(
-                    f"AI request limit of {self.AI_TASK_BLOCK_THRESHOLD} "
+                    f"AI request limit of {self.settings.ai_task_block_threshold} "
                     f"per task per session reached"
                 )
 
             # Include current request in count for warning
-            if request_count + 1 >= self.AI_TASK_WARNING_THRESHOLD:
+            if request_count + 1 >= self.settings.ai_task_warning_threshold:
                 ai_request_warning = True
 
         # Check and consume credits (FR-030)

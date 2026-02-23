@@ -1,6 +1,6 @@
 # Perpetua Flow Backend Specification
 
-**Version**: 1.0 (Reverse Engineered)
+**Version**: 1.2 (Revised — Notes standalone redesign)
 **Date**: 2026-02-17
 **Source**: `/backend` codebase
 **Type**: FastAPI + SQLModel/SQLAlchemy async backend
@@ -135,6 +135,11 @@ Modern knowledge workers struggle with task management systems that:
   - `completed_at`: datetime | null
   - `completed_by`: enum ("manual", "auto", "force")
 
+**Force-Complete Response** (`POST /api/v1/tasks/{task_id}/force-complete`):
+Returns `TaskCompletionResponse` (not the plain task object) with:
+- `task`: TaskResponse (the completed task with all fields above)
+- `unlocked_achievements`: list[AchievementSummary] (newly unlocked achievements triggered by this completion; may be empty)
+
 **Side Effects**:
 - Task limit checked (Free: 50 base + achievement perks, Pro: unlimited)
 - Activity log entry created
@@ -212,18 +217,55 @@ Modern knowledge workers struggle with task management systems that:
 - `credits_remaining`: int
 - `ai_request_warning`: bool (true if nearing session limit)
 
+**Streaming Variant** (`POST /api/v1/ai/chat/stream`):
+- Same inputs/credits as standard chat
+- Response: Server-Sent Events (SSE) stream
+- `Content-Type: text/event-stream`
+- Chunk events: `event: chunk` with `data: {"text": "<token>"}` — one event per token
+- Final event: `event: final` with `data: {"suggested_actions": [...], "credits_used": 1,
+  "credits_remaining": N, "ai_request_warning": bool}` — emitted after the last chunk
+- Requires Idempotency-Key; same 1-credit cost as non-streaming chat
+
+**Confirm Action Endpoint** (`POST /api/v1/ai/confirm-action`):
+- Executes a previously suggested AI action (from chat or subtask generation)
+- **Inputs**:
+  - `action_type`: enum ("complete_task", "create_subtasks", "update_task")
+  - `task_id`: UUID
+  - `data`: object (action-specific parameters, mirrors the `data` field from suggested_actions)
+  - `Idempotency-Key` header: required
+- **Outputs**:
+  - `result`: object (updated task, created subtasks, or updated fields — depends on action_type)
+  - `action_id`: UUID (transient UUID generated per confirm call; **not persisted**; intended for
+    client-side correlation only — undo for AI-confirmed mutations is intentionally out of scope,
+    see Gap 5)
+- **Error Codes**:
+  - 400 VALIDATION_ERROR — invalid action_type or missing required data fields
+  - 402 INSUFFICIENT_CREDITS — insufficient credits for subtask creation actions
+  - 404 TASK_NOT_FOUND — task_id does not exist
+  - 409 CONFLICT — task was mutated since suggestion was generated (stale)
+  - 429 AI_TASK_LIMIT_REACHED — AI request limit exceeded for this task+session
+- **Side Effects**: Executes the mutation; logs to activity log with `actor="ai"`, `task_id`,
+  `timestamp`, `credits_used`, `action_type` (Constitution V.2). No `confirmed_ai_actions` table
+  exists — undo for AI-confirmed mutations is intentionally excluded (see Gap 5).
+
 **Side Effects**:
 - 1 credit deducted from user balance
-- AI request counter incremented (session-scoped, max 10/session)
+- AI request counter incremented (per-task per-session, limit configurable via `.env`)
 - Idempotency key required (strictly enforced)
 - OpenAI API call made
+
+**Configuration** (all limits must be in `.env` / `config.py` — no hardcoded values):
+- `AI_TASK_BLOCK_THRESHOLD` (default: 10) — max AI requests per task per session
+- `AI_TASK_WARNING_THRESHOLD` (default: 5) — threshold for `ai_request_warning=true`
 
 **Success Criteria**:
 - ✅ Context includes user's incomplete tasks when requested
 - ✅ Suggested actions require explicit user confirmation before execution
 - ✅ 402 INSUFFICIENT_CREDITS if balance is zero
-- ✅ 429 AI_TASK_LIMIT_REACHED after 10 requests per session
+- ✅ 429 AI_TASK_LIMIT_REACHED after N requests per task per session (N = AI_TASK_BLOCK_THRESHOLD)
 - ✅ 503 AI_SERVICE_UNAVAILABLE on OpenAI failure
+- ✅ AI_TASK_BLOCK_THRESHOLD configurable via `.env`; no hardcoded limit in service code
+- ✅ Confirmed action logged with `actor="ai"`, `task_id`, `timestamp` (Constitution V.2)
 
 **Evidence**:
 - [src/api/ai.py](../src/api/ai.py) - AI endpoints
@@ -248,8 +290,8 @@ Modern knowledge workers struggle with task management systems that:
 - `credits_remaining`: int
 
 **Tier Limits**:
-- **Free tier**: max 4 subtasks suggested
-- **Pro tier**: max 10 subtasks suggested
+- **Free tier**: max 4 subtasks suggested (configurable via `FREE_MAX_SUBTASKS` in `.env`)
+- **Pro tier**: max 10 subtasks suggested (configurable via `PRO_MAX_SUBTASKS` in `.env`)
 
 **Side Effects**:
 - 1 credit deducted
@@ -258,9 +300,10 @@ Modern knowledge workers struggle with task management systems that:
 
 **Success Criteria**:
 - ✅ Suggestions tailored to task title/description
-- ✅ Tier limit respected (4 vs 10)
+- ✅ Tier limit respected (FREE_MAX_SUBTASKS vs PRO_MAX_SUBTASKS)
 - ✅ 404 TASK_NOT_FOUND if task doesn't exist
 - ✅ Suggestions are actionable and distinct
+- ✅ Tier limits configurable via `.env`; no hardcoded values in service code
 
 **Evidence**:
 - [src/api/ai.py:generate_subtasks](../src/api/ai.py)
@@ -276,7 +319,7 @@ Modern knowledge workers struggle with task management systems that:
 
 **Inputs**:
 - `audio_url`: string (publicly accessible audio file URL)
-- `duration_seconds`: int (max 300 = 5 minutes)
+- `duration_seconds`: int (max configurable via `.env`, default 300 = 5 minutes)
 
 **Outputs**:
 - `transcription`: string (transcribed text)
@@ -290,6 +333,9 @@ Modern knowledge workers struggle with task management systems that:
 - 90 seconds → 2 minutes → 10 credits
 - 300 seconds → 5 minutes → 25 credits
 
+**Configuration** (all limits in `.env` / `config.py`):
+- `MAX_AUDIO_DURATION_SECONDS` (default: 300) — max permitted audio duration
+
 **Side Effects**:
 - Credits deducted (5 per minute)
 - Deepgram API call made
@@ -297,9 +343,10 @@ Modern knowledge workers struggle with task management systems that:
 
 **Success Criteria**:
 - ✅ 403 PRO_TIER_REQUIRED for free users
-- ✅ 400 AUDIO_DURATION_EXCEEDED if > 300 seconds
+- ✅ 400 AUDIO_DURATION_EXCEEDED if duration_seconds > MAX_AUDIO_DURATION_SECONDS
 - ✅ 402 INSUFFICIENT_CREDITS if not enough credits
-- ✅ High accuracy transcription (confidence > 0.85 typical)
+- ✅ Transcription confidence p50 > 0.85 (measured over Deepgram NOVA2 en-US audio)
+- ✅ MAX_AUDIO_DURATION_SECONDS configurable via `.env`; no hardcoded value in service code
 
 **Evidence**:
 - [src/api/ai.py:transcribe_voice](../src/api/ai.py)
@@ -333,15 +380,30 @@ Modern knowledge workers struggle with task management systems that:
    - Priority: Used third
 
 4. **Kickstart Credits**
-   - Amount: 5 (one-time on account creation)
+   - Amount: 5 (one-time on account creation — granted on first successful login)
    - Expiration: Never
    - Priority: Used last
 
 **Deduction Order**: Daily → Subscription → Purchased → Kickstart
 
+**Monthly Subscription Renewal**:
+- At end of billing period, subscription credit balance is read
+- Carryover: min(current_sub_balance, 50) credits roll to next period
+- Fresh 50 credits added for new period
+- Background job / scheduled task required
+
+**Credit API Endpoints**:
+- `GET /api/v1/credits/balance` — full balance breakdown (daily, subscription, purchased, kickstart, total)
+- `GET /api/v1/credits/history` — paginated transaction history
+- `GET /api/v1/ai/credits` — alias for `GET /api/v1/credits/balance`; same data, different route for AI endpoint cohesion; MUST share the same service method with no duplicate logic. Route ownership: Task 4.7 (CreditService); Task 4.6 registers the alias only.
+
+**Error Code Note**: See FR-012 Error Codes for the intentional 402/409 split between
+note and task limit-exceeded responses.
+
 **Success Criteria**:
 - ✅ Daily credits reset at UTC midnight
-- ✅ Subscription credits carry over (max 50)
+- ✅ Subscription credits carry over (max 50) at period-end renewal
+- ✅ 5 kickstart credits granted automatically on first user login
 - ✅ Credit history tracks all transactions
 - ✅ Balance breakdown shows each type separately
 
@@ -376,7 +438,8 @@ Modern knowledge workers struggle with task management systems that:
    - `focus_10`: +5 max tasks
    - `focus_50`: +10 max tasks
 
-4. **Notes** (notes converted to tasks)
+4. **Notes** (convert-endpoint calls — note: stat is incremented when the convert
+   suggestion is returned, not when the user actually creates a task)
    - `notes_10`: +10 max notes
 
 **Perk Types**:
@@ -450,6 +513,10 @@ Modern knowledge workers struggle with task management systems that:
 - New task instance from template
 - Template link preserved in `template_id` field
 
+**Limits**:
+- **Template count**: No limit — templates are lightweight metadata and do not consume the task quota.
+  This is an intentional design decision. Users may create as many templates as desired.
+
 **Side Effects**:
 - Template can include default subtasks
 - Template doesn't count toward task limits
@@ -457,6 +524,7 @@ Modern knowledge workers struggle with task management systems that:
 
 **Success Criteria**:
 - ✅ Templates are reusable
+- ✅ No template count limit enforced
 - ✅ Subtasks from template also instantiated
 - ✅ Instantiated tasks are independent (not linked after creation)
 
@@ -492,8 +560,8 @@ Modern knowledge workers struggle with task management systems that:
 - Background job processes reminders
 
 **Success Criteria**:
-- ✅ Reminders fire at correct time
-- ✅ Relative reminders calculate based on due_date
+- ⏸ Reminders stored and queryable; delivery not implemented (out of scope — see Phase 9 improvements)
+- ✅ Relative reminders calculate correct `scheduled_at` based on due_date
 - ✅ Fired reminders don't fire again
 - ✅ Reminders deleted when task deleted
 
@@ -504,28 +572,116 @@ Modern knowledge workers struggle with task management systems that:
 
 ---
 
-### FR-012: Task Notes
+### FR-012: User Notes (REVISED v1.2)
 
-**What**: Markdown-formatted notes attached to tasks
+**What**: Standalone notes owned by the user (not task-scoped)
 
-**Why**: Capture additional context, meeting notes, links
+**Why**: Users need a general-purpose note capture independent of tasks,
+        with optional task-conversion and voice input (Pro)
 
 **Inputs**:
-- `task_id`: UUID
-- `content`: string (markdown, max 5000 chars free / 10000 pro)
+- `content`: string (0–2000 chars)
+  - Required to be non-empty (≥ 1 char) **unless** `voice_url` is provided
+  - When `voice_url` is present: `content` may be `""` (empty) or a user-typed label
+  - **Schema rule**: `min_length=0` when `voice_url` is set; `min_length=1` otherwise
+- `voice_url`: string | null (Pro only — URL of audio recording for transcription)
+- `voice_duration_seconds`: int | null (1–MAX_AUDIO_DURATION_SECONDS, Pro only)
+  > When `voice_url` is provided: `content` may be an empty string `""` or a user-typed
+  > label. The background transcription task replaces `content` with the transcript when
+  > `transcription_status` → "completed". If `content` was non-empty at creation, both are
+  > preserved: `original_content + "\n\n---\n\n" + transcript`.
 
 **Outputs**:
-- Note object with `order_index` for sequencing
+- Note object:
+  - `id`: UUID
+  - `user_id`: UUID
+  - `content`: string (0–2000 chars; non-empty required unless `voice_url` was set at creation)
+  - `archived`: bool (default: false)
+  - `voice_url`: string | null (Pro only)
+  - `voice_duration_seconds`: int | null — required together with `voice_url` when creating a
+    voice note; range 1–MAX_AUDIO_DURATION_SECONDS seconds; `null` for non-voice notes;
+    `MAX_AUDIO_DURATION_SECONDS` config default is 300 (see FR-006 / config.py)
+  - `transcription_status`: enum("pending","completed","failed") | null
+  - `created_at`: ISO8601 datetime
+  - `updated_at`: ISO8601 datetime
+
+**Endpoints**:
+- POST /api/v1/notes          — create (201)
+- GET  /api/v1/notes          — list (200, PaginatedResponse, ?archived=bool);
+                                 default (no param): returns all notes regardless of archived status
+- GET  /api/v1/notes/{id}     — get single note (200); returns note regardless of archived status
+- PATCH /api/v1/notes/{id}    — update content/archived (200)
+- DELETE /api/v1/notes/{id}   — delete (200, {deleted_id, tombstone_id})
+- POST /api/v1/notes/{id}/convert — AI-suggest task from note (200, suggestion only — no auto-create, no auto-archive)
+
+**Convert Response Schema** (`POST /api/v1/notes/{id}/convert`):
+- Response: `DataResponse[TaskSuggestionResponse]` (HTTP 200)
+- `TaskSuggestionResponse` fields:
+  - `title`: string — AI-derived suggested task title
+  - `description`: string | null — AI-derived task description (may be null for short notes)
+  - `priority`: enum("low", "medium", "high") | null — suggested priority (null if indeterminate)
+  - `suggested_subtasks`: array of `{ "title": string }` — AI-suggested subtask titles
+    (count ≤ `FREE_MAX_SUBTASKS` for Free tier, ≤ `PRO_MAX_SUBTASKS` for Pro tier)
+- Credits used: 1 (same as AI chat)
+- `credits_remaining`: int
+- `ai_request_warning`: bool (true if nearing session AI limit)
+
+  > Returns 200 (not 201): no new resource is persisted. The response body contains only an
+  > AI-generated suggestion object, not a created note or task.
+
+**Limits**:
+- Free tier: max 20 notes (base + perks)
+- Pro tier: max 50 notes (base + perks)
+- List: ordered by created_at DESC, max 50/page
 
 **Side Effects**:
-- Note limit checked (Free: 20 base + perks, Pro: 50 base + perks)
-- Notes can be converted to tasks (counts toward `notes_converted` achievement)
+- Note limit checked on create (402 LIMIT_EXCEEDED for free tier at cap)
+- Free user creating note with `voice_url` → 403 PRO_TIER_REQUIRED
+- Voice note created (Pro): transcription triggered automatically as async background task;
+  `transcription_status` set to "pending" immediately, updated to "completed" or "failed" when done
+- Convert endpoint (`POST /notes/{id}/convert`):
+  - **Returns AI-suggested task structure** (title, description, priority, subtasks) — does NOT create the task
+  - Does **not** auto-archive the source note — user must call `PATCH /notes/{id}` with `{"archived": true}` separately
+  - Increments `notes_converted` achievement stat when suggestion is returned (at call time,
+    regardless of whether the user subsequently creates the task). The stat name reflects
+    *intent-to-convert* not *task-creation-confirmed*.
+  - 1 credit deducted for AI suggestion; Idempotency-Key required
+- Markdown content supported
+- Deprecated task-scoped endpoints (`POST/GET /tasks/{task_id}/notes`) return 410 Gone
+- Voice note creation (Pro, `voice_url` present): credits deducted **at note creation time**
+  using FR-006 calculation (`ceil(voice_duration_seconds / 60) * 5` credits); 402
+  INSUFFICIENT_CREDITS returned if balance insufficient before note is persisted.
+  > Credit formula: see FR-006 for canonical definition.
+
+**Error Codes**:
+- 400 VALIDATION_ERROR — content missing or out of range
+- 402 LIMIT_EXCEEDED  — note limit reached
+  > **Design note**: Note limit-exceeded uses 402 (payment-gated resource — expandable
+  > via Pro upgrade or achievements). Task limit-exceeded uses 409 CONFLICT (hard
+  > resource conflict). This split is intentional per FR-007.
+- 401 UNAUTHORIZED
+- 403 FORBIDDEN       — note belongs to another user
+- 403 PRO_TIER_REQUIRED — Free user attempts to create voice note
+- 404 RESOURCE_NOT_FOUND
+- 409 ARCHIVED        — attempt to edit **content** of an archived note (does NOT fire when setting `archived=false` to unarchive)
+- 402 INSUFFICIENT_CREDITS — Pro user creates voice note without sufficient credits for the requested duration
 
 **Success Criteria**:
-- ✅ Markdown rendering supported
-- ✅ Notes ordered by `order_index`
-- ✅ 409 NOTE_LIMIT_EXCEEDED when limit reached
-- ✅ Note conversion creates new task with note content as description
+- ✅ Notes created without task context
+- ✅ `POST /api/v1/notes` with empty `content=""` and no `voice_url` → 400 VALIDATION_ERROR
+- ✅ `POST /api/v1/notes` with empty `content=""` and valid `voice_url` (Pro) → 201 Created
+- ✅ Free user creating note with voice_url receives 403 PRO_TIER_REQUIRED
+- ✅ Voice notes (Pro): transcription_status starts as "pending"; async task updates it
+- ✅ Archived filter works (GET /notes?archived=true returns archived only)
+- ✅ Convert returns AI task suggestion without auto-creating task or auto-archiving note
+- ✅ notes_converted stat incremented when convert endpoint is called (not at task creation)
+- ✅ 402 (not 409) when free-tier note limit reached
+- ✅ task_id column removed from database
+- ✅ Deprecated task-scoped note endpoints return 410 Gone
+- ✅ Archived notes can be unarchived via `PATCH /notes/{id}` with `{"archived": false}`
+- ✅ DELETE /notes/{id} returns 200 with `{deleted_id, tombstone_id}` for 7-day recovery
+- ✅ Voice note creation deducts credits at creation time (not after transcription completes)
+- ✅ 402 INSUFFICIENT_CREDITS if Pro user lacks credits for voice note duration
 
 **Evidence**:
 - [src/api/notes.py](../src/api/notes.py)
@@ -550,7 +706,8 @@ Modern knowledge workers struggle with task management systems that:
 **Recoverable Entities**:
 - Tasks (with subtasks, notes, reminders)
 - Subtasks
-- Notes
+- Notes (standalone, user_id only — no task_id in snapshot from v1.2 onward)
+  - Migration: tombstones created before v1.2 may contain a task_id field; recovery service must tolerate its presence (ignore if present)
 
 **Side Effects**:
 - Tombstone limit: 3 per user (oldest deleted if exceeded)
@@ -582,6 +739,9 @@ Modern knowledge workers struggle with task management systems that:
 - Note: created, updated, deleted
 - Credit: granted, deducted
 - Achievement: unlocked
+- **AI Interaction**: chat request, subtask generation, voice transcription, confirm-action executed, undo action
+  - Required fields (Constitution V.2): `task_id` (from X-Task-Id header or confirmed action),
+    `timestamp`, `actor` ("user" or "ai"), `credits_used`, `action_type`
 
 **Outputs**:
 - Activity entries with:
@@ -618,11 +778,14 @@ Modern knowledge workers struggle with task management systems that:
 | Max Subtasks/Task | 10 + perks | 20 + perks |
 | Max Notes | 20 + perks | 50 + perks |
 | Task Description | 1000 chars | 2000 chars |
-| Note Content | 5000 chars | 10000 chars |
+| Note Content | 2000 chars | 2000 chars |
 | Daily AI Credits | 10 + perks | 10 + perks |
 | Subscription Credits | 0 | 50/month |
 | Voice Transcription | ❌ | ✅ |
+| Voice Notes | ❌ | ✅ |
 | Credit Carryover | ❌ | ✅ (max 50) |
+
+> **Note**: Notes are standalone (not task-scoped) from v1.2. The uniform 2000-char content limit applies to all tiers.
 
 **Side Effects**:
 - Tier checked on all tier-gated operations
@@ -631,11 +794,59 @@ Modern knowledge workers struggle with task management systems that:
 **Success Criteria**:
 - ✅ Free tier sufficient for casual users
 - ✅ Pro tier unlocks advanced features
-- ✅ Achievement system allows free users to approach pro limits
+- ✅ With all task+focus achievements unlocked, free-tier effective task limit = 455
+  (50 base + 15 + 25 + 50 + 100 + 200 task achievements + 5 focus_10 + 10 focus_50)
+- ✅ With streak_100 unlocked, free-tier effective daily AI credits = 20 (10 base + 10)
 
 **Evidence**:
 - [src/models/user.py](../src/models/user.py) - `tier` field
 - [src/lib/limits.py](../src/lib/limits.py) - Limit enforcement
+
+---
+
+### FR-016: In-App Notifications
+
+**What**: In-app notification inbox for system events (achievement unlocks, task completions, reminders)
+
+**Why**: Surface important events to the user without requiring real-time delivery infrastructure
+
+**Notification Types**:
+- `achievement_unlocked` — triggered when an achievement perk is granted
+- `task_completed` — triggered on task force-complete or auto-complete
+- `reminder_fired` — triggered when a scheduled reminder time is reached (if delivery is implemented)
+- `system` — general system messages
+
+**Outputs**:
+- Notification object:
+  - `id`: UUID
+  - `user_id`: UUID
+  - `type`: string (notification type)
+  - `title`: string
+  - `message`: string
+  - `read`: bool (default: false)
+  - `created_at`: ISO8601 datetime
+
+**Endpoints**:
+- GET /api/v1/notifications       — list notifications (unread first), paginated
+- PATCH /api/v1/notifications/{id}/read — mark single notification as read (200)
+- DELETE /api/v1/notifications/{id} — delete notification (200, {deleted_id})
+
+**Side Effects**:
+- Notifications created internally by services (AchievementService, TaskService, ReminderService)
+- No external delivery mechanism (not push/email) — poll-based only
+- No notification count limit; notifications **MUST** be pruned after 30 days by a
+  scheduled background job (co-located with daily credit reset — see Task 6.2)
+
+**Success Criteria**:
+- ✅ Notifications created on achievement unlock and task completion
+- ✅ Unread notifications appear first in list
+- ✅ Mark-as-read updates `read=true`
+- ✅ Deleted notifications removed immediately
+
+**Evidence**:
+- [src/models/notification.py](../src/models/notification.py)
+- [src/services/notification_service.py](../src/services/notification_service.py)
+- [src/api/notifications.py](../src/api/notifications.py)
 
 ---
 
@@ -649,9 +860,10 @@ Modern knowledge workers struggle with task management systems that:
 - Eager loading with `selectinload()` to prevent N+1 queries
 - Prometheus metrics for observability
 
-**Target** (inferred from code):
+**Targets** (contractual; single-instance verified by load tests in Task 7.4;
+multi-instance verification pending Task 4.3a + Task 7.4 scalability tests):
 - API response time: p95 < 200ms for CRUD operations
-- AI endpoints: p95 < 3s (depends on OpenAI)
+- AI endpoints: p95 < 3s (OpenAI-dependent; measured from API boundary)
 - Database query time: p95 < 50ms
 
 **Evidence**:
@@ -773,6 +985,26 @@ Modern knowledge workers struggle with task management systems that:
 - [src/middleware/metrics.py](../src/middleware/metrics.py)
 - [src/api/health.py](../src/api/health.py)
 - [docs/observability.md](../docs/observability.md)
+
+---
+
+### NFR-006: API Documentation Standards
+
+**What**: All additions and modifications to API endpoints must be reflected in
+[`backend/docs/API.md`](../docs/API.md) as part of the same change.
+
+**Why**: Keeps the API reference the single source of truth for frontend
+integration, preventing contract drift between code and documentation.
+
+**Coverage Requirements**:
+- **New endpoints**: document request/response format, headers, error codes, and at least one example
+- **Modified endpoints**: update affected sections (request shape, response fields, new error codes)
+- **Deprecated endpoints**: add deprecation notice with migration guidance
+- **Removed endpoints**: remove from docs or replace with tombstone entry noting 410 Gone
+
+**Success Criteria**:
+- ✅ `backend/docs/API.md` stays in sync with actual endpoint behaviour after every change
+- ✅ No endpoint addition or modification is considered complete without a corresponding docs update
 
 ---
 
@@ -936,7 +1168,29 @@ Modern knowledge workers struggle with task management systems that:
 
 ---
 
-### Gap 5: Test Coverage Gaps
+### Gap 5: Undo for AI-Confirmed Actions — Intentionally Out of Scope
+
+**Status**: Product decision — will not be implemented.
+
+**Background**: `POST /api/v1/ai/confirm-action` executes mutations (`complete_task`,
+`create_subtasks`, `update_task`) with no programmatic undo API. An undo endpoint was
+considered but rejected as a product decision. Constitution III.4 has been formally amended
+(2026-02-22, v1.1.0) to ratify this exception: undo is **not guaranteed** for AI-confirmed
+mutations executed via this endpoint only. All other mutations retain the full undo guarantee.
+
+**Mitigations**:
+- AI actions require explicit user confirmation before execution (the confirm-action flow is the gate)
+- Mutations are logged in the activity log with `actor="ai"` for auditability
+- Users can manually reverse any AI-confirmed mutation through normal task/subtask CRUD endpoints
+- The deletion tombstone system (FR-013) covers the highest-risk operation (deletes) regardless
+
+**Evidence**:
+- [src/api/ai.py](../src/api/ai.py) — `confirm-action` endpoint
+- Product decision recorded in `REMEDIATIONS-003.md`
+
+---
+
+### Gap 6: Test Coverage Gaps
 
 **Issue**: High unit test coverage (843 tests) but integration tests limited (~150)
 
@@ -951,7 +1205,7 @@ Modern knowledge workers struggle with task management systems that:
 
 ---
 
-### Gap 6: Subscription Payment Integration
+### Gap 7: Subscription Payment Integration
 
 **Issue**: Subscription tier exists but no payment processing
 
@@ -990,7 +1244,8 @@ Modern knowledge workers struggle with task management systems that:
 
 - ✅ API response time p95 < 200ms for CRUD operations
 - ✅ Database queries p95 < 50ms
-- ✅ 1044 tests passing (843 unit, 201 integration, 150 contract)
+- ✅ 1044 tests passing (843 unit + 201 integration; ~150 of the integration tests
+  are schema contract tests run via schemathesis)
 - ✅ Zero SQL injection vulnerabilities
 - ✅ Zero XSS vulnerabilities
 - ✅ Optimistic locking prevents lost updates
@@ -1150,7 +1405,18 @@ This specification enables complete system regeneration through:
 
 ---
 
+## Data Model Reference
+
+The canonical entity-relationship diagram and full column-level schema are in
+[`specs/003-perpetua-backend/data-model.md`](./data-model.md).
+
+If any model definition in this spec conflicts with `data-model.md`, this spec is
+authoritative per Constitution I.1. The `data-model.md` should be updated to match.
+
+---
+
 **Reverse Engineered By**: Claude Sonnet 4.5
 **Source Analysis Date**: 2026-02-17
 **Total Files Analyzed**: 4233 Python files
-**Test Coverage**: 1044 tests (843 unit, 201 integration, 150 contract)
+**Test Coverage**: 1044 tests (843 unit + 201 integration; ~150 contract tests
+are a subset of integration tests)

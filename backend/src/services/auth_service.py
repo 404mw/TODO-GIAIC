@@ -24,6 +24,7 @@ from src.middleware.metrics import record_auth_operation, record_auth_latency
 from src.models.auth import RefreshToken
 from src.models.user import User
 from src.schemas.enums import UserTier
+from src.services.credit_service import CreditService
 
 
 logger = logging.getLogger(__name__)
@@ -93,7 +94,7 @@ class AuthService:
                 - picture: Avatar URL
 
         Returns:
-            The created or updated User object
+            The created or updated User
         """
         google_id = google_user_data["sub"]
         email = google_user_data["email"]
@@ -316,8 +317,23 @@ class AuthService:
             # Verify the Google token
             google_data = await self.verify_google_token(id_token)
 
+            # Pre-check: user existence determines whether kickstart credits apply
+            existing_result = await self.session.execute(
+                select(User).where(User.google_id == google_data["sub"])
+            )
+            is_new_user = existing_result.scalar_one_or_none() is None
+
             # Create or update user
             user = await self.create_or_update_user(google_data)
+
+            # FR-007: Grant kickstart credits to new users (5 credits, one-time)
+            if is_new_user:
+                credit_service = CreditService(self.session, self.settings)
+                await credit_service.grant_kickstart_credits(user.id)
+                logger.info(
+                    "Kickstart credits granted to new user",
+                    extra={"user_id": str(user.id)},
+                )
 
             # Generate tokens
             access_token, refresh_token = await self.generate_tokens(user)

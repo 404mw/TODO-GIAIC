@@ -56,7 +56,7 @@ class NoteCreate(BaseModel):
 class NoteUpdate(BaseModel):
     """Request body for updating a note.
 
-    Per api-specification.md Section 6 (PATCH).
+    Per spec v1.2 FR-012 (PATCH). Supports content update and archive toggle.
     """
 
     content: str | None = Field(
@@ -64,6 +64,10 @@ class NoteUpdate(BaseModel):
         min_length=1,
         max_length=2000,
         description="Note text content",
+    )
+    archived: bool | None = Field(
+        default=None,
+        description="Archive/unarchive the note. Cannot update content of archived note.",
     )
 
 

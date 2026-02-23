@@ -17,7 +17,8 @@ T259: Implement POST /api/v1/notes/:id/convert
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, Query, status
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config import Settings
@@ -49,6 +50,7 @@ from src.services.note_service import (
     NoteLimitExceededError,
     NoteNotFoundError,
     NoteService,
+    VoiceNoteInsufficientCreditsError,
     VoiceNoteProRequiredError,
 )
 
@@ -131,6 +133,7 @@ async def list_notes(
 )
 async def create_note(
     data: NoteCreate,
+    background_tasks: BackgroundTasks,
     current_user: Annotated[User, Depends(get_current_user)],
     note_service: Annotated[NoteService, Depends(get_note_service)],
     idempotency_key: Annotated[str, Header(alias="Idempotency-Key")],
@@ -142,11 +145,17 @@ async def create_note(
     - Free users: Text notes only, max 10 notes
     - Pro users: Text and voice notes, max 25 notes
     - Voice duration: Max 300 seconds
+    - Voice notes: credits deducted at creation; transcription runs as background task
     """
     try:
-        note = await note_service.create_note(user=current_user, data=data)
+        note = await note_service.create_note(
+            user=current_user, data=data, background_tasks=background_tasks
+        )
         return DataResponse(data=NoteResponse.model_validate(note))
 
+    except VoiceNoteInsufficientCreditsError as e:
+        from src.middleware.error_handler import InsufficientCreditsError
+        raise InsufficientCreditsError(message=str(e))
     except VoiceNoteProRequiredError as e:
         from src.middleware.error_handler import ForbiddenError
         raise ForbiddenError(
@@ -237,21 +246,28 @@ async def update_note(
 
 @router.delete(
     "/{note_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
+    status_code=status.HTTP_200_OK,
     summary="Delete Note",
-    description="Delete a note permanently.",
+    description=(
+        "Delete a note. Creates a tombstone for 7-day recovery (FR-013). "
+        "Returns deleted_id and tombstone_id."
+    ),
 )
 async def delete_note(
     note_id: UUID,
     current_user: Annotated[User, Depends(get_current_user)],
     note_service: Annotated[NoteService, Depends(get_note_service)],
-) -> None:
-    """Delete a note.
+) -> JSONResponse:
+    """Delete a note and return tombstone_id for potential recovery.
 
     Returns 404 if note not found or user doesn't own it.
     """
     try:
-        await note_service.delete_note(user=current_user, note_id=note_id)
+        tombstone = await note_service.delete_note(user=current_user, note_id=note_id)
+        return JSONResponse(
+            status_code=200,
+            content={"deleted_id": str(note_id), "tombstone_id": str(tombstone.id)},
+        )
 
     except NoteNotFoundError as e:
         from src.middleware.error_handler import NotFoundError

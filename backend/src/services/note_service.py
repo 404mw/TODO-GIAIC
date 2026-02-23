@@ -12,19 +12,22 @@ T170: effective_note_limit with achievement perks
 """
 
 import logging
+import math
 from datetime import datetime, UTC
 from typing import Sequence
 from uuid import UUID, uuid4
 
+from fastapi import BackgroundTasks
 from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from src.config import Settings
 from src.models.note import Note
+from src.models.tombstone import DeletionTombstone
 from src.models.user import User
 from src.schemas.note import NoteCreate, NoteUpdate
-from src.schemas.enums import TranscriptionStatus
+from src.schemas.enums import TombstoneEntityType, TranscriptionStatus
 
 # Import centralized limit utilities (T170)
 from src.lib.limits import get_effective_note_limit
@@ -59,7 +62,7 @@ class NoteNotFoundError(NoteServiceError):
 
 
 class NoteLimitExceededError(NoteServiceError):
-    """Raised when user has reached their note limit (409)."""
+    """Raised when user has reached their note limit (402)."""
 
     pass
 
@@ -72,6 +75,12 @@ class VoiceNoteProRequiredError(NoteServiceError):
 
 class NoteArchivedError(NoteServiceError):
     """Raised when trying to modify an archived note."""
+
+    pass
+
+
+class VoiceNoteInsufficientCreditsError(NoteServiceError):
+    """Raised when user has insufficient AI credits for voice transcription (402)."""
 
     pass
 
@@ -99,14 +108,21 @@ class NoteService:
     # NOTE CRUD (T165-T169)
     # =========================================================================
 
-    async def create_note(self, user: User, data: NoteCreate) -> Note:
+    async def create_note(
+        self,
+        user: User,
+        data: NoteCreate,
+        background_tasks: BackgroundTasks | None = None,
+    ) -> Note:
         """Create a new note with tier-based validation.
 
         T165: NoteService.create_note with tier limits (FR-022)
+        Task 3.7d: Credits deducted at creation; transcription_status=PENDING; bg task enqueued.
 
         Args:
             user: The note owner
             data: Note creation data
+            background_tasks: FastAPI BackgroundTasks for async transcription
 
         Returns:
             The created Note
@@ -114,6 +130,7 @@ class NoteService:
         Raises:
             NoteLimitExceededError: If user has reached note limit (FR-022)
             VoiceNoteProRequiredError: If free user tries voice note (FR-024)
+            VoiceNoteInsufficientCreditsError: If insufficient credits for transcription (FR-006)
         """
         # Check if this is a voice note
         is_voice_note = data.voice_url is not None
@@ -123,6 +140,23 @@ class NoteService:
             raise VoiceNoteProRequiredError(
                 "Voice notes require Pro tier subscription"
             )
+
+        # FR-006: Deduct AI credits for voice transcription at creation time
+        if is_voice_note and data.voice_duration_seconds:
+            from src.services.credit_service import CreditService
+            credits_needed = (
+                math.ceil(data.voice_duration_seconds / 60)
+                * self.settings.ai_credit_transcription_per_min
+            )
+            try:
+                credit_service = CreditService(self.session, self.settings)
+                await credit_service.consume_credits(
+                    user_id=user.id,
+                    amount=credits_needed,
+                    operation_ref=f"voice_transcription_{uuid4()}",
+                )
+            except ValueError as e:
+                raise VoiceNoteInsufficientCreditsError(str(e)) from e
 
         # FR-022: Check note limit based on tier
         # T170: Uses get_effective_note_limit which includes achievement perks
@@ -145,13 +179,23 @@ class NoteService:
             archived=False,
             voice_url=data.voice_url,
             voice_duration_seconds=data.voice_duration_seconds,
-            # transcription_status will be set by voice transcription flow
-            transcription_status=None,
+            transcription_status=TranscriptionStatus.PENDING if is_voice_note else None,
         )
 
         self.session.add(note)
         await self.session.flush()
         await self.session.refresh(note)
+
+        # Enqueue background transcription for voice notes
+        if is_voice_note and data.voice_url and background_tasks is not None:
+            note_id_copy = note.id  # capture before potential session expiry
+            background_tasks.add_task(
+                _transcribe_note_background,
+                note_id=note_id_copy,
+                audio_url=data.voice_url,
+                duration_seconds=data.voice_duration_seconds or 0,
+                settings=self.settings,
+            )
 
         # T176: Record metrics
         note_type = "voice" if is_voice_note else "text"
@@ -268,13 +312,17 @@ class NoteService:
         """
         note = await self.get_note(user=user, note_id=note_id, include_archived=True)
 
-        # Cannot update archived notes
-        if note.archived:
-            raise NoteArchivedError("Cannot modify archived note")
+        # Block content edits on archived notes; allow toggling archived flag itself
+        if note.archived and data.content is not None:
+            raise NoteArchivedError("Cannot modify content of an archived note")
 
-        # Apply updates
+        # Apply content update
         if data.content is not None:
             note.content = data.content.strip()
+
+        # Apply archive toggle (spec v1.2: PATCH supports archived=true/false)
+        if data.archived is not None:
+            note.archived = data.archived
 
         self.session.add(note)
         await self.session.flush()
@@ -282,8 +330,8 @@ class NoteService:
 
         return note
 
-    async def delete_note(self, user: User, note_id: UUID) -> None:
-        """Delete a note.
+    async def delete_note(self, user: User, note_id: UUID) -> DeletionTombstone:
+        """Delete a note and create a tombstone for recovery (FR-013).
 
         T169: NoteService.delete_note
 
@@ -291,13 +339,74 @@ class NoteService:
             user: The requesting user
             note_id: The note ID to delete
 
+        Returns:
+            The created DeletionTombstone (tombstone_id usable for recovery)
+
         Raises:
             NoteNotFoundError: If note not found
         """
         note = await self.get_note(user=user, note_id=note_id, include_archived=True)
 
+        # Serialize note snapshot for tombstone (spec v1.2 — no task_id)
+        entity_data = {
+            "id": str(note.id),
+            "user_id": str(note.user_id),
+            "content": note.content,
+            "archived": note.archived,
+            "voice_url": note.voice_url,
+            "voice_duration_seconds": note.voice_duration_seconds,
+            "transcription_status": (
+                note.transcription_status.value
+                if note.transcription_status
+                else None
+            ),
+            "created_at": note.created_at.isoformat(),
+            "updated_at": note.updated_at.isoformat(),
+        }
+
+        # Enforce FIFO tombstone limit (max 3 per user, FR-013)
+        await self._enforce_tombstone_limit(user.id)
+
+        # Create tombstone
+        tombstone = DeletionTombstone(
+            id=uuid4(),
+            user_id=user.id,
+            entity_type=TombstoneEntityType.NOTE,
+            entity_id=note.id,
+            entity_data=entity_data,
+            deleted_at=datetime.now(UTC),
+        )
+        self.session.add(tombstone)
+
         await self.session.delete(note)
         await self.session.flush()
+
+        return tombstone
+
+    async def _enforce_tombstone_limit(self, user_id: UUID) -> None:
+        """Enforce max 3 tombstones per user (FIFO), shared across entity types.
+
+        Deletes oldest tombstones to stay within the limit (FR-013).
+        """
+        from src.services.recovery_service import MAX_TOMBSTONES_PER_USER
+
+        count_query = select(func.count()).where(
+            DeletionTombstone.user_id == user_id
+        )
+        result = await self.session.execute(count_query)
+        count = result.scalar() or 0
+
+        if count >= MAX_TOMBSTONES_PER_USER:
+            excess = count - MAX_TOMBSTONES_PER_USER + 1
+            oldest_query = (
+                select(DeletionTombstone)
+                .where(DeletionTombstone.user_id == user_id)
+                .order_by(DeletionTombstone.deleted_at.asc())
+                .limit(excess)
+            )
+            result = await self.session.execute(oldest_query)
+            for tombstone in result.scalars().all():
+                await self.session.delete(tombstone)
 
     async def archive_note(self, user: User, note_id: UUID) -> Note:
         """Archive a note (typically after task conversion).
@@ -439,6 +548,80 @@ class NoteService:
         )
         result = await self.session.execute(query)
         return result.scalar() or 0
+
+
+# =============================================================================
+# BACKGROUND TASK
+# =============================================================================
+
+
+async def _transcribe_note_background(
+    note_id: UUID,
+    audio_url: str,
+    duration_seconds: float,
+    settings: Settings,
+) -> None:
+    """Background task: transcribe voice note via Deepgram and update note content.
+
+    Task 3.7d: Called after response for voice note creation. Opens its own
+    DB session (independent of request session). Sets COMPLETED + appends
+    transcript to content on success; sets FAILED on any Deepgram error.
+    Never raises — failures are logged only.
+    """
+    from src.dependencies import get_session_maker
+    from src.integrations.deepgram_client import DeepgramClient, DeepgramError
+
+    session_maker = get_session_maker(settings)
+    async with session_maker() as session:
+        # Load note in background session
+        result = await session.execute(select(Note).where(Note.id == note_id))
+        note = result.scalar_one_or_none()
+        if note is None:
+            logger.warning("Background transcription: note %s not found", note_id)
+            return
+
+        client = DeepgramClient(settings)
+        try:
+            transcription = await client.transcribe(
+                audio_url=audio_url,
+                duration_seconds=int(duration_seconds),
+            )
+            transcript = transcription.text
+
+            # Append transcript to existing content (if any), else replace
+            # Per spec v1.2: original_content + "\n\n---\n\n" + transcript
+            if note.content and note.content.strip():
+                note.content = note.content.strip() + "\n\n---\n\n" + transcript
+            else:
+                note.content = transcript
+
+            note.transcription_status = TranscriptionStatus.COMPLETED
+            session.add(note)
+            await session.commit()
+            record_voice_note_operation("transcribe")
+
+        except DeepgramError as e:
+            logger.error("Transcription failed for note %s: %s", note_id, e)
+            try:
+                await session.rollback()
+                result = await session.execute(select(Note).where(Note.id == note_id))
+                note = result.scalar_one_or_none()
+                if note:
+                    note.transcription_status = TranscriptionStatus.FAILED
+                    session.add(note)
+                    await session.commit()
+            except Exception:
+                logger.error("Failed to set transcription_failed for note %s", note_id)
+
+        except Exception as e:
+            logger.error(
+                "Unexpected error in background transcription for note %s: %s",
+                note_id,
+                e,
+            )
+
+        finally:
+            await client.close()
 
 
 # =============================================================================
