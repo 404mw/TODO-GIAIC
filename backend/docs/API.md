@@ -1,6 +1,6 @@
 # Perpetua Flow Backend API Documentation
 
-**Version:** 1.0.0
+**Version:** 1.1.0
 **Base URL:** `http://localhost:8000` (development) | `https://api.perpetua.com` (production)
 **API Prefix:** `/api/v1`
 
@@ -1036,10 +1036,21 @@ POST /api/v1/ai/chat/stream
 ```
 Content-Type: text/event-stream
 
+event: chunk
 data: {"text": "Based on your tasks..."}
+
+event: chunk
 data: {"text": " I recommend focusing..."}
-data: [DONE]
+
+event: final
+data: {"suggested_actions": [], "credits_used": 1, "credits_remaining": 9, "ai_request_warning": false}
+
 ```
+> `suggested_actions` follows the same shape as the standard `/ai/chat` response:
+> each item is `{"type": "complete_task"|"create_subtasks"|"update_task", "task_id": "uuid", "description": "...", "data": {...}}`.
+> The `final` event carries no `text` field — token text is delivered exclusively via `chunk` events.
+> The stream ends after the `final` event. No trailing `data: [DONE]` frame is emitted.
+> `ai_request_warning: true` signals the user is nearing the per-task AI request limit.
 
 ---
 
@@ -1157,8 +1168,8 @@ POST /api/v1/ai/confirm-action
 ```json
 {
   "action_type": "create_subtasks",
-  "action_data": {
-    "task_id": "uuid",
+  "task_id": "uuid",
+  "data": {
     "subtasks": [
       { "title": "Research market trends" },
       { "title": "Draft timeline" }
@@ -1166,23 +1177,38 @@ POST /api/v1/ai/confirm-action
   }
 }
 ```
+> `data` mirrors the `data` field from the `suggested_actions` item returned by `/ai/chat`
+> or the `final` SSE event. Pass the object back verbatim after user confirmation.
+> Requires `Idempotency-Key` header.
 
-**Supported Actions:**
-- `complete_task` - Mark task as complete
-- `create_subtasks` - Create subtasks for a task
-- `update_task` - Update task fields
+**Supported `action_type` values and `data` shape:**
+- `complete_task` — `data: {}` (no additional fields required; `task_id` is top-level)
+- `create_subtasks` — `data: {"subtasks": [{"title": "..."}]}`
+- `update_task` — `data: {"fields": {"title": "...", "priority": "...", ...}}`
 
 **Response (200 OK):**
 ```json
 {
-  "data": {
+  "task": {
+    "id": "uuid",
+    "title": "Q2 Roadmap",
+    "status": "pending",
     "subtasks": [
-      { "id": "uuid", "title": "Research market trends" },
-      { "id": "uuid", "title": "Draft timeline" }
+      { "id": "uuid", "title": "Research market trends", "completed": false },
+      { "id": "uuid", "title": "Draft timeline", "completed": false }
     ]
   }
 }
 ```
+> Response is `TaskCompletionResponse` (`{"task": {...}}`), not `DataResponse`.
+> The full task object (with subtasks eagerly loaded) is returned regardless of action type.
+
+**Errors:**
+- `400 VALIDATION_ERROR` — invalid `action_type` or missing required `data` fields
+- `402 INSUFFICIENT_CREDITS` — insufficient credits for subtask creation actions
+- `404 TASK_NOT_FOUND` — `task_id` does not exist or belongs to another user
+- `409 CONFLICT` — task was mutated since suggestion was generated (stale)
+- `429 AI_TASK_LIMIT_REACHED` — AI request limit exceeded for this task+session
 
 ---
 
@@ -1200,17 +1226,18 @@ GET /api/v1/ai/credits
 ```json
 {
   "data": {
-    "balance": {
-      "daily_free": 8,
-      "subscription": 45,
-      "purchased": 20,
-      "total": 73
-    },
-    "daily_reset_at": "2026-01-20T00:00:00.000Z",
-    "tier": "pro"
+    "daily": 8,
+    "subscription": 45,
+    "purchased": 20,
+    "kickstart": 0,
+    "total": 73
   }
 }
 ```
+> `GET /api/v1/ai/credits` is a route alias for `GET /api/v1/credits/balance`.
+> Both endpoints call the same `CreditService.get_balance()` method and return identical
+> `CreditBalanceResponse` shapes. See the [Credits → Get Credit Balance](#get-credit-balance)
+> section for full field descriptions.
 
 ---
 
@@ -1318,10 +1345,163 @@ limit: int = 50  # Max 100
 
 ### Notes
 
-- `GET /api/v1/tasks/{task_id}/notes` - List task notes
-- `POST /api/v1/tasks/{task_id}/notes` - Create note
-- `PATCH /api/v1/notes/{note_id}` - Update note
-- `DELETE /api/v1/notes/{note_id}` - Delete note
+Standalone user-owned notes (v1.2). Not task-scoped.
+
+- `POST /api/v1/notes` — Create note (201, `DataResponse[NoteResponse]`)
+- `GET /api/v1/notes` — List notes (200, `PaginatedResponse[NoteResponse]`); optional `?archived=bool`
+- `GET /api/v1/notes/{note_id}` — Get single note (200, regardless of archived status)
+- `PATCH /api/v1/notes/{note_id}` — Update content and/or `archived` flag (200)
+- `DELETE /api/v1/notes/{note_id}` — Delete note (200, `DataResponse` with `{"deleted_id": "uuid", "tombstone_id": "uuid"}`); note is recoverable via the Recovery API for 7 days
+- `POST /api/v1/notes/{note_id}/convert` — AI-suggest task from note (200, `DataResponse[TaskSuggestionResponse]`; 1 credit; does **not** auto-create task or auto-archive note; requires Idempotency-Key)
+
+**Deprecated (410 Gone):**
+- `POST /api/v1/tasks/{task_id}/notes` — returns `410 ENDPOINT_GONE`
+- `GET /api/v1/tasks/{task_id}/notes` — returns `410 ENDPOINT_GONE`
+
+**POST /api/v1/notes — Request:**
+```json
+{
+  "content": "Meeting prep notes...",
+  "voice_url": null,
+  "voice_duration_seconds": null
+}
+```
+> `content` must be ≥ 1 char unless `voice_url` is provided (Pro only).
+> Voice notes: set `voice_url` + `voice_duration_seconds`; credits deducted at
+> creation time (`ceil(duration_seconds / 60) * 5`).
+
+**POST /api/v1/notes — Response (201 Created):**
+```json
+{
+  "data": {
+    "id": "uuid",
+    "user_id": "uuid",
+    "content": "Meeting prep notes...",
+    "archived": false,
+    "voice_url": null,
+    "voice_duration_seconds": null,
+    "transcription_status": null,
+    "created_at": "2026-02-23T10:00:00Z",
+    "updated_at": "2026-02-23T10:00:00Z"
+  }
+}
+```
+
+**POST /api/v1/notes — Errors:**
+- `400 VALIDATION_ERROR` — content empty with no voice_url
+- `402 LIMIT_EXCEEDED` — note limit reached (Free: 20, Pro: 50 base + perks)
+- `402 INSUFFICIENT_CREDITS` — Pro user lacks credits for voice note duration
+- `403 PRO_TIER_REQUIRED` — Free user provides voice_url
+
+**GET /api/v1/notes — Response (200 OK, PaginatedResponse):**
+```json
+{
+  "data": [
+    {
+      "id": "uuid",
+      "user_id": "uuid",
+      "content": "Meeting prep notes...",
+      "archived": false,
+      "voice_url": null,
+      "voice_duration_seconds": null,
+      "transcription_status": null,
+      "created_at": "2026-02-23T10:00:00Z",
+      "updated_at": "2026-02-23T10:00:00Z"
+    }
+  ],
+  "pagination": {
+    "offset": 0,
+    "limit": 25,
+    "total": 12,
+    "has_more": false
+  }
+}
+```
+> Ordered by `created_at DESC`. `transcription_status`: `null` | `"pending"` | `"completed"` | `"failed"`.
+
+**GET /api/v1/notes/{note_id} — Response (200 OK, DataResponse):**
+```json
+{
+  "data": {
+    "id": "uuid",
+    "user_id": "uuid",
+    "content": "Meeting prep notes...",
+    "archived": false,
+    "voice_url": null,
+    "voice_duration_seconds": null,
+    "transcription_status": null,
+    "created_at": "2026-02-23T10:00:00Z",
+    "updated_at": "2026-02-23T10:00:00Z"
+  }
+}
+```
+> Returns the note regardless of archived status. Returns `404 RESOURCE_NOT_FOUND` if not found.
+
+**GET /api/v1/notes — Query params:**
+- `?archived=true` — archived notes only
+- `?archived=false` — non-archived notes only
+- (no param) — all notes regardless of archived status
+- `?limit=50&offset=0` — pagination
+
+**PATCH /api/v1/notes/{note_id} — Request:**
+```json
+{ "content": "Updated content" }
+```
+or
+```json
+{ "archived": true }
+```
+> Editing `content` of an archived note returns `409 ARCHIVED`.
+> Setting `archived=false` (unarchive) is always permitted.
+
+**PATCH /api/v1/notes/{note_id} — Errors:**
+- `409 ARCHIVED` — attempt to edit content of archived note
+- `403 FORBIDDEN` — note belongs to another user
+- `404 RESOURCE_NOT_FOUND` — note not found
+
+**DELETE /api/v1/notes/{note_id} — Response (200 OK):**
+```json
+{
+  "data": {
+    "deleted_id": "550e8400-e29b-41d4-a716-446655440000",
+    "tombstone_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+  }
+}
+```
+> The deleted note is recoverable via `POST /api/v1/recovery/tombstones/{tombstone_id}/recover`
+> for 7 days. The tombstone shares the 3-per-user pool with task tombstones — creating a 4th
+> tombstone for the same user automatically hard-deletes the oldest existing tombstone.
+
+**DELETE /api/v1/notes/{note_id} — Errors:**
+- `403 FORBIDDEN` — note belongs to another user
+- `404 RESOURCE_NOT_FOUND` — note not found
+
+**POST /api/v1/notes/{note_id}/convert — Response (200 OK):**
+```json
+{
+  "data": {
+    "title": "Prepare Q2 roadmap presentation",
+    "description": "Based on meeting notes...",
+    "priority": "high",
+    "suggested_subtasks": [
+      { "title": "Draft slide deck outline" },
+      { "title": "Gather Q1 metrics" }
+    ],
+    "credits_used": 1,
+    "credits_remaining": 9,
+    "ai_request_warning": false
+  }
+}
+```
+> Returns 200 (not 201) — no resource is created.
+> Increments `notes_converted` achievement stat at call time (regardless of whether the
+> user subsequently creates a task). Requires `Idempotency-Key` header.
+
+**POST /api/v1/notes/{note_id}/convert — Errors:**
+- `400 VALIDATION_ERROR` — missing Idempotency-Key header
+- `402 INSUFFICIENT_CREDITS` — no credits available (1 credit required)
+- `404 RESOURCE_NOT_FOUND` — note not found
+- `503 AI_SERVICE_UNAVAILABLE` — OpenAI service unavailable
 
 ### Reminders
 
@@ -1769,5 +1949,5 @@ For questions or issues with the API:
 
 ---
 
-**Last Updated:** 2026-02-11
-**API Version:** 1.0.0
+**Last Updated:** 2026-02-24
+**API Version:** 1.1.0

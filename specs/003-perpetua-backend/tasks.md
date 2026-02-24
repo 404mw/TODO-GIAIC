@@ -1,7 +1,7 @@
 # Perpetua Flow Backend Implementation Tasks
 
-**Version**: 1.2 (Updated — plan v1.2 + REMEDIATIONS-003-v3.md applied)
-**Date**: 2026-02-23
+**Version**: 1.5 (Updated — REMEDIATIONS-003-v7.md applied: R3 T3.7b close, R4 T4.6 close, R5 T8.4 close, R10 T4.3 reformat; R9 stuck-pending propagated to T3.7d)
+**Date**: 2026-02-24
 **Estimated Timeline**: 12 weeks (1 full-time developer)
 
 ---
@@ -33,11 +33,17 @@ This task breakdown represents how to rebuild the Perpetua Flow backend from scr
 > tests. Regeneration Checklist test item is `[ ]` until all Task 7.1 and 7.4 items close.
 >
 > **Open blockers** (must close before respective phase/task completion):
-> - Task 4.2a: monthly subscription renewal — production blocker (Phase 5)
-> - Task 4.3a: AI session counter DB-backing — scalability blocker; blocks Task 7.4 scalability tests
-> - Task 4.6 [BLOCKING — NFR-006 C1 CRITICAL]: `backend/docs/API.md` for AI endpoints — stale; missing streaming final SSE event, confirm-action request shape, GET /ai/credits response shape
-> - Task 3.7b [BLOCKING — NFR-006 C1 CRITICAL]: `backend/docs/API.md` for note endpoints — completely stale; documents old task-scoped endpoints; all 6 standalone endpoints missing
+> - Task 4.2a: monthly subscription renewal — **production blocker** (Phase 5);
+>   Pro subscription credits never renew without this; Pro launch is blocked
+> - Task 4.3a: AI session counter DB-backing — **scalability blocker**; blocks
+>   Task 7.4 scalability tests; multi-instance Railway deployments will silently
+>   bypass AI_TASK_BLOCK_THRESHOLD without this
+> - Task 6.2 M7: notification pruning — **spec MUST not implemented**; FR-016
+>   Side Effects require scheduled pruning; currently unscheduled
 > - Task 4.3 [H3]: TODO comment in `ai_service.py` near `_task_request_counters` — required before Task 4.3a can begin
+>
+> ~~Task 4.6 [BLOCKING — NFR-006]~~ **RESOLVED 2026-02-24** (REMEDIATIONS-003-v7 R4)
+> ~~Task 3.7b [BLOCKING — NFR-006]~~ **RESOLVED 2026-02-24** (REMEDIATIONS-003-v7 R3)
 
 ---
 
@@ -579,7 +585,7 @@ async def test_update_user_profile(client, user, access_token):
 - [X] Create TaskService class
 - [X] Implement create_task(user, data)
 - [X] Validate tier limits (Free: 50 base, Pro: unlimited)
-- [X] Validate due_date max 30 days from creation
+- [X] Validate due_date max 30 days from the API request timestamp
 - [X] Validate description length (Free: 1000, Pro: 2000)
 - [X] Raise TaskLimitExceededError if limit reached
 - [X] Raise TaskDueDateExceededError if due_date > 30 days
@@ -848,12 +854,11 @@ async def test_auto_complete_task_when_all_subtasks_done(db_session, user, task)
 - ✅ `POST /tasks/{task_id}/notes` returns 410 `ENDPOINT_GONE` — confirmed: `api/tasks.py`
 - ✅ `GET /tasks/{task_id}/notes` returns 410 `ENDPOINT_GONE` — confirmed: `api/tasks.py`
 - [x] **[H2 — RESOLVED]** `GET /api/v1/notes/{note_id}` returns 200 `DataResponse[NoteResponse]`; 404 if not found — confirmed: `api/notes.py:168`
-- [ ] **[BLOCKING — NFR-006]** `backend/docs/API.md` updated for all new/modified note
-  endpoints: `POST /notes`, `GET /notes`, `GET /notes/{id}`, `PATCH /notes/{id}`,
-  `DELETE /notes/{id}`, `POST /notes/{id}/convert`, and 410 stubs for deprecated
-  `POST/GET /tasks/{task_id}/notes`. Task 3.7b is **NOT closeable** until this item is done
-  (Constitution VI.2: "every endpoint must include clear intent, input/output schema,
-  error behavior").
+- [x] **[NFR-006]** `backend/docs/API.md` updated for all 6 standalone note endpoints:
+  `POST /notes`, `GET /notes`, `GET /notes/{id}`, `PATCH /notes/{id}`,
+  `DELETE /notes/{id}` (with tombstone response + errors), `POST /notes/{id}/convert`
+  (with error codes), and 410 stubs for `POST/GET /tasks/{task_id}/notes` —
+  confirmed in API.md working-tree (2026-02-24).
 
 **Files Modified**:
 - `src/api/notes.py`
@@ -913,6 +918,11 @@ async def test_auto_complete_task_when_all_subtasks_done(db_session, user, task)
 - [x] Deepgram failure → `transcription_status = "failed"`; note remains usable
 - [x] Credits deducted at note creation (not on transcription completion)
 - [x] 402 INSUFFICIENT_CREDITS if not enough credits at creation time
+- [x] **[Known Gap — U1 / spec FR-012]** Stuck-pending behavior documented: if the process
+  restarts while transcription is in-flight, the note remains in `"pending"` indefinitely;
+  recovery is manual (`PATCH /notes/{id}` with `{"transcription_status": "failed"}` by user
+  or admin), or a future cleanup job after a configurable timeout (Phase 9 improvement;
+  see plan.md NoteService stuck-pending note and spec.md Gap 2)
 
 **Files Modified**:
 - `src/services/note_service.py` — credit check, PENDING status, `_transcribe_note_background()`
@@ -1051,7 +1061,13 @@ async def test_credit_deduction_priority(db_session, user):
   - Same 1-credit cost and idempotency requirement as non-streaming chat
   - Credit deducted once on first chunk (not per-token)
 - [x] **[H3][C1]** Move `AI_TASK_BLOCK_THRESHOLD` and `AI_TASK_WARNING_THRESHOLD` from hardcoded class attributes in `ai_service.py` to `config.py` Settings fields `ai_task_block_threshold` / `ai_task_warning_threshold`; read via `self.settings.*` — **Constitution IX.4 compliance** ✅ applied
-- [ ] **[H3][L1]** Add code comment in `ai_service.py` near `_task_request_counters` dict: `# TODO(Task 4.3a): in-memory counter — not safe for multi-instance deployments. Replace with DB-backed AISessionCounter table.` This comment is required before Task 4.3a can begin; defer the DB migration itself to Task 4.3a.
+- [ ] **[H3][L1] — PENDING CODE CHANGE** Add this comment to `src/services/ai_service.py`
+  near the `_task_request_counters` dict definition:
+  ```python
+  # TODO(Task 4.3a): in-memory counter — not safe for multi-instance deployments.
+  # Replace with DB-backed AISessionCounter table. See tasks.md Task 4.3a.
+  ```
+  Once added, mark `[x]`. This comment is required before Task 4.3a can begin.
 
 **Acceptance Criteria**:
 - ✅ Chat returns AI response
@@ -1201,7 +1217,7 @@ async def test_transcription_pro_only(db_session, free_user):
 - [X] POST /api/v1/ai/generate-subtasks → subtask generation (requires Idempotency-Key)
 - [X] POST /api/v1/ai/transcribe → voice transcription (requires Idempotency-Key)
 - [X] POST /api/v1/ai/confirm-action → execute suggested action
-- [X] GET /api/v1/ai/credits → get credit balance (same data as GET /api/v1/credits/balance; grouped here for AI endpoint cohesion)
+- [X] GET /api/v1/ai/credits → route alias registered here; **implementation (service method) owned by Task 4.7** — delegates to `CreditService.get_balance()` with no duplicate logic
 - [X] Enforce Idempotency-Key header (400 if missing)
 
 **Acceptance Criteria**:
@@ -1210,10 +1226,11 @@ async def test_transcription_pro_only(db_session, free_user):
 - ✅ Generate subtasks returns list of suggestions (count ≤ FREE_MAX_SUBTASKS or PRO_MAX_SUBTASKS from settings)
 - ✅ Transcribe returns transcription text
 - ✅ 400 if Idempotency-Key missing
-- [ ] **[BLOCKING — NFR-006]** `backend/docs/API.md` updated for all new/modified AI
-  endpoints: `POST /ai/chat`, `POST /ai/chat/stream`, `POST /ai/generate-subtasks`,
-  `POST /ai/transcribe`, `POST /ai/confirm-action`, `GET /ai/credits`. Task 4.6 is
-  **NOT closeable** until this item is done (Constitution VI.2).
+- [x] **[NFR-006]** `backend/docs/API.md` updated for all AI endpoints: `POST /ai/chat`,
+  `POST /ai/chat/stream` (final SSE event with `suggested_actions` + credit info),
+  `POST /ai/generate-subtasks`, `POST /ai/transcribe`, `POST /ai/confirm-action`
+  (request shape with action_type variants + errors), `GET /ai/credits` (alias note) —
+  confirmed in API.md working-tree (2026-02-24).
 
 **Files Created**:
 - `src/api/ai.py`
@@ -1374,6 +1391,9 @@ async def test_achievement_unlocks_at_threshold(db_session, user):
 - [X] Implement start_focus(user_id, task_id) in FocusService
 - [X] Only 1 active session per user
 - [X] Implement stop_focus(user_id) → calculates duration, updates task.focus_time_seconds
+- [ ] Validate `focus_duration` input (when provided): range 1–FOCUS_SESSION_TIMEOUT_MINUTES; stored as user-set goal only — does NOT trigger auto-stop (auto-stop is controlled exclusively by FOCUS_SESSION_TIMEOUT_MINUTES from .env)
+- [ ] Add `FOCUS_SESSION_TIMEOUT_MINUTES` (default: 90) to `config.py` Settings;
+  auto-stop sessions that exceed this duration (Constitution IX.4)
 - [X] POST /api/v1/focus/start → start focus session
 - [X] POST /api/v1/focus/stop → stop focus session
 - [X] GET /api/v1/focus/active → get active session
@@ -1479,8 +1499,9 @@ also block on this.
 - ✅ Filterable by entity_type
 - ✅ AI interaction log entries include all Constitution V.2 required fields:
   `actor` ("user" or "ai"), `task_id` (from X-Task-Id header or confirmed action),
-  `timestamp`, `credits_used`, `action_type` — verified for chat, subtask generation,
-  transcription, confirm-action, and undo-action events
+  `timestamp`, `credits_used`, `action_type` — verified for: chat, subtask generation,
+  transcription, and confirm-action events
+  > Undo-action events are not emitted (Task 4.6a WON'T IMPLEMENT; see spec Gap 5).
 
 **Files Created**:
 - `src/models/activity.py`
@@ -1506,7 +1527,13 @@ also block on this.
 - ✅ Notifications created successfully
 - ✅ List returns unread first
 - ✅ Mark as read works
-- [ ] **[M7]** Notifications older than 30 days are deleted by scheduled cleanup job — `prune_old_notifications()` and cron registration not yet implemented; must run alongside daily credit reset
+- [ ] **[BLOCKING — FR-016 MUST]** `prune_old_notifications()` implemented in
+  `NotificationService`: deletes `notifications` rows where
+  `created_at < NOW() - INTERVAL '30 days'`. FR-016 Side Effects specifies MUST
+  (not MAY). Not yet implemented.
+- [ ] **[BLOCKING — FR-016 MUST]** `prune_old_notifications()` registered as
+  scheduled background task running daily, co-located with daily credit reset
+  (same scheduler loop). Not yet scheduled.
 
 **Files Created**:
 - `src/models/notification.py`
@@ -1540,6 +1567,7 @@ also block on this.
 - ✅ Expired tombstones not recoverable
 - ✅ **[M2]** Creating a 4th tombstone for a user automatically deletes the oldest existing tombstone (limit = 3 per user, per FR-013)
 - ✅ Test: user deletes 4 items → only 3 tombstones remain; oldest item is no longer recoverable
+- ✅ **[M5]** Version reset to 1 on recovery applies to all versioned entities (Tasks, Notes, Subtasks); any version value in the tombstone snapshot is discarded and replaced with 1
 
 **Files Created**:
 - `src/models/tombstone.py`
@@ -1664,7 +1692,8 @@ async def test_task_recovery_from_tombstone(db_session, user, task):
 - [ ] Document horizontal scaling architecture: stateless app + shared DB + shared idempotency store
 
 **Acceptance Criteria**:
-- ✅ CRUD operations: p95 < 200ms (contractual — per NFR-001)
+- ✅ CRUD operations: p95 < 200ms (verified for single-instance; multi-instance verification pending Task 4.3a + scalability tests below — per NFR-001)
+- ✅ Gamification / audit endpoints (`/achievements`, `/credits/history`, `/notifications`, `/activity`): p95 < 300ms
 - ✅ AI endpoints: p95 < 3s
 - ✅ No errors under load
 - ✅ Idempotency keys deduplicate correctly across 2 instances
@@ -1693,11 +1722,17 @@ async def test_task_recovery_from_tombstone(db_session, user, task):
 
 ---
 
-## Phase 8: Deployment & Operations (Week 12-13)
+## Phase 8: Deployment & Operations (Week 12-13) ⚠️ PROVISIONAL
 
 **Goal**: Dockerize, deploy, monitor, document
 
 **Dependencies**: Phase 7 complete (testing)
+
+> ⚠️ **Provisional (Constitution II.1):** Phase 8 tasks were completed during
+> initial deployment but Phase 7 has open items (Task 7.1 unit tests, Task 7.4
+> scalability tests) and Phase 4/5 have production blockers (Tasks 4.2a, 4.3a).
+> Phase 8 deliverables are live but this phase cannot be formally closed until
+> all upstream `[ ]` items resolve. Re-open Task 8.4 (see below) for API docs.
 
 ---
 
@@ -1800,7 +1835,9 @@ async def test_task_recovery_from_tombstone(db_session, user, task):
 - [X] Onboarding guide for new developers
 
 **Acceptance Criteria**:
-- ✅ API docs complete and accurate
+- [x] `backend/docs/API.md` accurate and current — confirmed: Tasks 3.7b and 4.6
+  blocking items resolved (2026-02-24). API.md working-tree reflects standalone notes
+  (all 6 endpoints), AI streaming final event, confirm-action shape, and GET /ai/credits.
 - ✅ Runbooks written and tested
 
 **Files Created**:
@@ -1909,7 +1946,7 @@ Before considering the system "complete", verify:
   (843 unit + 201 integration; ~150 schemathesis contract tests are a subset of the 201.)
 - [X] Code coverage >80%
 - [X] Zero critical security vulnerabilities
-- [X] Performance targets met (p95 < 200ms CRUD, <3s AI)
+- [X] Performance targets met (p95 < 200ms CRUD, <300ms gamification/audit, <3s AI)
 
 **Operational Readiness**:
 - [X] Health checks working
@@ -1930,5 +1967,5 @@ Before considering the system "complete", verify:
 
 **Reverse Engineered By**: Claude Sonnet 4.5
 **Task Analysis Date**: 2026-02-17
-**Last Updated**: 2026-02-23 (v1.2 — plan v1.2 + REMEDIATIONS-003-v3.md applied; C3: Phase 7 marked INCOMPLETE, Regen Checklist test item demoted to [ ]; blockers updated with C1 API.md stale issues)
+**Last Updated**: 2026-02-24 (v1.5 — REMEDIATIONS-003-v7.md applied: R3 T3.7b close, R4 T4.6 close, R5 T8.4 close, R10 T4.3 reformat; R9 stuck-pending propagated to T3.7d; open blockers header updated)
 **Implementation Approach**: Test-Driven Development (TDD)

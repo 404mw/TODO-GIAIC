@@ -1,7 +1,7 @@
 # Perpetua Flow Backend Specification
 
-**Version**: 1.2 (Revised — Notes standalone redesign)
-**Date**: 2026-02-17
+**Version**: 1.5 (Revised — REMEDIATIONS-003-v7.md applied: R9 stuck-pending FR-012 behavior documented)
+**Date**: 2026-02-24
 **Source**: `/backend` codebase
 **Type**: FastAPI + SQLModel/SQLAlchemy async backend
 
@@ -122,7 +122,7 @@ Modern knowledge workers struggle with task management systems that:
 - `title`: string (1-200 chars, required)
 - `description`: string (max 1000 free / 2000 pro)
 - `priority`: enum ("low", "medium", "high")
-- `due_date`: datetime (optional, max 30 days from creation)
+- `due_date`: datetime (optional, max 30 days from the API request timestamp)
 - `estimated_duration`: int (minutes, 1-720)
 - `version`: int (for optimistic locking on updates)
 
@@ -225,6 +225,11 @@ Returns `TaskCompletionResponse` (not the plain task object) with:
 - Final event: `event: final` with `data: {"suggested_actions": [...], "credits_used": 1,
   "credits_remaining": N, "ai_request_warning": bool}` — emitted after the last chunk
 - Requires Idempotency-Key; same 1-credit cost as non-streaming chat
+- **Credit deduction on failure**: Credit is deducted once when the first chunk is
+  sent. If the connection drops before any chunks are delivered (e.g., server crash
+  after deduction), the credit is **not refunded** — consistent with the AI undo
+  out-of-scope policy (Gap 5). On client retry with the same Idempotency-Key, the
+  cached 1-credit response is returned; no second deduction occurs.
 
 **Confirm Action Endpoint** (`POST /api/v1/ai/confirm-action`):
 - Executes a previously suggested AI action (from chat or subtask generation)
@@ -237,7 +242,8 @@ Returns `TaskCompletionResponse` (not the plain task object) with:
   - `result`: object (updated task, created subtasks, or updated fields — depends on action_type)
   - `action_id`: UUID (transient UUID generated per confirm call; **not persisted**; intended for
     client-side correlation only — undo for AI-confirmed mutations is intentionally out of scope,
-    see Gap 5)
+    see Gap 5). No server-side API accepts `action_id` as input — it is not an idempotency key
+    and carries no server-side state.
 - **Error Codes**:
   - 400 VALIDATION_ERROR — invalid action_type or missing required data fields
   - 402 INSUFFICIENT_CREDITS — insufficient credits for subtask creation actions
@@ -373,6 +379,10 @@ Returns `TaskCompletionResponse` (not the plain task object) with:
    - Carryover: Up to 50 credits to next month
    - Expiration: Never (within carryover limit)
    - Priority: Used second
+   - **Downgrade behavior** (Pro → Free): Existing subscription credit balance is retained
+     and consumed normally at normal deduction priority (second after daily). No new
+     subscription credits are granted after downgrade. When the balance reaches zero,
+     no replenishment occurs.
 
 3. **Purchased Credits**
    - Amount: Variable (one-time purchase)
@@ -402,7 +412,7 @@ note and task limit-exceeded responses.
 
 **Success Criteria**:
 - ✅ Daily credits reset at UTC midnight
-- ✅ Subscription credits carry over (max 50) at period-end renewal
+- ⏸ Subscription credits carry over (max 50) at period-end renewal — **pending Task 4.2a**
 - ✅ 5 kickstart credits granted automatically on first user login
 - ✅ Credit history tracks all transactions
 - ✅ Balance breakdown shows each type separately
@@ -438,9 +448,9 @@ note and task limit-exceeded responses.
    - `focus_10`: +5 max tasks
    - `focus_50`: +10 max tasks
 
-4. **Notes** (convert-endpoint calls — note: stat is incremented when the convert
-   suggestion is returned, not when the user actually creates a task)
-   - `notes_10`: +10 max notes
+4. **Notes** (`notes_converted` stat — incremented on each successful `POST /notes/{id}/convert`
+   call, at suggestion-return time, regardless of whether the user subsequently creates a task)
+   - `notes_10`: +10 max notes (threshold: 10 convert calls)
 
 **Perk Types**:
 - `max_tasks`: Increases task limit
@@ -474,7 +484,14 @@ note and task limit-exceeded responses.
 
 **Inputs**:
 - `task_id`: UUID
-- `focus_duration`: int (minutes, optional target duration)
+- `focus_duration`: int (minutes, optional target duration; range: 1–`FOCUS_SESSION_TIMEOUT_MINUTES`
+  if provided; stored as a user-set goal only — does not trigger auto-stop. Auto-stop is
+  controlled exclusively by `FOCUS_SESSION_TIMEOUT_MINUTES` from `.env`.)
+
+**Configuration** (all limits in `.env` / `config.py`):
+- `FOCUS_SESSION_TIMEOUT_MINUTES` (default: 90) — maximum duration of a focus
+  session before it auto-stops. Sessions stopped automatically at this limit
+  have their elapsed time recorded as if manually stopped.
 
 **Outputs**:
 - `session_id`: UUID
@@ -488,7 +505,9 @@ note and task limit-exceeded responses.
 
 **Success Criteria**:
 - ✅ Only one active focus session per user
-- ✅ Session can be stopped manually or times out
+- ✅ Session can be stopped manually
+- ⏸ Session times out automatically at `FOCUS_SESSION_TIMEOUT_MINUTES` — **pending Task 5.5** (sessions currently run indefinitely until stopped manually)
+- ⏸ `FOCUS_SESSION_TIMEOUT_MINUTES` configurable via `.env`; no hardcoded value in service code — **pending Task 5.5**
 - ✅ Focus time accumulated even if task not completed
 - ✅ Focus-based achievements unlock
 
@@ -565,6 +584,11 @@ note and task limit-exceeded responses.
 - ✅ Fired reminders don't fire again
 - ✅ Reminders deleted when task deleted
 
+**Error Codes**:
+- `400 VALIDATION_ERROR` — missing required field (e.g., `scheduled_at` for absolute reminders)
+- `400 MISSING_DUE_DATE` — relative reminder created on a task that has no `due_date` set
+- `404 TASK_NOT_FOUND` — task does not exist or belongs to another user
+
 **Evidence**:
 - [src/api/reminders.py](../src/api/reminders.py)
 - [src/services/reminder_service.py](../src/services/reminder_service.py)
@@ -583,7 +607,9 @@ note and task limit-exceeded responses.
 - `content`: string (0–2000 chars)
   - Required to be non-empty (≥ 1 char) **unless** `voice_url` is provided
   - When `voice_url` is present: `content` may be `""` (empty) or a user-typed label
-  - **Schema rule**: `min_length=0` when `voice_url` is set; `min_length=1` otherwise
+  - **Validation rule**: enforced as a Pydantic `model_validator` (not a field-level
+    annotation): `min_length=0` when `voice_url` is set; `min_length=1` otherwise.
+    Field-level `min_length=0` in `NoteCreate`; the conditional check runs post-field-parse.
 - `voice_url`: string | null (Pro only — URL of audio recording for transcription)
 - `voice_duration_seconds`: int | null (1–MAX_AUDIO_DURATION_SECONDS, Pro only)
   > When `voice_url` is provided: `content` may be an empty string `""` or a user-typed
@@ -638,7 +664,12 @@ note and task limit-exceeded responses.
 - Note limit checked on create (402 LIMIT_EXCEEDED for free tier at cap)
 - Free user creating note with `voice_url` → 403 PRO_TIER_REQUIRED
 - Voice note created (Pro): transcription triggered automatically as async background task;
-  `transcription_status` set to "pending" immediately, updated to "completed" or "failed" when done
+  `transcription_status` set to "pending" immediately, updated to "completed" or "failed" when done.
+  **Stuck-pending behavior**: If the process restarts while transcription is in-flight,
+  the note remains in `"pending"` status indefinitely. Recovery is manual (user or admin
+  sets status to `"failed"` via PATCH, or a future cleanup job resets stale pending notes
+  after a configurable timeout — see Phase 9 improvements). This is a known limitation of
+  using `BackgroundTasks` without a persistent job queue (Gap 2 / JobQueue planned for Phase 9).
 - Convert endpoint (`POST /notes/{id}/convert`):
   - **Returns AI-suggested task structure** (title, description, priority, subtasks) — does NOT create the task
   - Does **not** auto-archive the source note — user must call `PATCH /notes/{id}` with `{"archived": true}` separately
@@ -704,13 +735,16 @@ note and task limit-exceeded responses.
 5. Tombstones auto-expire after 7 days
 
 **Recoverable Entities**:
-- Tasks (with subtasks, notes, reminders)
+- Tasks (with subtasks and reminders — notes are **not** included in task tombstone
+  snapshots from v1.2 onward; each note has its own tombstone lifecycle)
 - Subtasks
 - Notes (standalone, user_id only — no task_id in snapshot from v1.2 onward)
   - Migration: tombstones created before v1.2 may contain a task_id field; recovery service must tolerate its presence (ignore if present)
 
 **Side Effects**:
-- Tombstone limit: 3 per user (oldest deleted if exceeded)
+- Tombstone limit: 3 per user — **shared pool across all entity types** (tasks, notes,
+  subtasks). When creating a 4th tombstone, the oldest existing tombstone (regardless of
+  entity type) is hard-deleted first, making the oldest deleted item unrecoverable.
 - Recovered items get new IDs
 - Activity log tracks deletion and recovery
 
@@ -718,7 +752,8 @@ note and task limit-exceeded responses.
 - ✅ Deleted items recoverable within 7 days
 - ✅ Tombstone expired after 7 days
 - ✅ Recovery recreates item with original data
-- ✅ Version reset to 1 on recovery
+- ✅ Version reset to 1 on recovery — applies to **all versioned entities** (Tasks, Notes,
+  Subtasks); any `version` value in the tombstone snapshot is discarded and replaced with 1
 
 **Evidence**:
 - [src/api/recovery.py](../src/api/recovery.py)
@@ -739,8 +774,12 @@ note and task limit-exceeded responses.
 - Note: created, updated, deleted
 - Credit: granted, deducted
 - Achievement: unlocked
-- **AI Interaction**: chat request, subtask generation, voice transcription, confirm-action executed, undo action
-  - Required fields (Constitution V.2): `task_id` (from X-Task-Id header or confirmed action),
+- **AI Interaction**: chat request, subtask generation, voice transcription, confirm-action executed
+  > Undo for AI-confirmed mutations is intentionally out of scope (see Gap 5).
+  > No `undo-action` log entries will be emitted.
+  - Required fields (Constitution V.2): `task_id` (from X-Task-Id header or
+    confirmed action; `null` is permitted for transcription requests where
+    X-Task-Id is not provided — transcription is not task-scoped),
     `timestamp`, `actor` ("user" or "ai"), `credits_used`, `action_type`
 
 **Outputs**:
@@ -813,7 +852,10 @@ note and task limit-exceeded responses.
 **Notification Types**:
 - `achievement_unlocked` — triggered when an achievement perk is granted
 - `task_completed` — triggered on task force-complete or auto-complete
-- `reminder_fired` — triggered when a scheduled reminder time is reached (if delivery is implemented)
+- `reminder_fired` — **Phase 9 only** — triggered when a scheduled reminder fires;
+  requires reminder delivery implementation (see Gap 2). Currently a defined type with
+  no active emitters. No `reminder_fired` notifications will be created until Gap 2 is
+  resolved.
 - `system` — general system messages
 
 **Outputs**:
@@ -842,6 +884,7 @@ note and task limit-exceeded responses.
 - ✅ Unread notifications appear first in list
 - ✅ Mark-as-read updates `read=true`
 - ✅ Deleted notifications removed immediately
+- ⏸ Notifications older than 30 days pruned automatically by scheduled background job — **pending Task 6.2 M7**
 
 **Evidence**:
 - [src/models/notification.py](../src/models/notification.py)
@@ -863,6 +906,8 @@ note and task limit-exceeded responses.
 **Targets** (contractual; single-instance verified by load tests in Task 7.4;
 multi-instance verification pending Task 4.3a + Task 7.4 scalability tests):
 - API response time: p95 < 200ms for CRUD operations
+- Gamification / audit endpoints (`/achievements`, `/credits/history`,
+  `/notifications`, `/activity`): p95 < 300ms
 - AI endpoints: p95 < 3s (OpenAI-dependent; measured from API boundary)
 - Database query time: p95 < 50ms
 
@@ -1244,8 +1289,10 @@ mutations executed via this endpoint only. All other mutations retain the full u
 
 - ✅ API response time p95 < 200ms for CRUD operations
 - ✅ Database queries p95 < 50ms
-- ✅ 1044 tests passing (843 unit + 201 integration; ~150 of the integration tests
-  are schema contract tests run via schemathesis)
+- [ ] 1044 tests passing — PENDING: 7 unit tests (Task 7.1) and 2 scalability
+  tests (Task 7.4) remain open; closes when all Task 7.1 and 7.4 `[ ]` items
+  resolve. (843 unit + 201 integration target; ~150 schemathesis contract tests
+  are a subset of the 201 integration tests)
 - ✅ Zero SQL injection vulnerabilities
 - ✅ Zero XSS vulnerabilities
 - ✅ Optimistic locking prevents lost updates
@@ -1300,8 +1347,8 @@ mutations executed via this endpoint only. All other mutations retain the full u
 - ✅ After step 2: balance = 3 kickstart
 - ✅ After step 3: balance = 3 kickstart + 10 daily
 - ✅ After step 4: balance = 3 kickstart (daily exhausted)
-- ✅ After step 5: balance = 3 kickstart + 50 subscription
-- ✅ After step 6: balance = 48 subscription + 3 kickstart
+- ⏸ After step 5: balance = 3 kickstart + 50 subscription — **requires Task 4.2a (subscription renewal)**
+- ⏸ After step 6: balance = 48 subscription + 3 kickstart — **requires Task 4.2a**
 - ✅ 402 error if credits insufficient
 
 ---

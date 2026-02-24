@@ -1,8 +1,8 @@
 # Perpetua Flow Backend Implementation Plan
 
-**Version**: 1.2 (Updated — Notes Standalone Redesign)
-**Date**: 2026-02-23
-**Source**: `specs/003-perpetua-backend/spec.md` v1.2 + REMEDIATIONS-003-v3.md
+**Version**: 1.5 (Updated — REMEDIATIONS-003-v7.md applied: R6 version=1 recovery, R7 FIFO eviction, R8 NoteCreate min_length wording; R9 stuck-pending propagated from spec)
+**Date**: 2026-02-24
+**Source**: `specs/003-perpetua-backend/spec.md` v1.4 + REMEDIATIONS-003-v6.md
 
 ---
 
@@ -74,7 +74,7 @@ The system separates concerns into distinct layers (API → Services → Models 
 │  │ Credit        │ Achievement    │ FocusSession            │  │
 │  │ Note          │ Reminder       │ DeletionTombstone       │  │
 │  │ Activity      │ Notification   │ Subscription            │  │
-│  │ Idempotency   │ JobQueue       │                         │  │
+│  │ Idempotency   │                │                         │  │
 │  └──────────────────────────────────────────────────────────┘  │
 │                                                                  │
 │  - ORM models (Pydantic + SQLAlchemy)                           │
@@ -100,6 +100,8 @@ The system separates concerns into distinct layers (API → Services → Models 
 │  └──────────────┘  └────────────┘  └───────────────┘        │
 └────────────────────────────────────────────────────────────────┘
 ```
+
+> *JobQueue*: planned for background job management (Phase 9 improvements — not yet implemented).
 
 ---
 
@@ -203,7 +205,7 @@ async def create_task(
 - Multi-tier credit management (daily, subscription, purchased, kickstart)
 - Deduction order enforcement (daily → subscription → purchased → kickstart)
 - Daily credit reset (UTC midnight)
-- Subscription credit carryover (max 50)
+- Subscription credit carryover (max 50) — **[ ] pending implementation** (Task 4.2a)
 - Transaction history
 
 #### AchievementService ([src/services/achievement_service.py](../src/services/achievement_service.py))
@@ -224,8 +226,19 @@ async def create_task(
 - Archived flag management (content locked on archived notes; unarchive always permitted)
 - Voice note creation: credit deduction at create time (`ceil(duration/60)*5`)
 - Async background transcription dispatch (Deepgram NOVA2); `transcription_status` → pending → completed/failed
+- **Stuck-pending limitation**: If the process restarts while transcription is in-flight, the
+  note remains in `"pending"` indefinitely — no automatic recovery; user must PATCH to `"failed"`
+  manually (spec.md FR-012 stuck-pending behavior; known limitation of `BackgroundTasks`; Phase 9
+  cleanup job planned — see Gap 2)
 - Tombstone creation on delete (7-day recovery; snapshot excludes task_id)
 - Note convert stub: delegates to AIService; increments `notes_converted` stat
+
+#### FocusService ([src/services/focus_service.py](../src/services/focus_service.py))
+- Start/stop focus session management (one active session per user)
+- Duration accumulation: `stop_focus()` calculates elapsed seconds, updates `task.focus_time_seconds`
+- Achievement `focus_completions` incremented if task completed during session
+- Session auto-stop at `FOCUS_SESSION_TIMEOUT_MINUTES` (default: 90; from `.env` / `config.py` Settings)
+  — **[ ] pending implementation** (Task 5.5); sessions currently run indefinitely until stopped
 
 **Service Pattern**:
 ```python
@@ -556,7 +569,7 @@ class IdempotencyMiddleware:
 
 ---
 
-### Pattern 6: Soft Delete with Recovery
+### Pattern 6: Hard Delete with Tombstone Recovery
 
 **Location**: [src/services/recovery_service.py](../src/services/recovery_service.py)
 
@@ -575,6 +588,12 @@ async def delete_task(self, task_id: UUID, user_id: UUID) -> DeletionTombstone:
         # Note: notes not included in v1.2 — Notes are standalone user entities with
         # their own tombstone lifecycle (DELETE /api/v1/notes/{id} creates separate tombstone)
     }
+
+    # Enforce 3-tombstone-per-user limit (shared pool — tasks, notes, subtasks)
+    # FIFO: if ≥ 3 tombstones exist, hard-delete the oldest before inserting new one
+    existing = await self._get_user_tombstones(user_id)  # ordered by created_at
+    if len(existing) >= 3:
+        await self.session.delete(min(existing, key=lambda t: t.created_at))
 
     # Create tombstone
     tombstone = DeletionTombstone(
@@ -600,11 +619,13 @@ async def recover_tombstone(self, tombstone_id: UUID, user_id: UUID):
 
     # Deserialize and recreate
     snapshot = tombstone.snapshot
-    task = TaskInstance(**snapshot["task"], id=uuid4())  # New ID
+    # New ID; version reset to 1 (spec FR-013 — tombstone version is discarded)
+    task = TaskInstance(**snapshot["task"], id=uuid4(), version=1)
     self.session.add(task)
 
     for subtask_data in snapshot["subtasks"]:
-        subtask = Subtask(**subtask_data, task_id=task.id, id=uuid4())
+        # version reset to 1 for all versioned entities (Tasks, Notes, Subtasks)
+        subtask = Subtask(**subtask_data, task_id=task.id, id=uuid4(), version=1)
         self.session.add(subtask)
 
     # Delete tombstone
@@ -804,7 +825,7 @@ async def deduct_credits(self, user_id: UUID, amount: int, category: str):
 
 ---
 
-### Background Job Flow (Daily Reset + Notification Pruning) - *Implemented (Task 6.2)*
+### Background Job Flow (Daily Reset + Notification Pruning) - *Partially Implemented — notification pruning pending Task 6.2 M7*
 
 Runs at **UTC midnight** (co-located single scheduled job):
 
@@ -818,7 +839,7 @@ Runs at **UTC midnight** (co-located single scheduled job):
 3. AI session counter cleanup (Task 4.3a — pending implementation)
    ↓ DELETE FROM ai_session_counters WHERE expires_at < NOW()
 
-4. Notification pruning (FR-016, mandatory — not optional)
+4. Notification pruning (FR-016, mandatory — not optional) — **[ ] pending Task 6.2 M7**
    ↓ DELETE FROM notifications WHERE created_at < NOW() - INTERVAL '30 days'
 ```
 
@@ -1075,7 +1096,7 @@ Runs at **end of each billing period** (aligned with `Subscription.current_perio
 **Complexity**: Medium (voice credit logic, archived content guard, standalone tombstone)
 
 **Schema Notes**:
-- `NoteCreate`: `content` min_length=0 when `voice_url` present; min_length=1 otherwise
+- `NoteCreate`: field-level `content` always has `min_length=0`; a Pydantic `model_validator` (post-field-parse) raises a validation error if `content` is empty AND `voice_url` is not provided. Dynamic field-level annotation is not used.
 - `NoteUpdate`: `content` optional; `archived` optional bool
 - `NoteResponse`: includes `transcription_status` (null | pending | completed | failed)
 - `TaskSuggestionResponse` (convert): `title`, `description`, `priority`, `suggested_subtasks`, `credits_used`, `credits_remaining`, `ai_request_warning`
@@ -1139,7 +1160,7 @@ Runs at **end of each billing period** (aligned with `Subscription.current_perio
 
 **Quality Gates**:
 - All functional requirements tested (acceptance tests)
-- Performance targets met (p95 < 200ms single-instance; multi-instance pending Task 4.3a + Task 7.4 scalability tests)
+- Performance targets met (CRUD p95 < 200ms; gamification/audit endpoints p95 < 300ms; AI p95 < 3s; single-instance verified; multi-instance pending Task 4.3a + Task 7.4 scalability tests)
 - Security audit passed (OWASP Top 10)
 - Documentation complete (API docs, runbooks)
 
@@ -1367,7 +1388,7 @@ Railway Deploy
 This implementation plan represents a **production-grade, scalable, and maintainable** backend architecture for an AI-enhanced task management system. The design prioritizes:
 
 1. **Clarity**: Layered architecture with clear separation of concerns
-2. **Reliability**: Optimistic locking, idempotency, soft deletes
+2. **Reliability**: Optimistic locking, idempotency, hard deletes with tombstone recovery
 3. **Scalability**: Stateless design, async I/O, connection pooling
 4. **Security**: JWT authentication, input validation, rate limiting
 5. **Observability**: Structured logging, Prometheus metrics, health checks
@@ -1377,7 +1398,7 @@ This implementation plan represents a **production-grade, scalable, and maintain
 - **Service layer**: Business logic separate from HTTP handling
 - **Optimistic locking**: Prevent lost updates without database locks
 - **Multi-tier credits**: Fair usage with priority-based deduction
-- **Soft delete**: 7-day recovery window for user safety
+- **Hard delete with tombstone recovery**: 7-day recovery window for user safety (shared 3-tombstone pool across all entity types)
 - **Achievement perks**: Free tier expansion through engagement
 
 **Production Readiness**:
