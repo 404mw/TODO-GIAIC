@@ -31,11 +31,11 @@ T273: Transcription metrics
 import logging
 import time
 from collections import defaultdict
-from datetime import datetime, UTC
+from datetime import datetime, timedelta, UTC
 from typing import Sequence
 from uuid import UUID
 
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config import Settings
@@ -51,6 +51,7 @@ from src.integrations.deepgram_client import (
     DeepgramConnectionError,
     DeepgramAPIError,
 )
+from src.models.ai_session_counter import AISessionCounter
 from src.models.credit import AICreditLedger
 from src.models.note import Note
 from src.models.task import TaskInstance
@@ -195,11 +196,9 @@ class AIService:
         self.ai_client = AIAgentClient(settings)
         self.deepgram_client = DeepgramClient(settings)
 
-        # Per-session, per-task request counters
-        # Format: {session_id: {task_id: count}}
-        self._task_request_counters: dict[str, dict[UUID, int]] = defaultdict(
-            lambda: defaultdict(int)
-        )
+        # Per-session, per-task request counters are now DB-backed (Task 4.3a).
+        # AISessionCounter table is shared across all app instances for NFR-004
+        # horizontal scaling compliance. See src/models/ai_session_counter.py.
 
     # =========================================================================
     # CHAT (T232, T233, T234)
@@ -232,10 +231,10 @@ class AIService:
             AITaskLimitExceededError: If 10 requests per task reached (429)
             AIServiceUnavailableError: If AI is down (503)
         """
-        # T234: Check per-task request limit (FR-035)
+        # T234: Check per-task request limit (FR-035) — DB-backed (Task 4.3a)
         ai_request_warning = False
         if task_id and session_id:
-            request_count = self._task_request_counters[session_id][task_id]
+            request_count = await self._get_session_counter(session_id, task_id)
 
             if request_count >= self.settings.ai_task_block_threshold:
                 raise AITaskLimitExceededError(
@@ -281,9 +280,9 @@ class AIService:
         await self._consume_credits(user.id, credits_needed, "chat")
         new_balance = await self._get_credit_balance(user.id)
 
-        # T234: Increment per-task counter
+        # T234: Increment per-task counter in DB (Task 4.3a)
         if task_id and session_id:
-            self._task_request_counters[session_id][task_id] += 1
+            await self._increment_session_counter(session_id, task_id)
 
         # T233: Convert agent suggestions to API format (FR-034)
         suggested_actions = [
@@ -900,16 +899,88 @@ class AIService:
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
 
-    def clear_session_counters(self, session_id: str) -> None:
-        """Clear per-task counters for a session.
+    async def _get_session_counter(self, session_id: str, task_id: UUID) -> int:
+        """Read the AI request count for a session+task from the DB.
+
+        Task 4.3a: DB-backed counter replacing in-memory dict.
+
+        Args:
+            session_id: JWT jti claim
+            task_id: Task ID
+
+        Returns:
+            Current request count (0 if no record or record expired)
+        """
+        now = datetime.now(UTC)
+        query = select(AISessionCounter).where(
+            AISessionCounter.session_id == session_id,
+            AISessionCounter.task_id == task_id,
+            AISessionCounter.expires_at > now,
+        )
+        result = await self.session.execute(query)
+        counter = result.scalar_one_or_none()
+        return counter.count if counter else 0
+
+    async def _increment_session_counter(
+        self, session_id: str, task_id: UUID
+    ) -> None:
+        """Increment (or create) the AI request counter for a session+task in DB.
+
+        Task 4.3a: DB-backed counter replacing in-memory dict.
+
+        Args:
+            session_id: JWT jti claim
+            task_id: Task ID
+        """
+        now = datetime.now(UTC)
+        expires_at = now + timedelta(hours=24)
+
+        # Try to find an existing, non-expired counter
+        query = select(AISessionCounter).where(
+            AISessionCounter.session_id == session_id,
+            AISessionCounter.task_id == task_id,
+        )
+        result = await self.session.execute(query)
+        counter = result.scalar_one_or_none()
+
+        # SQLite strips timezone info — guard against naive/aware comparison
+        counter_expires = counter.expires_at if counter else None
+        if counter_expires is not None and counter_expires.tzinfo is None:
+            counter_expires = counter_expires.replace(tzinfo=UTC)
+
+        if counter is not None and counter_expires > now:
+            # Active counter — increment
+            counter.count += 1
+            self.session.add(counter)
+        else:
+            # Create new counter (or replace expired one)
+            if counter is not None:
+                await self.session.delete(counter)
+                await self.session.flush()
+            new_counter = AISessionCounter(
+                session_id=session_id,
+                task_id=task_id,
+                count=1,
+                expires_at=expires_at,
+            )
+            self.session.add(new_counter)
+
+        await self.session.flush()
+
+    async def clear_session_counters(self, session_id: str) -> None:
+        """Clear per-task counters for a session in the DB.
 
         Called when session changes (token refresh/re-login).
+        Task 4.3a: DB-backed — deletes all counters for the given session_id.
 
         Args:
             session_id: Session ID to clear
         """
-        if session_id in self._task_request_counters:
-            del self._task_request_counters[session_id]
+        stmt = delete(AISessionCounter).where(
+            AISessionCounter.session_id == session_id
+        )
+        await self.session.execute(stmt)
+        await self.session.flush()
 
 
 # =============================================================================

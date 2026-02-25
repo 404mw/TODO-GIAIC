@@ -136,12 +136,15 @@ class ConflictError(AppError):
 
 
 class LimitExceededError(ConflictError):
-    """Resource limit exceeded error."""
+    """Resource limit exceeded error (HTTP 402 — FR-012 v1.2)."""
 
     def __init__(self, message: str = "Resource limit exceeded"):
-        super().__init__(
+        # FR-012 v1.2: limit exceeded → 402 (not 409 ConflictError)
+        AppError.__init__(
+            self,
             message=message,
             code="LIMIT_EXCEEDED",
+            status_code=402,
         )
 
 

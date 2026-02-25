@@ -59,11 +59,15 @@ async def handle_subscription_check(
         # Step 2: Find subscriptions approaching grace period end
         warnings_sent = await _send_expiration_warnings(session, now)
 
+        # Step 3: Renew monthly subscription credits for users whose period ends today
+        # Task 4.2a / FR-007: aligned with Subscription.current_period_end
+        renewals_done = await _process_subscription_renewals(session, settings, now)
+
         await session.commit()
 
         logger.info(
             f"Subscription check complete: {expired_count} expired, "
-            f"{warnings_sent} warnings sent"
+            f"{warnings_sent} warnings sent, {renewals_done} renewals done"
         )
 
         return {
@@ -71,6 +75,7 @@ async def handle_subscription_check(
             "date": str(today),
             "expired_subscriptions": expired_count,
             "warnings_sent": warnings_sent,
+            "renewals_done": renewals_done,
         }
 
     except Exception as e:
@@ -306,5 +311,68 @@ async def handle_payment_success(
 
     session.add(subscription)
     await session.flush()
+
+
+async def _process_subscription_renewals(
+    session: AsyncSession,
+    settings: Settings,
+    now: datetime,
+) -> int:
+    """Renew monthly subscription credits for users whose billing period ended.
+
+    Task 4.2a / FR-007: Monthly subscription credit renewal aligned with
+    Subscription.current_period_end.
+
+    Finds all active Pro subscriptions whose current_period_end has passed
+    (i.e., a new billing period started today) and renews their subscription
+    credits with carryover.
+
+    Args:
+        session: Database session
+        settings: Application settings
+        now: Current time
+
+    Returns:
+        Number of users whose credits were renewed
+    """
+    from src.services.credit_service import CreditService
+
+    # Find active subscriptions whose current billing period ended
+    # (current_period_end <= now) and have not yet been renewed for the new period
+    # We identify "not yet renewed" by checking if current_period_end is in the past.
+    query = select(Subscription).where(
+        Subscription.status == SubscriptionStatus.ACTIVE,
+        Subscription.current_period_end <= now,
+    )
+    result = await session.execute(query)
+    due_subscriptions = result.scalars().all()
+
+    renewals_done = 0
+    credit_service = CreditService(session, settings)
+
+    for subscription in due_subscriptions:
+        try:
+            entry = await credit_service.renew_subscription_credits(subscription.user_id)
+            if entry is not None:
+                # Advance the billing period by one month
+                from datetime import timedelta
+                subscription.current_period_start = subscription.current_period_end
+                subscription.current_period_end = subscription.current_period_end + timedelta(
+                    days=30
+                )
+                session.add(subscription)
+                renewals_done += 1
+                logger.info(
+                    f"Renewed subscription credits for user {subscription.user_id}, "
+                    f"new period_end={subscription.current_period_end.date()}"
+                )
+        except Exception as e:
+            logger.error(
+                f"Failed to renew credits for user {subscription.user_id}: {e}",
+                exc_info=True,
+            )
+
+    await session.flush()
+    return renewals_done
 
     logger.info(f"Subscription {subscription_id} payment successful")

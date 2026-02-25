@@ -516,6 +516,86 @@ class CreditService:
 
         return min(balance.subscription, max_carryover)
 
+    async def renew_subscription_credits(self, user_id: UUID) -> AICreditLedger | None:
+        """Renew monthly subscription credits for a Pro user.
+
+        Task 4.2a / FR-007: Monthly subscription credit renewal with carryover.
+
+        Logic:
+        1. Verify user is Pro tier (Free tier users unaffected)
+        2. Read current subscription credit balance
+        3. Carryover = min(current_sub_balance, max_carryover) — max 50
+        4. Expire all existing subscription credit entries
+        5. Grant carryover + 50 fresh credits as a new SUBSCRIPTION ledger entry
+        6. Log renewal (operation_ref = "Monthly renewal")
+
+        Args:
+            user_id: User ID to renew credits for
+
+        Returns:
+            The new AICreditLedger entry (SUBSCRIPTION GRANT), or None if
+            user is not Pro tier.
+        """
+        # Only Pro users receive subscription credits (FR-007)
+        user = await self._session.get(User, user_id)
+        if user is None or user.tier != UserTier.PRO:
+            logger.debug(
+                f"User {user_id} is not Pro tier; subscription renewal skipped"
+            )
+            return None
+
+        max_carryover = self._settings.max_credit_carryover  # default 50
+
+        # Step 1: Read current subscription balance
+        current_balance = await self.get_balance(user_id)
+        current_sub_balance = current_balance.subscription
+
+        # Step 2: Calculate carryover (capped at max_carryover)
+        carryover = min(current_sub_balance, max_carryover)
+
+        # Step 3: Expire all existing (unexpired) subscription GRANT entries
+        now = datetime.now(timezone.utc)
+        existing_sub_query = select(AICreditLedger).where(
+            AICreditLedger.user_id == user_id,
+            AICreditLedger.credit_type == CreditType.SUBSCRIPTION,
+            AICreditLedger.operation == CreditOperation.GRANT,
+            AICreditLedger.expired == False,
+        )
+        sub_result = await self._session.execute(existing_sub_query)
+        existing_entries = sub_result.scalars().all()
+        for old_entry in existing_entries:
+            old_entry.expired = True
+            self._session.add(old_entry)
+        await self._session.flush()
+
+        # Step 4: Grant carryover + 50 fresh credits as a single new entry
+        fresh_credits = 50
+        total_new = carryover + fresh_credits
+
+        new_balance = await self.get_balance(user_id)
+        entry = AICreditLedger(
+            id=uuid4(),
+            user_id=user_id,
+            credit_type=CreditType.SUBSCRIPTION,
+            operation=CreditOperation.GRANT,
+            amount=total_new,
+            balance_after=new_balance.total + total_new,
+            consumed=0,
+            expires_at=None,
+            expired=False,
+            operation_ref="Monthly renewal",
+        )
+        self._session.add(entry)
+        await self._session.flush()
+
+        logger.info(
+            f"Subscription credit renewal for user {user_id}: "
+            f"prior_sub={current_sub_balance}, carryover={carryover}, "
+            f"fresh={fresh_credits}, total_granted={total_new}"
+        )
+
+        return entry
+
     async def has_sufficient_credits(self, user_id: UUID, required: int) -> bool:
         """Check if user has sufficient credits.
 

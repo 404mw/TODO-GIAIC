@@ -8,7 +8,7 @@ T311: Focus completion check (delegated to AchievementService.is_focus_completio
 """
 
 import logging
-from datetime import datetime, UTC
+from datetime import datetime, timedelta, UTC
 from uuid import UUID, uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -52,6 +52,12 @@ class FocusTaskNotFoundError(FocusServiceError):
     pass
 
 
+class FocusDurationInvalidError(FocusServiceError):
+    """Raised when focus_duration is outside the valid range (1–timeout)."""
+
+    pass
+
+
 # =============================================================================
 # FOCUS SERVICE
 # =============================================================================
@@ -71,15 +77,20 @@ class FocusService:
         self.settings = settings
 
     async def start_session(
-        self, user: User, task_id: UUID
+        self,
+        user: User,
+        task_id: UUID,
+        focus_duration: int | None = None,
     ) -> FocusSession:
         """Start a focus session for a task.
 
         T309: FocusService.start_session
+        Task 5.5: Validate focus_duration (1–FOCUS_SESSION_TIMEOUT_MINUTES)
 
         Args:
             user: The session owner
             task_id: The task to focus on
+            focus_duration: Optional user-set focus goal in minutes (stored only)
 
         Returns:
             The created FocusSession
@@ -87,11 +98,22 @@ class FocusService:
         Raises:
             FocusTaskNotFoundError: If task not found or user doesn't own it
             FocusSessionActiveError: If an active session already exists for this task
+            FocusDurationInvalidError: If focus_duration is out of valid range
         """
+        # Task 5.5: Validate focus_duration range if provided
+        if focus_duration is not None:
+            max_minutes = self.settings.focus_session_timeout_minutes
+            if focus_duration < 1 or focus_duration > max_minutes:
+                raise FocusDurationInvalidError(
+                    f"focus_duration must be between 1 and {max_minutes} minutes; "
+                    f"got {focus_duration}"
+                )
+
         # Verify task exists and user owns it
         task = await self._get_user_task(user, task_id)
 
         # Check for existing active session on this task
+        # _get_active_session auto-stops timed-out sessions (Task 5.5)
         active = await self._get_active_session(user.id, task_id)
         if active is not None:
             raise FocusSessionActiveError(
@@ -103,6 +125,7 @@ class FocusService:
             id=uuid4(),
             user_id=user.id,
             task_id=task_id,
+            goal_duration_minutes=focus_duration,
             started_at=now,
             ended_at=None,
             duration_seconds=None,
@@ -114,7 +137,7 @@ class FocusService:
 
         logger.info(
             f"Focus session started: user={user.id}, task={task_id}, "
-            f"session={focus_session.id}"
+            f"session={focus_session.id}, goal={focus_duration}min"
         )
 
         return focus_session
@@ -233,6 +256,10 @@ class FocusService:
     ) -> FocusSession | None:
         """Get the active focus session for a user's task.
 
+        Task 5.5: Auto-stops sessions exceeding FOCUS_SESSION_TIMEOUT_MINUTES.
+        When a timed-out session is found, it is automatically ended and None
+        is returned so that a new session can be started.
+
         Args:
             user_id: The user ID
             task_id: The task ID
@@ -246,7 +273,33 @@ class FocusService:
             FocusSession.ended_at == None,  # noqa: E711
         )
         result = await self.session.execute(query)
-        return result.scalar_one_or_none()
+        session = result.scalar_one_or_none()
+
+        if session is None:
+            return None
+
+        # Task 5.5: Auto-stop sessions that exceed FOCUS_SESSION_TIMEOUT_MINUTES
+        timeout_minutes = self.settings.focus_session_timeout_minutes
+        now = datetime.now(UTC)
+        started = session.started_at
+        if started.tzinfo is None:
+            started = started.replace(tzinfo=UTC)
+        elapsed_minutes = (now - started).total_seconds() / 60
+
+        if elapsed_minutes > timeout_minutes:
+            # Auto-stop the timed-out session
+            timeout_end = started + timedelta(minutes=timeout_minutes)
+            session.ended_at = timeout_end
+            session.duration_seconds = int(timeout_minutes * 60)
+            self.session.add(session)
+            await self.session.flush()
+            logger.info(
+                f"Auto-stopped timed-out focus session {session.id} "
+                f"(elapsed={elapsed_minutes:.1f}min > timeout={timeout_minutes}min)"
+            )
+            return None
+
+        return session
 
 
 # =============================================================================

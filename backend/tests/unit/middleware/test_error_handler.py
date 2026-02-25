@@ -159,7 +159,7 @@ class TestLimitExceededError:
     def test_default_values(self):
         err = LimitExceededError()
         assert err.code == "LIMIT_EXCEEDED"
-        assert err.status_code == 409
+        assert err.status_code == 402  # FR-012 v1.2: limit exceeded → 402
 
 
 class TestVersionConflictError:

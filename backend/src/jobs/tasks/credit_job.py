@@ -18,7 +18,9 @@ from sqlalchemy import update, delete
 from sqlmodel import select
 
 from src.config import Settings
+from src.models.ai_session_counter import AISessionCounter
 from src.models.credit import AICreditLedger
+from src.models.notification import Notification
 from src.models.user import User
 from src.schemas.enums import CreditOperation, CreditType, UserTier
 
@@ -63,12 +65,20 @@ async def handle_credit_expire(
         # Step 3: Grant new daily credits to Pro users (FR-038)
         grants_count = await _grant_daily_credits(session, settings, now)
 
+        # Step 4: Cleanup expired AI session counters (Task 4.3a)
+        ai_counters_deleted = await _cleanup_ai_session_counters(session, now)
+
+        # Step 5: Prune old notifications >30 days (Task 6.2 / FR-016)
+        notifications_pruned = await _prune_old_notifications(session, now)
+
         await session.commit()
 
         logger.info(
             f"Credit job complete: {expired_count} expired, "
             f"{carryover_stats['carried_over']} carried over, "
-            f"{grants_count} daily grants"
+            f"{grants_count} daily grants, "
+            f"{ai_counters_deleted} AI counters cleaned, "
+            f"{notifications_pruned} notifications pruned"
         )
 
         return {
@@ -79,6 +89,8 @@ async def handle_credit_expire(
             "credits_carried_over": carryover_stats["carried_over"],
             "credits_expired_from_carryover": carryover_stats["expired"],
             "daily_grants": grants_count,
+            "ai_counters_deleted": ai_counters_deleted,
+            "notifications_pruned": notifications_pruned,
         }
 
     except Exception as e:
@@ -330,3 +342,54 @@ async def grant_kickstart_credits(
     logger.info(f"Granted {kickstart_amount} kickstart credits to user {user_id}")
 
     return credit_entry
+
+
+async def _cleanup_ai_session_counters(
+    session: AsyncSession,
+    now: datetime,
+) -> int:
+    """Delete expired AI session counters.
+
+    Task 4.3a: Cleanup counters where expires_at < NOW() to prevent
+    unbounded table growth (co-located with daily credit reset job).
+
+    Args:
+        session: Database session
+        now: Current time
+
+    Returns:
+        Number of expired counter rows deleted
+    """
+    stmt = delete(AISessionCounter).where(AISessionCounter.expires_at <= now)
+    result = await session.execute(stmt)
+    count = result.rowcount
+    await session.flush()
+    if count:
+        logger.info(f"Cleaned up {count} expired AI session counter rows")
+    return count
+
+
+async def _prune_old_notifications(
+    session: AsyncSession,
+    now: datetime,
+) -> int:
+    """Delete notifications older than 30 days.
+
+    Task 6.2 / FR-016 Side Effects: prune_old_notifications() running daily
+    alongside the daily credit reset job per spec MUST requirement.
+
+    Args:
+        session: Database session
+        now: Current time
+
+    Returns:
+        Number of notification rows deleted
+    """
+    cutoff = now - timedelta(days=30)
+    stmt = delete(Notification).where(Notification.created_at < cutoff)
+    result = await session.execute(stmt)
+    count = result.rowcount
+    await session.flush()
+    if count:
+        logger.info(f"Pruned {count} notifications older than 30 days")
+    return count

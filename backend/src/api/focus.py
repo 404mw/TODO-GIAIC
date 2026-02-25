@@ -21,6 +21,7 @@ from src.schemas.focus import (
 )
 from src.services.focus_service import (
     FocusService,
+    FocusDurationInvalidError,
     FocusSessionActiveError,
     FocusSessionNotFoundError,
     FocusTaskNotFoundError,
@@ -64,7 +65,16 @@ async def start_focus_session(
 ) -> DataResponse[FocusSessionResponse]:
     """T312: POST /api/v1/focus/start."""
     try:
-        session = await service.start_session(user=user, task_id=data.task_id)
+        session = await service.start_session(
+            user=user,
+            task_id=data.task_id,
+            focus_duration=data.focus_duration,
+        )
+    except FocusDurationInvalidError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": ErrorCode.VALIDATION_ERROR, "message": str(exc)},
+        )
     except FocusTaskNotFoundError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -82,6 +92,7 @@ async def start_focus_session(
     response = FocusSessionResponse(
         id=session.id,
         task_id=session.task_id,
+        goal_duration_minutes=session.goal_duration_minutes,
         started_at=session.started_at,
         ended_at=session.ended_at,
         duration_seconds=session.duration_seconds,
@@ -121,6 +132,7 @@ async def end_focus_session(
     response = FocusSessionResponse(
         id=session.id,
         task_id=session.task_id,
+        goal_duration_minutes=session.goal_duration_minutes,
         started_at=session.started_at,
         ended_at=session.ended_at,
         duration_seconds=session.duration_seconds,

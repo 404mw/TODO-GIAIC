@@ -286,6 +286,19 @@ class Settings(BaseSettings):
     )
 
     # ==========================================================================
+    # FOCUS MODE (Constitution IX.4 — configurable via .env)
+    # ==========================================================================
+    focus_session_timeout_minutes: int = Field(
+        default=90,
+        ge=1,
+        le=480,
+        description=(
+            "Maximum focus session duration in minutes before auto-stop (FR-045). "
+            "Sessions exceeding this are automatically ended when detected."
+        ),
+    )
+
+    # ==========================================================================
     # FEATURE FLAGS
     # ==========================================================================
     enable_voice_transcription: bool = Field(

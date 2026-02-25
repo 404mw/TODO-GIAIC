@@ -222,24 +222,73 @@ class TestNoteContractSchemas:
         test_user,
         db_session,
     ):
-        """POST /api/v1/notes returns 409 when limit exceeded."""
+        """POST /api/v1/notes returns 402 when limit exceeded (FR-012 v1.2)."""
         from src.models.note import Note
+        from src.lib.limits import FREE_TIER_NOTE_LIMIT
 
-        # Create 10 notes (free tier limit)
-        for i in range(10):
+        # Fill the free tier note limit
+        for i in range(FREE_TIER_NOTE_LIMIT):
             db_session.add(
                 Note(id=uuid4(), user_id=test_user.id, content=f"Note {i}")
             )
         await db_session.commit()
 
-        # Try to create 11th note
+        # Try to create one note beyond the limit
         response = await client.post(
             "/api/v1/notes",
-            json={"content": "11th note"},
+            json={"content": "Over-limit note"},
             headers={**auth_headers, "Idempotency-Key": str(uuid4())},
         )
 
-        assert response.status_code == 409
+        assert response.status_code == 402  # FR-012 v1.2: limit exceeded → 402
         data = response.json()
         assert "error" in data
         assert data["error"]["code"] == "LIMIT_EXCEEDED"
+
+    @pytest.mark.asyncio
+    async def test_create_note_response_has_no_task_id(
+        self, client: AsyncClient, auth_headers: dict, idempotency_key: str
+    ):
+        """POST /api/v1/notes response must not contain task_id (v1.2 schema)."""
+        response = await client.post(
+            "/api/v1/notes",
+            json={"content": "Standalone note"},
+            headers={**auth_headers, "Idempotency-Key": idempotency_key},
+        )
+
+        assert response.status_code == 201
+        note = response.json()["data"]
+        assert "task_id" not in note
+
+    @pytest.mark.asyncio
+    async def test_deprecated_post_task_notes_returns_410(
+        self, client: AsyncClient, auth_headers: dict
+    ):
+        """POST /api/v1/tasks/:id/notes returns 410 Gone (v1.2 deprecation)."""
+        fake_task_id = str(uuid4())
+        response = await client.post(
+            f"/api/v1/tasks/{fake_task_id}/notes",
+            json={"content": "Old style note"},
+            headers=auth_headers,
+        )
+
+        assert response.status_code == 410
+        data = response.json()
+        assert "detail" in data
+        assert data["detail"]["code"] == "ENDPOINT_GONE"
+
+    @pytest.mark.asyncio
+    async def test_deprecated_get_task_notes_returns_410(
+        self, client: AsyncClient, auth_headers: dict
+    ):
+        """GET /api/v1/tasks/:id/notes returns 410 Gone (v1.2 deprecation)."""
+        fake_task_id = str(uuid4())
+        response = await client.get(
+            f"/api/v1/tasks/{fake_task_id}/notes",
+            headers=auth_headers,
+        )
+
+        assert response.status_code == 410
+        data = response.json()
+        assert "detail" in data
+        assert data["detail"]["code"] == "ENDPOINT_GONE"

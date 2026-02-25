@@ -18,6 +18,7 @@ from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
+from src.models.note import Note
 from src.models.subtask import Subtask
 from src.models.task import TaskInstance
 from src.models.tombstone import DeletionTombstone
@@ -271,3 +272,93 @@ class RecoveryService:
 
         await self.session.refresh(task)
         return task
+
+    # -------------------------------------------------------------------------
+    # FR-013: Generic tombstone recovery (handles both TASK and NOTE)
+    # -------------------------------------------------------------------------
+
+    async def recover_tombstone(
+        self,
+        user: User,
+        tombstone_id: UUID,
+    ) -> "TaskInstance | Note":
+        """Generic tombstone recovery dispatching by entity_type.
+
+        FR-013 migration tolerance: if a NOTE tombstone's entity_data contains
+        a legacy `task_id` field (from v1.1 note tombstones), it is silently
+        ignored. The note is restored as a standalone user-owned entity.
+
+        Args:
+            user: The requesting user
+            tombstone_id: The tombstone to recover from
+
+        Returns:
+            The recovered TaskInstance (for TASK tombstones) or Note (for NOTE tombstones)
+
+        Raises:
+            TombstoneNotFoundError: If tombstone not found or access denied
+            TaskIDCollisionError: If original task ID already exists (TASK only)
+            RecoveryServiceError: If entity_type is unknown
+        """
+        tombstone = await self.get_tombstone(user=user, tombstone_id=tombstone_id)
+
+        if tombstone.entity_type == TombstoneEntityType.TASK:
+            return await self.recover_task(user=user, tombstone_id=tombstone_id)
+
+        if tombstone.entity_type == TombstoneEntityType.NOTE:
+            return await self._recover_note_from_tombstone(tombstone=tombstone, user=user)
+
+        raise RecoveryServiceError(
+            f"Unknown entity type: {tombstone.entity_type}"
+        )
+
+    async def _recover_note_from_tombstone(
+        self,
+        tombstone: DeletionTombstone,
+        user: User,
+    ) -> Note:
+        """Restore a Note from its tombstone.
+
+        FR-013 migration tolerance: legacy `task_id` field in entity_data is
+        silently ignored. The note is scoped only to `user_id`.
+
+        Args:
+            tombstone: The NOTE tombstone to recover from
+            user: The requesting user
+
+        Returns:
+            The restored Note
+        """
+        entity_data = tombstone.entity_data
+        note_id = UUID(entity_data["id"])
+
+        # FR-013: silently ignore legacy task_id field if present in entity_data
+        # (notes created before v1.2 may have task_id serialized)
+
+        note = Note(
+            id=note_id,
+            user_id=user.id,
+            content=entity_data.get("content", ""),
+            archived=entity_data.get("archived", False),
+            voice_url=entity_data.get("voice_url"),
+            voice_duration_seconds=entity_data.get("voice_duration_seconds"),
+        )
+
+        self.session.add(note)
+        await self.session.flush()
+
+        # Delete the tombstone after successful recovery
+        await self.session.delete(tombstone)
+        await self.session.flush()
+
+        logger.info(
+            "Note recovered from tombstone",
+            extra={
+                "user_id": str(user.id),
+                "note_id": str(note_id),
+                "tombstone_id": str(tombstone.id),
+            },
+        )
+
+        await self.session.refresh(note)
+        return note

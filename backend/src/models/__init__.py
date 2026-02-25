@@ -25,6 +25,7 @@ from src.models.job_queue import JobQueue
 from src.models.auth import RefreshToken
 from src.models.idempotency import IdempotencyKey
 from src.models.focus import FocusSession
+from src.models.ai_session_counter import AISessionCounter
 
 __all__ = [
     # Base models
@@ -74,4 +75,6 @@ __all__ = [
     "IdempotencyKey",
     # Focus
     "FocusSession",
+    # AI Session Counter
+    "AISessionCounter",
 ]

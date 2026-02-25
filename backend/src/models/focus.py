@@ -41,6 +41,13 @@ class FocusSession(BaseModel, table=True):
         description="Task being focused on",
     )
 
+    # User-set focus goal (Task 5.5): stored only; does not trigger auto-stop
+    goal_duration_minutes: int | None = Field(
+        default=None,
+        ge=1,
+        description="User-set focus goal in minutes (informational only)",
+    )
+
     # Session timing
     started_at: datetime = Field(
         nullable=False,

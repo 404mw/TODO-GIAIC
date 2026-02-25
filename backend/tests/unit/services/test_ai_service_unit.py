@@ -112,17 +112,116 @@ class TestBuildTaskContext:
         assert "Read book" in result
 
 
+class TestAISessionCounterRateLimit:
+    """Task 4.3a: DB-backed per-task AI request rate limiting → 429 on 11th."""
+
+    @pytest.mark.asyncio
+    async def test_11th_request_raises_ai_task_limit_exceeded(self):
+        """Simulates 2-process scenario: counter already at block_threshold → 429.
+
+        The 'simulate 11 requests via 2 processes' scenario: the DB counter
+        is already at 10 (set by prior requests from any process), so the
+        next call raises AITaskLimitExceededError (HTTP 429).
+        """
+        from src.services.ai_service import AITaskLimitExceededError
+        from src.schemas.ai import ChatRequest
+
+        service, session, settings = _make_service()
+        settings.ai_task_block_threshold = 10
+        settings.ai_task_warning_threshold = 8
+        user = _make_user()
+        task_id = uuid4()
+
+        # Counter is at 10 — the 11th request should be blocked
+        with patch.object(
+            service, "_get_session_counter", new=AsyncMock(return_value=10)
+        ):
+            with pytest.raises(AITaskLimitExceededError):
+                await service.chat(
+                    user=user,
+                    request=ChatRequest(message="Hello"),
+                    session_id="sess_proc_a",
+                    task_id=task_id,
+                )
+
+    @pytest.mark.asyncio
+    async def test_10th_request_does_not_raise(self):
+        """The 10th request (count=9) is the last allowed — should not raise rate limit."""
+        from src.services.ai_service import AITaskLimitExceededError
+        from src.schemas.ai import ChatRequest
+
+        service, session, settings = _make_service()
+        settings.ai_task_block_threshold = 10
+        settings.ai_task_warning_threshold = 8
+        settings.ai_credit_chat = 1
+        user = _make_user()
+        task_id = uuid4()
+
+        # Credit balance sufficient
+        balance_mock = MagicMock()
+        balance_mock.scalar.return_value = 50
+        session.execute.return_value = balance_mock
+        session.flush = AsyncMock()
+
+        # Counter at 9 — should proceed (will hit credit/agent path)
+        with patch.object(
+            service, "_get_session_counter", new=AsyncMock(return_value=9)
+        ):
+            with patch.object(
+                service, "_increment_session_counter", new=AsyncMock()
+            ):
+                with patch.object(
+                    service, "_call_chat_agent", new=AsyncMock(return_value=MagicMock(
+                        response="ok", suggested_actions=[], model="gpt-4"
+                    ))
+                ):
+                    with patch.object(
+                        service, "_get_credit_balance", new=AsyncMock(return_value=50)
+                    ):
+                        with patch.object(
+                            service, "_consume_credits", new=AsyncMock()
+                        ):
+                            # Should not raise AITaskLimitExceededError
+                            try:
+                                await service.chat(
+                                    user=user,
+                                    request=ChatRequest(message="Hello"),
+                                    session_id="sess_proc_b",
+                                    task_id=task_id,
+                                )
+                            except AITaskLimitExceededError:
+                                pytest.fail("10th request must not raise AITaskLimitExceededError")
+                            except Exception:
+                                # Other errors (credit, agent) are fine — we only
+                                # care that rate limit was not triggered
+                                pass
+
+
 class TestClearSessionCounters:
-    def test_clears_existing_session(self):
-        service, _, _ = _make_service()
-        service._task_request_counters["sess_123"] = {"task1": 5}
+    @pytest.mark.asyncio
+    async def test_clears_existing_session(self):
+        """Task 4.3a: clear_session_counters deletes DB rows for the session."""
+        service, session, _ = _make_service()
+        # Mock the DB execute (DELETE statement returns result with rowcount)
+        delete_result = MagicMock()
+        session.execute.return_value = delete_result
+        session.flush = AsyncMock()
 
-        service.clear_session_counters("sess_123")
-        assert "sess_123" not in service._task_request_counters
+        # Should call DB delete without raising
+        await service.clear_session_counters("sess_123")
 
-    def test_no_error_for_missing_session(self):
-        service, _, _ = _make_service()
-        service.clear_session_counters("nonexistent")
+        session.execute.assert_called_once()
+        session.flush.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_no_error_for_missing_session(self):
+        """Clearing a non-existent session is a no-op (deletes 0 rows)."""
+        service, session, _ = _make_service()
+        delete_result = MagicMock()
+        session.execute.return_value = delete_result
+        session.flush = AsyncMock()
+
+        await service.clear_session_counters("nonexistent")
 
 
 class TestRecordTranscriptionFailure:
